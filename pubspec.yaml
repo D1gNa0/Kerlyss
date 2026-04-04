@@ -1,0 +1,31 @@
+name: kerlyss
+description: "A Unified Audio ecosystem for local, Spotify, and YouTube music."
+version: 0.1.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^2.5.1
+  isar: ^3.1.0+1
+  isar_flutter_libs: ^3.1.0+1
+  just_audio: ^0.9.36
+  audio_service: ^0.18.12
+  dio: ^5.4.3
+  path_provider: ^2.1.2
+  on_audio_query: ^2.9.0
+  glassmorphism: ^3.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  isar_generator: ^3.1.0+1
+  build_runner: ^2.4.8
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/
