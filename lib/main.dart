@@ -1,13 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'presentation/theme/aether_theme.dart';
+import 'presentation/screens/home_view.dart';
+import 'data/datasources/local/isar_database_service.dart';
+import 'data/repositories/repository_providers.dart';
 
-void main() {
-  // Ensure Flutter binding is initialized
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  final isarService = IsarDatabaseService();
+  await isarService.init();
+
   runApp(
-    const ProviderScope(
-      child: KerlyssApp(),
+    ProviderScope(
+      overrides: [
+        isarDatabaseServiceProvider.overrideWithValue(isarService),
+      ],
+      child: const KerlyssApp(),
     ),
   );
 }
@@ -20,24 +29,8 @@ class KerlyssApp extends StatelessWidget {
     return MaterialApp(
       title: 'Kerlyss',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        useMaterial3: true,
-        // Aether-style aesthetics will be expanded in the theme layer
-        scaffoldBackgroundColor: Colors.black,
-      ),
-      home: const Scaffold(
-        body: Center(
-          child: Text(
-            '🎵 Kerlyss: Unified Audio Environment',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-        ),
-      ),
+      theme: AetherTheme.darkTheme,
+      home: const HomeView(),
     );
   }
 }

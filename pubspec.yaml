@@ -17,6 +17,8 @@ dependencies:
   path_provider: ^2.1.2
   on_audio_query: ^2.9.0
   glassmorphism: ^3.0.0
+  google_fonts: ^6.2.1
+  youtube_explode_dart: ^2.2.2
 
 dev_dependencies:
   flutter_test:
@@ -24,6 +26,7 @@ dev_dependencies:
   flutter_lints: ^3.0.0
   isar_generator: ^3.1.0+1
   build_runner: ^2.4.8
+  mocktail: ^1.0.3
 
 flutter:
   uses-material-design: true

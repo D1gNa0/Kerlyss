@@ -1,0 +1,228 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../state/audio_provider.dart';
+import '../state/audio_state.dart';
+import '../common/aether_glass.dart';
+import '../theme/aether_colors.dart';
+import '../common/aether_pulse_visualizer.dart';
+import 'dart:ui';
+
+class FullPlayerView extends ConsumerWidget {
+  const FullPlayerView({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final audioState = ref.watch(audioProvider);
+    final currentSong = audioState.currentSong;
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    return Scaffold(
+      backgroundColor: AetherColors.deepMatteBlack,
+      body: Stack(
+        children: [
+          // Dynamic Background Blur
+          Positioned.fill(
+            child: Container(
+              color: AetherColors.ultraDarkGray,
+              child: Opacity(
+                opacity: 0.5,
+                child: currentSong.artworkUrl != null
+                    ? Image.network(currentSong.artworkUrl!, fit: BoxFit.cover)
+                    : const SizedBox.shrink(),
+              ),
+            ),
+          ),
+          Positioned.fill(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
+              child: Container(color: Colors.black.withOpacity(0.3)),
+            ),
+          ),
+
+          // Main Content
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 28.0),
+              child: Column(
+                children: [
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 30),
+                      ),
+                      Text(
+                        'KERLYSS',
+                        style: Theme.of(context).textTheme.displayMedium?.copyWith(fontSize: 12),
+                      ),
+                      IconButton(
+                        onPressed: () {},
+                        icon: const Icon(Icons.more_horiz_rounded, size: 24),
+                      ),
+                    ],
+                  ),
+                  const Spacer(flex: 2),
+
+                  // Aether Pulse Visualizer (Behind Album Art)
+                  Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      if (audioState.status == PlaybackStatus.playing)
+                        const RepaintBoundary(
+                          child: AetherPulseVisualizer(size: 400),
+                        ),
+                      
+                      // Album Art Hero Refined
+                      Hero(
+                        tag: 'album_art_${currentSong.id}',
+                        child: Center(
+                          child: Container(
+                            width: screenWidth * 0.8,
+                            height: screenWidth * 0.8,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(24),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.6),
+                                  blurRadius: 50,
+                                  spreadRadius: 2,
+                                  offset: const Offset(0, 20),
+                                ),
+                              ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(24),
+                              child: currentSong.artworkUrl != null
+                                  ? Image.network(currentSong.artworkUrl!, fit: BoxFit.cover)
+                                  : Container(
+                                      color: AetherColors.ultraDarkGray,
+                                      child: const Icon(Icons.music_note, size: 60),
+                                    ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const Spacer(flex: 3),
+
+                  // Song Info Refined
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        currentSong.title.toUpperCase(),
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 2,
+                            ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        currentSong.artist.toUpperCase(),
+                        style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                              fontSize: 11,
+                              color: AetherColors.textSecondary,
+                            ),
+                      ),
+                    ],
+                  ),
+
+                  const Spacer(flex: 2),
+
+                  // Playback Controls Refined
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      const Icon(Icons.shuffle_rounded, color: AetherColors.textSecondary, size: 20),
+                      const Icon(Icons.skip_previous_rounded, size: 40),
+                      GestureDetector(
+                        onTap: () => ref.read(audioProvider.notifier).togglePlay(),
+                        child: Container(
+                          width: 72,
+                          height: 72,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.white.withOpacity(0.2),
+                                blurRadius: 20,
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            audioState.status == PlaybackStatus.playing
+                                ? Icons.pause_rounded
+                                : Icons.play_arrow_rounded,
+                            color: Colors.black,
+                            size: 40,
+                          ),
+                        ),
+                      ),
+                      const Icon(Icons.skip_next_rounded, size: 40),
+                      const Icon(Icons.repeat_rounded, color: AetherColors.textSecondary, size: 20),
+                    ],
+                  ),
+                  
+                  const Spacer(flex: 3),
+
+                  // Horizon Progress Bar (Thin line at the bottom)
+                  Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              _formatDuration(audioState.position),
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 10),
+                            ),
+                            Text(
+                              _formatDuration(currentSong.duration),
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 10),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          trackHeight: 2,
+                          thumbShape: SliderComponentShape.noThumb,
+                          overlayShape: SliderComponentShape.noOverlay,
+                          activeTrackColor: Colors.white,
+                          inactiveTrackColor: Colors.white.withOpacity(0.1),
+                        ),
+                        child: Slider(
+                          value: audioState.position.inSeconds.toDouble(),
+                          max: currentSong.duration.inSeconds.toDouble(),
+                          onChanged: (value) {
+                            ref.read(audioProvider.notifier).seek(Duration(seconds: value.toInt()));
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    final minutes = twoDigits(duration.inMinutes.remainder(60));
+    final seconds = twoDigits(duration.inSeconds.remainder(60));
+    return '$minutes:$seconds';
+  }
+}

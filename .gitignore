@@ -117,3 +117,15 @@ app.*.symbols
 !**/ios/**/default.perspectivev3
 !/packages/flutter_tools/test/data/dart_dependencies_test/**/.packages
 !/dev/ci/**/Gemfile.lock
+
+# Internal Engineering State (Kerlyss Protocol)
+.gemini/
+*.json
+*.tmp
+*.log
+.DS_Store
+
+# Explicitly preserve project documentation
+!docs/workflow/*.md
+!STRUCTURE_AND_PURPOSE.md
+!APP_DISTRIBUTION_GUIDE.md
