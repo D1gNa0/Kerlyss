@@ -1,6 +1,6 @@
 import 'package:string_similarity/string_similarity.dart';
-import '../../domain/entities/song_entity.dart';
-import '../../domain/entities/audio_source_type.dart';
+import '../../../domain/entities/song_entity.dart';
+import '../../../domain/entities/audio_source_type.dart';
 import 'spotify_public_service.dart';
 import 'youtube_service.dart';
 
