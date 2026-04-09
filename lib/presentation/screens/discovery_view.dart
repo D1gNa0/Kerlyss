@@ -3,19 +3,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../theme/aether_colors.dart';
 import '../common/aether_glass.dart';
 import '../common/aether_source_bottom_sheet.dart';
+import '../common/source_badge.dart';
+import '../state/discovery_search_provider.dart';
+import '../state/audio_provider.dart';
 
 class DiscoveryView extends ConsumerWidget {
   const DiscoveryView({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final searchState = ref.watch(discoverySearchProvider);
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: CustomScrollView(
         slivers: [
+          // Header & Search Input
           SliverAppBar(
-            expandedHeight: 200,
+            expandedHeight: 180,
             backgroundColor: Colors.transparent,
+            pinned: true,
             flexibleSpace: FlexibleSpaceBar(
               background: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -30,38 +37,46 @@ class DiscoveryView extends ConsumerWidget {
                   ),
                   const SizedBox(height: 24),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 32),
-                    child: GestureDetector(
-                      onTap: () {
-                        showModalBottomSheet(
-                          context: context,
-                          backgroundColor: Colors.transparent,
-                          isScrollControlled: true,
-                          builder: (context) => const AetherSourceBottomSheet(),
-                        );
-                      },
-                      child: Container(
-                        height: 54,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.05),
-                          borderRadius: BorderRadius.circular(27),
-                          border: Border.all(color: Colors.white10),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.search_rounded, color: Colors.white38, size: 20),
-                            const SizedBox(width: 12),
-                            Text(
-                              'SEARCH AETHER...',
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: Colors.white30,
-                                    letterSpacing: 2,
-                                  ),
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: AetherGlass(
+                            borderRadius: 27,
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: TextField(
+                              onChanged: (value) => 
+                                  ref.read(discoverySearchProvider.notifier).onSearchQueryChanged(value),
+                              style: const TextStyle(color: Colors.white, fontSize: 14),
+                              decoration: InputDecoration(
+                                border: InputBorder.none,
+                                hintText: 'SEARCH SONGS, ARTISTS...',
+                                hintStyle: TextStyle(
+                                  color: Colors.white.withOpacity(0.2),
+                                  fontSize: 12,
+                                  letterSpacing: 2,
+                                ),
+                                icon: const Icon(Icons.search_rounded, color: Colors.white24, size: 20),
+                              ),
                             ),
-                          ],
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 12),
+                        IconButton(
+                          onPressed: () {
+                            showModalBottomSheet(
+                              context: context,
+                              backgroundColor: Colors.transparent,
+                              isScrollControlled: true,
+                              builder: (context) => const AetherSourceBottomSheet(),
+                            );
+                          },
+                          icon: CircleAvatar(
+                            backgroundColor: Colors.white.withOpacity(0.05),
+                            child: const Icon(Icons.add_link_rounded, color: Colors.white, size: 20),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -69,49 +84,90 @@ class DiscoveryView extends ConsumerWidget {
             ),
           ),
           
-          SliverPadding(
-            padding: const EdgeInsets.all(24),
-            sliver: SliverToBoxAdapter(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'TRENDING SOURCES',
-                    style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                          fontSize: 11,
-                          letterSpacing: 2,
+          // Result Body
+          if (searchState.isLoading)
+            const SliverFillRemaining(
+              child: Center(child: CircularProgressIndicator(color: Colors.white24)),
+            )
+          else if (searchState.results.isNotEmpty)
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    final song = searchState.results[index];
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12.0),
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        tileColor: Colors.white.withOpacity(0.02),
+                        leading: Stack(
+                          alignment: Alignment.bottomRight,
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.network(
+                                song.albumArtUrl ?? 'https://picsum.photos/seed/placeholder/200/200',
+                                width: 44,
+                                height: 44,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            SourceBadge(source: song.sourceType),
+                          ],
                         ),
-                  ),
-                  const SizedBox(height: 24),
-                  // Mock Grid for Discovery
-                  GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 16,
-                      mainAxisSpacing: 16,
-                      childAspectRatio: 0.8,
+                        title: Text(
+                          song.title,
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 14),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Text(
+                          song.artist,
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 12),
+                        ),
+                        onTap: () {
+                          // Pass actual song data to player
+                          ref.read(audioProvider.notifier).playSong(
+                                SongMetadata(
+                                  id: song.id,
+                                  title: song.title,
+                                  artist: song.artist,
+                                  album: song.album,
+                                  artworkUrl: song.albumArtUrl,
+                                  duration: song.duration,
+                                  source: song.sourceType,
+                                ), 
+                                song.sourceUrl,
+                              );
+                        },
+                      ),
+                    );
+                  },
+                  childCount: searchState.results.length,
+                ),
+              ),
+            )
+          else
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.explore_outlined, color: Colors.white10, size: 48),
+                    const SizedBox(height: 16),
+                    Text(
+                      searchState.query.isEmpty ? 'START YOUR SEARCH' : 'NO RESULTS FOUND',
+                      style: const TextStyle(color: Colors.white12, letterSpacing: 2, fontSize: 10),
                     ),
-                    itemCount: 4,
-                    itemBuilder: (context, index) {
-                      return AetherGlass(
-                        borderRadius: 20,
-                        opacity: 0.05,
-                        child: Center(
-                          child: Icon(
-                            Icons.explore_outlined,
-                            color: Colors.white10,
-                            size: 40,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
+          
+          const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
       ),
     );

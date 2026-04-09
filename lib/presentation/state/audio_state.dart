@@ -1,3 +1,5 @@
+import '../../domain/entities/audio_source_type.dart';
+
 enum PlaybackStatus {
   idle,
   loading,
@@ -9,7 +11,6 @@ enum PlaybackStatus {
   error
 }
 
-enum SourceType { local, youtube, spotify }
 
 class SongMetadata {
   final String id;
@@ -27,7 +28,7 @@ class SongMetadata {
     this.album,
     this.artworkUrl,
     required this.duration,
-    this.source = SourceType.local,
+    this.source = AudioSourceType.local,
   });
 
   factory SongMetadata.empty() => const SongMetadata(

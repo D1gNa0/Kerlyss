@@ -4,9 +4,11 @@ import '../theme/aether_colors.dart';
 import '../state/audio_provider.dart';
 import '../state/audio_state.dart';
 import '../state/link_resolver_provider.dart';
-import '../common/aether_link_bar.dart';
 import '../common/aether_loading_pulse.dart';
 import '../common/source_badge.dart';
+import '../../domain/entities/audio_source_type.dart';
+import 'settings_view.dart';
+import 'profile_view.dart';
 
 class HomeView extends ConsumerWidget {
   const HomeView({super.key});
@@ -27,7 +29,12 @@ class HomeView extends ConsumerWidget {
             leading: Padding(
               padding: const EdgeInsets.only(left: 16.0),
               child: IconButton(
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const ProfileView()),
+                  );
+                },
                 icon: CircleAvatar(
                   radius: 14,
                   backgroundColor: AetherColors.glassWhite,
@@ -46,7 +53,12 @@ class HomeView extends ConsumerWidget {
               Padding(
                 padding: const EdgeInsets.only(right: 16.0),
                 child: IconButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const SettingsView()),
+                    );
+                  },
                   icon: const Icon(Icons.settings_outlined, size: 22, color: AetherColors.textSecondary),
                 ),
               ),
@@ -72,7 +84,7 @@ class HomeView extends ConsumerWidget {
             ),
           ),
 
-          // Phase 3: Link Import UI
+          // Phase 3 & 4: Link Import UI (Conditional Pulse only, Bar removed )
           SliverToBoxAdapter(
             child: Consumer(
               builder: (context, ref, child) {
@@ -86,9 +98,9 @@ class HomeView extends ConsumerWidget {
                     ),
                   );
                 } else if (resolverState.status == LinkResolverStatus.success) {
-                  return const ResolutionPreviewCard();
+                  return ResolutionPreviewCard();
                 } else {
-                  return const AetherLinkSearchBar();
+                  return const SizedBox.shrink();
                 }
               },
             ),
@@ -102,11 +114,11 @@ class HomeView extends ConsumerWidget {
                 (context, index) {
                   final song = SongMetadata(
                     id: 'song_$index',
-                    title: 'Aether Track $index',
+                    title: 'Current Aether Track',
                     artist: 'Flux Architect',
                     duration: const Duration(minutes: 3, seconds: 45),
                     artworkUrl: 'https://picsum.photos/seed/${index+20}/400/400',
-                    source: index % 3 == 0 ? SourceType.local : (index % 3 == 1 ? SourceType.youtube : SourceType.spotify),
+                    source: index % 3 == 0 ? AudioSourceType.local : (index % 3 == 1 ? AudioSourceType.youtube : AudioSourceType.spotify),
                   );
 
                   return Padding(
@@ -151,7 +163,7 @@ class HomeView extends ConsumerWidget {
                     ),
                   );
                 },
-                childCount: 15,
+                childCount: 3,
               ),
             ),
           ),
