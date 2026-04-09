@@ -6,6 +6,7 @@ import '../state/audio_state.dart';
 import '../state/link_resolver_provider.dart';
 import '../common/aether_loading_pulse.dart';
 import '../common/source_badge.dart';
+import '../common/aether_link_bar.dart';
 import '../../domain/entities/audio_source_type.dart';
 import 'settings_view.dart';
 import 'profile_view.dart';

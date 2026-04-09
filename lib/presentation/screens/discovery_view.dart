@@ -6,6 +6,7 @@ import '../common/aether_source_bottom_sheet.dart';
 import '../common/source_badge.dart';
 import '../state/discovery_search_provider.dart';
 import '../state/audio_provider.dart';
+import '../state/audio_state.dart';
 
 class DiscoveryView extends ConsumerWidget {
   const DiscoveryView({super.key});

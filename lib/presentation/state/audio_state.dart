@@ -19,7 +19,7 @@ class SongMetadata {
   final String? album;
   final String? artworkUrl;
   final Duration duration;
-  final SourceType source;
+  final AudioSourceType source;
 
   const SongMetadata({
     required this.id,
