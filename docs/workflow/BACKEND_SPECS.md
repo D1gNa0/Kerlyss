@@ -41,5 +41,10 @@ class SongEntity {
 *   **Extraction Requirement:** Resolve `sourceUrl` from a YouTube ID/URL into a direct Opus/AAC stream URI.
 *   **Caching Policy:** Implement a tiered caching system—Metadata (Isar) | Stream Headers (Memory).
 
+### Search Aggregator (Discovery Engine)
+*   **Logic:** `SearchAggregator` performs sequential requests to Spotify (Public Metadata) and YouTube (Audio).
+*   **Fuzzy Matching:** Implement a weighting system—Title (1.0) | Artist (0.8). If score > 0.85, merge into a single `SongEntity`.
+*   **Enrichment:** Prefer Spotify artwork (640px) as the primary visual asset.
+
 ---
-**Lead Backend Dev Note:** No hardcoded API keys. Use environment variables defined in `.env` (excluded from git).
+**Lead Backend Dev Note:** No hardcoded API keys. Use environment variables defined in `.env`. Focus on performance—search requests must be parallelized where possible.

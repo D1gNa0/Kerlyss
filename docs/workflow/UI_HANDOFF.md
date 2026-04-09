@@ -29,5 +29,15 @@ The design language for Kerlyss is derived from the "Aether" design system—foc
 *   **Source:** Bind to the `audioProvider` stream for real-time frequency data.
 *   **Aesthetic:** Glowing particles or smooth waveform with dynamic opacity (10% - 40%) based on volume.
 
+### Aether Shell Navigation
+*   **Structure:** BottomNavigationBar with 3 items: **Discover**, **Library**, **Settings**.
+*   **Aesthetic:** Transparent glass blur with minimalist icons (Outlined when idle, Filled when active).
+*   **Transition:** Cross-fade between tabs with a 200ms duration.
+
+### Discovery UI
+*   **Search Bar:** Centered, floating glass design.
+*   **Import Bridge:** A BottomSheet containing options for [Spotify Playlist Link] and [YouTube Link].
+*   **Source Badging:** Each song card must show a subtle hybrid badge for its metadata/audio source.
+
 ---
 **Senior UI/UX Note:** Priority is on smoothness. Ensure all animations are at 60fps. Use `RepaintBoundary` for heavy widgets like the visualizer.

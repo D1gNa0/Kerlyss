@@ -9,6 +9,8 @@ enum PlaybackStatus {
   error
 }
 
+enum SourceType { local, youtube, spotify }
+
 class SongMetadata {
   final String id;
   final String title;
@@ -16,6 +18,7 @@ class SongMetadata {
   final String? album;
   final String? artworkUrl;
   final Duration duration;
+  final SourceType source;
 
   const SongMetadata({
     required this.id,
@@ -24,6 +27,7 @@ class SongMetadata {
     this.album,
     this.artworkUrl,
     required this.duration,
+    this.source = SourceType.local,
   });
 
   factory SongMetadata.empty() => const SongMetadata(

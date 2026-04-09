@@ -90,7 +90,6 @@ class AetherPulsePainter extends CustomPainter {
       final double ringOffset = (animationValue + (i * 0.33)) % 1.0;
       final double opacity = (1.0 - ringOffset) * 0.4; // 10% - 40% range
       
-      // Calculate dynamic radius based on frequency bands (average of first 4 for bass)
       final double bassBoost = bands.take(4).reduce((a, b) => a + b) / 4.0;
       final double targetRadius = baseRadius + (ringOffset * 60) + (bassBoost * 20);
 
@@ -99,9 +98,9 @@ class AetherPulsePainter extends CustomPainter {
 
       canvas.drawCircle(center, targetRadius, paint);
 
-      // Draw frequency segments (Smooth Waveform)
       _drawFrequencyWave(canvas, center, targetRadius, opacity);
     }
+    Timeline.finishSync();
   }
 
   void _drawFrequencyWave(Canvas canvas, Offset center, double radius, double opacity) {
@@ -113,11 +112,9 @@ class AetherPulsePainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
 
-    Timeline.startSync('AetherPulse:ShaderCreation');
     paint.shader = LinearGradient(
       colors: [primaryColor.withOpacity(opacity), secondaryColor.withOpacity(opacity)],
     ).createShader(Rect.fromCircle(center: center, radius: radius + 20));
-    Timeline.finishSync();
 
     for (int i = 0; i <= points; i++) {
       final double angle = i * angleStep;
@@ -134,7 +131,6 @@ class AetherPulsePainter extends CustomPainter {
       }
     }
     canvas.drawPath(wavePath, paint);
-    Timeline.finishSync();
   }
 
   @override

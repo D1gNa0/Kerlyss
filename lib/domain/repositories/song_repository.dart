@@ -18,4 +18,7 @@ abstract class SongRepository {
 
   /// Resolves the direct stream URI for a song (e.g. YouTube stream).
   Future<String> resolveStreamUri(String songId);
+
+  /// Resolves metadata from a Spotify URL and mirrors it to a YouTube stream.
+  Future<SongEntity> getSongFromSpotifyUrl(String url);
 }
