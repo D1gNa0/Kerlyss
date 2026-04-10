@@ -1,28 +1,34 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:just_audio/just_audio.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import 'audio_state.dart';
-import '../../data/repositories/repository_providers.dart';
-import '../../data/datasources/remote/youtube_audio_engine.dart';
-import '../../data/datasources/remote/youtube_audio_source.dart';
 
 final audioProvider = StateNotifierProvider<AudioNotifier, AudioState>((ref) {
-  final ytEngine = ref.watch(youtubeAudioEngineProvider);
-  return AudioNotifier(ytEngine);
+  return AudioNotifier();
 });
 
+/// Audio engine backed by media_kit (libmpv).
+/// Replaces just_audio_windows which had unfixable threading crashes.
+///
+/// YouTube resolution strategy:
+///   1. Extract video ID from any source URL format
+///   2. Use youtube_explode_dart to get the signed CDN URL + provide YouTube headers
+///   3. media_kit / libmpv passes headers on every HTTP request (including range requests)
+///   → Seeking works natively, no buffer-all-first issue.
 class AudioNotifier extends StateNotifier<AudioState> {
-  final AudioPlayer _player = AudioPlayer();
-  final YoutubeAudioEngine _ytEngine;
-  StreamSubscription? _positionSubscription;
-  StreamSubscription? _playerStateSubscription;
-  
-  // Visualizer Stream
+  final Player _player = Player();
+  final YoutubeExplode _yt = YoutubeExplode();
+
+  // Visualizer
   final _frequencyController = StreamController<List<double>>.broadcast();
   Stream<List<double>> get frequencyStream => _frequencyController.stream;
   Timer? _visualizerTimer;
 
-  AudioNotifier(this._ytEngine)
+  // Subscriptions
+  final List<StreamSubscription> _subs = [];
+
+  AudioNotifier()
       : super(AudioState(
           currentSong: SongMetadata.empty(),
           status: PlaybackStatus.idle,
@@ -34,45 +40,52 @@ class AudioNotifier extends StateNotifier<AudioState> {
   }
 
   void _init() {
-    _playerStateSubscription = _player.playerStateStream.listen((state) {
-      PlaybackStatus status;
-      if (state.processingState == ProcessingState.loading) {
-        status = PlaybackStatus.loading;
-      } else if (state.processingState == ProcessingState.buffering) {
-        status = PlaybackStatus.buffering;
-      } else if (state.processingState == ProcessingState.ready) {
-        status = state.playing ? PlaybackStatus.playing : PlaybackStatus.paused;
-      } else if (state.processingState == ProcessingState.completed) {
-        status = PlaybackStatus.completed;
-      } else {
-        status = PlaybackStatus.idle;
+    _subs.add(_player.stream.playing.listen((playing) {
+      if (!mounted) return;
+      state = state.copyWith(
+        status: playing ? PlaybackStatus.playing : PlaybackStatus.paused,
+      );
+    }));
+
+    _subs.add(_player.stream.position.listen((pos) {
+      if (!mounted) return;
+      state = state.copyWith(position: pos);
+    }));
+
+    _subs.add(_player.stream.buffering.listen((buffering) {
+      if (!mounted) return;
+      if (buffering && state.status == PlaybackStatus.loading) {
+        state = state.copyWith(status: PlaybackStatus.buffering);
       }
-      this.state = this.state.copyWith(status: status);
-    });
+    }));
 
-    _positionSubscription = _player.positionStream.listen((pos) {
-      this.state = this.state.copyWith(position: pos);
-    });
+    _subs.add(_player.stream.completed.listen((completed) {
+      if (!mounted) return;
+      if (completed) {
+        state = state.copyWith(status: PlaybackStatus.completed);
+      }
+    }));
 
-    _player.bufferedPositionStream.listen((buf) {
-      this.state = this.state.copyWith(bufferedPosition: buf);
-    });
+    _subs.add(_player.stream.error.listen((error) {
+      if (!mounted) return;
+      if (error != null) {
+        state = state.copyWith(status: PlaybackStatus.error);
+      }
+    }));
   }
 
-  // Aether Pulse: Procedural frequency generator for real-time visual feedback
   void _startVibrancyLoop() {
     _visualizerTimer?.cancel();
-    _visualizerTimer = Timer.periodic(const Duration(milliseconds: 50), (timer) {
+    _visualizerTimer = Timer.periodic(const Duration(milliseconds: 50), (_) {
+      if (!mounted) return;
       if (state.status == PlaybackStatus.playing) {
-        // Generate pseudo-FFT data (16 bands)
-        // Highs on the right, Bass on the left
-        final List<double> bands = List.generate(16, (index) {
-          final double base = (1.0 - (index / 16.0)) * 0.4; // Slightly more power in bass
-          return (base + (DateTime.now().millisecond % 1000) / 1000.0 * 0.6).clamp(0.1, 1.0);
+        final List<double> bands = List.generate(16, (i) {
+          final double base = (1.0 - (i / 16.0)) * 0.4;
+          return (base + (DateTime.now().millisecond % 1000) / 1000.0 * 0.6)
+              .clamp(0.1, 1.0);
         });
         _frequencyController.add(bands);
       } else {
-        // Fade to zero when not playing
         _frequencyController.add(List.generate(16, (_) => 0.0));
       }
     });
@@ -81,38 +94,54 @@ class AudioNotifier extends StateNotifier<AudioState> {
   Future<void> playSong(SongMetadata song, String sourceUrl) async {
     state = state.copyWith(currentSong: song, status: PlaybackStatus.loading);
     try {
-      // Extract YouTube video ID from any format
+      // 1. Extract YouTube video ID from any format:
+      //    - https://www.youtube.com/watch?v=VIDEO_ID
+      //    - https://youtu.be/VIDEO_ID
+      //    - bare VIDEO_ID string
       String? videoId;
       final uri = Uri.tryParse(sourceUrl);
-      if (uri != null && (uri.host.contains('youtube') || uri.host.contains('youtu.be'))) {
+      if (uri != null &&
+          (uri.host.contains('youtube') || uri.host.contains('youtu.be'))) {
         videoId = uri.queryParameters['v'] ?? uri.pathSegments.lastOrNull;
       } else if (!sourceUrl.startsWith('http')) {
         videoId = sourceUrl;
       }
 
+      String streamUrl;
+      Map<String, String> headers = {};
+
       if (videoId != null && videoId.isNotEmpty) {
-        // Use YoutubeAudioSource — pipes bytes through youtube_explode's
-        // own authenticated HTTP client. This bypasses the header restriction
-        // that causes [just_audio_windows] Media error on raw CDN URLs.
-        final source = YoutubeAudioSource(videoId: videoId);
-        await _player.setAudioSource(source);
+        // 2. Resolve signed CDN URL via youtube_explode_dart
+        final manifest =
+            await _yt.videos.streamsClient.getManifest(videoId);
+        final info = manifest.audioOnly.withHighestBitrate();
+        streamUrl = info.url.toString();
+
+        // 3. YouTube headers that libmpv WILL send on every request.
+        //    This is what just_audio_windows was missing entirely.
+        headers = {
+          'User-Agent':
+              'com.google.android.youtube/17.36.4 (Linux; U; Android 12; GB) gzip',
+          'Origin': 'https://www.youtube.com',
+          'Referer': 'https://www.youtube.com/',
+        };
       } else {
-        // Fallback: direct URL (for local files or non-YouTube sources)
-        await _player.setUrl(sourceUrl);
+        streamUrl = sourceUrl;
       }
 
-      _player.play();
+      // 4. Open via media_kit. libmpv handles range requests, seeking,
+      //    and buffering natively with these headers attached.
+      await _player.open(Media(streamUrl, httpHeaders: headers));
+
     } catch (e) {
-      state = state.copyWith(status: PlaybackStatus.error);
+      if (mounted) {
+        state = state.copyWith(status: PlaybackStatus.error);
+      }
     }
   }
 
   void togglePlay() {
-    if (_player.playing) {
-      _player.pause();
-    } else {
-      _player.play();
-    }
+    _player.playOrPause();
   }
 
   void seek(Duration position) {
@@ -121,11 +150,13 @@ class AudioNotifier extends StateNotifier<AudioState> {
 
   @override
   void dispose() {
-    _positionSubscription?.cancel();
-    _playerStateSubscription?.cancel();
+    for (final sub in _subs) {
+      sub.cancel();
+    }
     _visualizerTimer?.cancel();
     _frequencyController.close();
     _player.dispose();
+    _yt.close();
     super.dispose();
   }
 }

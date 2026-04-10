@@ -21,11 +21,12 @@ class DiscoveryView extends ConsumerWidget {
       backgroundColor: Colors.transparent,
       body: CustomScrollView(
         slivers: [
-          // Header & Search Input
+          // Header — no actions, clean
           SliverAppBar(
             expandedHeight: 100,
             backgroundColor: Colors.transparent,
             pinned: true,
+            automaticallyImplyLeading: false,
             flexibleSpace: FlexibleSpaceBar(
               centerTitle: true,
               title: Text(
@@ -37,69 +38,60 @@ class DiscoveryView extends ConsumerWidget {
                     ),
               ),
             ),
-            actions: [
-              // STUB: filter/sort menu — not yet implemented
-              Tooltip(
-                message: 'STUB — Filter/Sort not implemented',
-                child: Stack(
-                  children: [
-                    IconButton(
-                      onPressed: () {},
-                      icon: const Icon(Icons.tune_rounded, color: Colors.white24, size: 22),
-                    ),
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Container(
-                        width: 7,
-                        height: 7,
-                        decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // Link import — functional
-              IconButton(
-                onPressed: () {
-                  showModalBottomSheet(
-                    context: context,
-                    backgroundColor: Colors.transparent,
-                    isScrollControlled: true,
-                    builder: (context) => const AetherSourceBottomSheet(),
-                  );
-                },
-                icon: const Icon(Icons.add_link_rounded, color: Colors.white54, size: 22),
-              ),
-              const SizedBox(width: 8),
-            ],
           ),
           
-          // Search Input
+          // Search Input + Import Button
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
-              child: SizedBox(
-                height: 56, // Bound the infinite height of AetherGlass
-                child: AetherGlass(
-                  borderRadius: 16,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                  child: TextField(
-                    onChanged: (value) => 
-                        ref.read(discoverySearchProvider.notifier).onSearchQueryChanged(value),
-                    style: const TextStyle(color: Colors.white, fontSize: 14),
-                    decoration: InputDecoration(
-                      border: InputBorder.none,
-                      hintText: 'SEARCH SONGS, ARTISTS...',
-                      hintStyle: TextStyle(
-                        color: Colors.white.withOpacity(0.2),
-                        fontSize: 12,
-                        letterSpacing: 2,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 56,
+                      child: AetherGlass(
+                        borderRadius: 16,
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                        child: TextField(
+                          onChanged: (value) =>
+                              ref.read(discoverySearchProvider.notifier).onSearchQueryChanged(value),
+                          style: const TextStyle(color: Colors.white, fontSize: 14),
+                          decoration: InputDecoration(
+                            border: InputBorder.none,
+                            hintText: 'SEARCH SONGS, ARTISTS...',
+                            hintStyle: TextStyle(
+                              color: Colors.white.withOpacity(0.2),
+                              fontSize: 12,
+                              letterSpacing: 2,
+                            ),
+                            icon: const Icon(Icons.search_rounded, color: Colors.white24, size: 20),
+                          ),
+                        ),
                       ),
-                      icon: const Icon(Icons.search_rounded, color: Colors.white24, size: 20),
                     ),
                   ),
-                ),
+                  const SizedBox(width: 12),
+                  // Import Source button — paste a YouTube/Spotify link
+                  SizedBox(
+                    height: 56,
+                    child: AetherGlass(
+                      borderRadius: 16,
+                      padding: EdgeInsets.zero,
+                      child: IconButton(
+                        onPressed: () {
+                          showModalBottomSheet(
+                            context: context,
+                            backgroundColor: Colors.transparent,
+                            isScrollControlled: true,
+                            builder: (context) => const AetherSourceBottomSheet(),
+                          );
+                        },
+                        icon: const Icon(Icons.add_link_rounded, color: Colors.white70, size: 22),
+                        tooltip: 'Import from YouTube / Spotify link',
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:media_kit/media_kit.dart';
 import 'package:window_manager/window_manager.dart';
 import 'core/services/logger_service.dart';
 import 'presentation/theme/aether_theme.dart';
@@ -11,6 +12,7 @@ import 'presentation/screens/main_shell_view.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  MediaKit.ensureInitialized(); // Must be called before any Player() is created
   await Log.init();
 
   final isarService = IsarDatabaseService();
