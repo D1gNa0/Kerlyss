@@ -11,14 +11,20 @@ class SearchAggregator {
   SearchAggregator(this._spotifyService, this._youtubeService);
 
   Future<List<SongEntity>> search(String query) async {
-    // 1. Parallel Search
-    final results = await Future.wait([
-      _spotifyService.searchTracks(query),
-      _youtubeService.searchVideos(query),
-    ]);
+    // 1. Parallel Search (Robust against individual failures)
+    List<Map<String, dynamic>> spotifyResults = [];
+    List<dynamic> youtubeResults = [];
 
-    final spotifyResults = results[0] as List<Map<String, dynamic>>;
-    final youtubeResults = (results[1] as List).cast<dynamic>();
+    try {
+      final results = await Future.wait([
+        _spotifyService.searchTracks(query).catchError((_) => <Map<String, dynamic>>[]),
+        _youtubeService.searchVideos(query).catchError((_) => []),
+      ]);
+      spotifyResults = results[0] as List<Map<String, dynamic>>;
+      youtubeResults = results[1] as List<dynamic>;
+    } catch (e) {
+      throw Exception('Search Aggregator failed to initialize network connections: $e');
+    }
 
     final List<SongEntity> aggregatedResults = [];
     final Set<String> matchedYoutubeIds = {};

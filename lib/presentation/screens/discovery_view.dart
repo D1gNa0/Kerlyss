@@ -150,6 +150,32 @@ class DiscoveryView extends ConsumerWidget {
                 ),
               ),
             )
+          else if (searchState.error != null)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 48),
+                      const SizedBox(height: 16),
+                      Text(
+                        'SEARCH FAILED',
+                        style: const TextStyle(color: Colors.redAccent, letterSpacing: 2, fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        searchState.error!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.white70, fontSize: 10),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            )
           else
             SliverFillRemaining(
               hasScrollBody: false,
