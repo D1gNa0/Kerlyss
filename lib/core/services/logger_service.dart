@@ -56,6 +56,7 @@ class Log {
     );
     
     i('Kerlyss Logger Initialized.');
+    i('Log file: ${_fileOutput.file?.path ?? "File logging unavailable"}');
   }
 
   /// Log a message at level [Level.trace].
