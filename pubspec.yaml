@@ -24,7 +24,7 @@ dependencies:
   window_manager: ^0.5.1
   logger: ^2.7.0
   media_kit: ^1.2.6
-  media_kit_libs_windows_audio: ^1.0.9
+  media_kit_libs_windows_video: ^1.0.11
 
 dev_dependencies:
   flutter_test:
