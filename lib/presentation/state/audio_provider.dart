@@ -2,13 +2,17 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 import 'audio_state.dart';
+import '../../data/repositories/repository_providers.dart';
+import '../../data/datasources/remote/youtube_audio_engine.dart';
 
 final audioProvider = StateNotifierProvider<AudioNotifier, AudioState>((ref) {
-  return AudioNotifier();
+  final ytEngine = ref.watch(youtubeAudioEngineProvider);
+  return AudioNotifier(ytEngine);
 });
 
 class AudioNotifier extends StateNotifier<AudioState> {
   final AudioPlayer _player = AudioPlayer();
+  final YoutubeAudioEngine _ytEngine;
   StreamSubscription? _positionSubscription;
   StreamSubscription? _playerStateSubscription;
   
@@ -17,7 +21,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
   Stream<List<double>> get frequencyStream => _frequencyController.stream;
   Timer? _visualizerTimer;
 
-  AudioNotifier()
+  AudioNotifier(this._ytEngine)
       : super(AudioState(
           currentSong: SongMetadata.empty(),
           status: PlaybackStatus.idle,
@@ -73,10 +77,28 @@ class AudioNotifier extends StateNotifier<AudioState> {
     });
   }
 
-  Future<void> playSong(SongMetadata song, String url) async {
+  Future<void> playSong(SongMetadata song, String sourceUrl) async {
     state = state.copyWith(currentSong: song, status: PlaybackStatus.loading);
     try {
-      await _player.setUrl(url);
+      // sourceUrl from Isar is a YouTube video URL (youtube.com/watch?v=ID)
+      // or just a video ID. We must resolve the actual audio stream URI first.
+      String streamUrl = sourceUrl;
+      
+      // Extract YouTube video ID from any format
+      String? videoId;
+      final uri = Uri.tryParse(sourceUrl);
+      if (uri != null && (uri.host.contains('youtube') || uri.host.contains('youtu.be'))) {
+        videoId = uri.queryParameters['v'] ?? uri.pathSegments.lastOrNull;
+      } else if (!sourceUrl.startsWith('http')) {
+        // Treat bare strings as video IDs
+        videoId = sourceUrl;
+      }
+
+      if (videoId != null && videoId.isNotEmpty) {
+        streamUrl = await _ytEngine.getStreamUri(videoId);
+      }
+
+      await _player.setUrl(streamUrl);
       _player.play();
     } catch (e) {
       state = state.copyWith(status: PlaybackStatus.error);

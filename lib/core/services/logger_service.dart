@@ -9,12 +9,17 @@ class _FileSysLogOutput extends LogOutput {
 
   Future<void> init() async {
     try {
-      final dir = await getApplicationSupportDirectory();
-      file = File('${dir.path}/kerlyss_runtime.log');
+      final dir = await getApplicationDocumentsDirectory();
+      // Place logs in a named "Kerlyss" subfolder so the user can find them
+      final logDir = Directory('${dir.path}/Kerlyss');
+      if (!await logDir.exists()) {
+        await logDir.create(recursive: true);
+      }
+      file = File('${logDir.path}/kerlyss_runtime.log');
       
       // Print boundary for cold start
       if (await file!.exists()) {
-        await file!.writeAsString('\n--- NEW SESSION BOOT ---\n', mode: FileMode.append);
+        await file!.writeAsString('\n--- NEW SESSION ---\n', mode: FileMode.append);
       }
     } catch (e) {
       // If we can't create the file, we fail silently to not break boot

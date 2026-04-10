@@ -1,14 +1,12 @@
-import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:window_manager/window_manager.dart';
 import '../state/navigation_provider.dart';
 import '../state/audio_provider.dart';
 import 'home_view.dart';
 import 'discovery_view.dart';
 import '../common/aether_bottom_nav.dart';
 import '../common/mini_player.dart';
+import '../common/aether_title_bar.dart';
 import '../theme/aether_colors.dart';
 
 class MainShellView extends ConsumerWidget {
@@ -33,22 +31,8 @@ class MainShellView extends ConsumerWidget {
             ],
           ),
 
-          // Custom Desktop Title Bar (Frameless Wrap)
-          if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS))
-            const Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: SizedBox(
-                height: 32,
-                child: DragToMoveArea(
-                  child: WindowCaption(
-                    brightness: Brightness.dark,
-                    backgroundColor: Colors.transparent,
-                  ),
-                ),
-              ),
-            ),
+          // Custom Desktop Title Bar
+          const AetherTitleBar(),
 
           // Global Player & Navigation
           Align(

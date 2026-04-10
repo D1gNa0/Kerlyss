@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../state/audio_provider.dart';
 import '../state/audio_state.dart';
 import '../common/aether_glass.dart';
+import '../common/aether_title_bar.dart';
 import '../theme/aether_colors.dart';
 import '../common/aether_pulse_visualizer.dart';
 import 'dart:ui';
@@ -38,6 +39,9 @@ class FullPlayerView extends ConsumerWidget {
               child: Container(color: Colors.black.withOpacity(0.3)),
             ),
           ),
+
+          // Custom Desktop Title Bar (drag-to-move works in full player too)
+          const AetherTitleBar(showTitle: true),
 
           // Main Content
           SafeArea(
