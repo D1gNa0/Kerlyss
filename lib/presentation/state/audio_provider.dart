@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kerlyss/core/services/logger_service.dart';
+import 'package:kerlyss/core/services/youtube_proxy_server.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import 'audio_state.dart';
@@ -127,33 +129,27 @@ class AudioNotifier extends StateNotifier<AudioState> {
 
       if (videoId != null && videoId.isNotEmpty) {
         // 2. Resolve signed CDN URL via youtube_explode_dart
-        // We explicitly request the mp4 container. The stripped-down
-        // media_kit_libs_windows_audio libmpv binary might lack Opus/WebM decoders.
-        final manifest =
-            await _yt.videos.streamsClient.getManifest(videoId);
-        final audioStreams = manifest.audioOnly;
-        final info = audioStreams
-                .where((s) => s.container.name == 'mp4' || s.codec.mimeType.contains('mp4'))
-                .lastOrNull ??
-            audioStreams.withHighestBitrate();
-            
-        streamUrl = info.url.toString();
-        Log.i('playSong -> Extracted progressive streamUrl: ${streamUrl.substring(0, 40)}...');
+        // Start the proxy server to handle streaming internally and absolutely bypass 403s
+        final port = await YoutubeProxyServer.start();
+        final proxyUrl = 'http://127.0.0.1:$port/?id=$videoId';
+
+        Log.i('playSong -> Instructing media_kit to open PROXY stream: $proxyUrl');
+        
+        // Pass standard headers just in case, though the proxy handles the fetch.
+        final headers = {
+          'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        };
+
+        await _player.open(Media(proxyUrl, httpHeaders: headers));
+        Log.i('playSong -> media_kit instructed successfully.');
+
       } else {
-        streamUrl = sourceUrl;
-        Log.i('playSong -> Using raw streamUrl: $streamUrl');
+        final streamUrl = sourceUrl;
+        Log.i('playSong -> Instructing media_kit to open direct stream...');
+        await _player.open(Media(streamUrl));
+        Log.i('playSong -> media_kit instructed successfully.');
       }
-
-      // 3. YouTube CDN returns 403 Forbidden if libmpv uses its default User-Agent.
-      // We must pass a standard browser User-Agent so the CDN accepts the connection.
-      final headers = {
-        'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      };
-
-      Log.i('playSong -> Instructing media_kit to open stream...');
-      await _player.open(Media(streamUrl, httpHeaders: headers));
-      Log.i('playSong -> media_kit instructed successfully.');
 
     } catch (e, stacktrace) {
       Log.e('playSong -> FATAL ERROR during launch: $e');
