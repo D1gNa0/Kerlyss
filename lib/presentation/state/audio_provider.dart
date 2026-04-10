@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import 'audio_state.dart';
+import '../../core/services/logger_service.dart';
 
 final audioProvider = StateNotifierProvider<AudioNotifier, AudioState>((ref) {
   return AudioNotifier();
@@ -42,15 +43,22 @@ class AudioNotifier extends StateNotifier<AudioState> {
   void _init() {
     _subs.add(_player.stream.playing.listen((playing) {
       if (!mounted) return;
+      Log.i('media_kit playing: $playing');
       state = state.copyWith(
         status: playing ? PlaybackStatus.playing : PlaybackStatus.paused,
       );
+    }));
+
+    _subs.add(_player.stream.log.listen((event) {
+      Log.i('MPV LOG: [${event.level}] ${event.prefix}: ${event.text}');
     }));
 
     _subs.add(_player.stream.position.listen((pos) {
       if (!mounted) return;
       state = state.copyWith(position: pos);
     }));
+    
+    _player.setVolume(100.0);
 
     _subs.add(_player.stream.buffering.listen((buffering) {
       if (!mounted) return;
@@ -112,9 +120,16 @@ class AudioNotifier extends StateNotifier<AudioState> {
 
       if (videoId != null && videoId.isNotEmpty) {
         // 2. Resolve signed CDN URL via youtube_explode_dart
+        // We explicitly request the mp4 container. The stripped-down
+        // media_kit_libs_windows_audio libmpv binary might lack Opus/WebM decoders.
         final manifest =
             await _yt.videos.streamsClient.getManifest(videoId);
-        final info = manifest.audioOnly.withHighestBitrate();
+        final audioStreams = manifest.audioOnly;
+        final info = audioStreams
+                .where((s) => s.container.name == 'mp4' || s.codec.mimeType.contains('mp4'))
+                .lastOrNull ??
+            audioStreams.withHighestBitrate();
+            
         streamUrl = info.url.toString();
 
         // 3. YouTube headers that libmpv WILL send on every request.
