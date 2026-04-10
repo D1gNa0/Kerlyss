@@ -2,10 +2,9 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
-import '../theme/aether_colors.dart';
 
 /// A platform-aware custom title bar with drag-to-move and window controls.
-/// Inject this as an overlay anywhere on Desktop routes.
+/// Inject this as a Positioned overlay in any Stack/Scaffold body.
 class AetherTitleBar extends StatelessWidget {
   final bool showTitle;
   const AetherTitleBar({super.key, this.showTitle = false});
@@ -22,114 +21,102 @@ class AetherTitleBar extends StatelessWidget {
       left: 0,
       right: 0,
       child: SizedBox(
-        height: 36,
-        child: DragToMoveArea(
-          child: Row(
-            children: [
-              if (showTitle)
-                const Padding(
-                  padding: EdgeInsets.only(left: 16),
-                  child: Text(
-                    'KERLYSS',
-                    style: TextStyle(
-                      color: Colors.white38,
-                      fontSize: 10,
-                      letterSpacing: 4,
-                    ),
-                  ),
+        height: 40,
+        child: Row(
+          children: [
+            // Drag area — takes all space except the buttons
+            Expanded(
+              child: DragToMoveArea(
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 16),
+                  child: showTitle
+                      ? const Text(
+                          'KERLYSS',
+                          style: TextStyle(
+                            color: Colors.white30,
+                            fontSize: 10,
+                            letterSpacing: 4,
+                          ),
+                        )
+                      : const SizedBox.shrink(),
                 ),
-              const Spacer(),
-              // Minimize
-              _WindowButton(
-                icon: Icons.horizontal_rule_rounded,
-                onTap: () => windowManager.minimize(),
               ),
-              // Maximize / Restore
-              _MaximizeButton(),
-              // Close
-              _WindowButton(
-                icon: Icons.close_rounded,
-                onTap: () => windowManager.close(),
-                hoverColor: Colors.red.withOpacity(0.8),
-              ),
-            ],
-          ),
+            ),
+            // Window control buttons — outside DragToMoveArea so clicks register
+            _WinBtn(
+              icon: Icons.remove_rounded,
+              tooltip: 'Minimize',
+              onTap: () => windowManager.minimize(),
+            ),
+            _WinBtn(
+              icon: Icons.crop_square_outlined,
+              tooltip: 'Maximize',
+              onTap: () async {
+                if (await windowManager.isMaximized()) {
+                  windowManager.unmaximize();
+                } else {
+                  windowManager.maximize();
+                }
+              },
+            ),
+            _WinBtn(
+              icon: Icons.close_rounded,
+              tooltip: 'Close',
+              onTap: () => windowManager.close(),
+              isClose: true,
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _WindowButton extends StatefulWidget {
+class _WinBtn extends StatefulWidget {
   final IconData icon;
+  final String tooltip;
   final VoidCallback onTap;
-  final Color? hoverColor;
+  final bool isClose;
 
-  const _WindowButton({required this.icon, required this.onTap, this.hoverColor});
+  const _WinBtn({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+    this.isClose = false,
+  });
 
   @override
-  State<_WindowButton> createState() => _WindowButtonState();
+  State<_WinBtn> createState() => _WinBtnState();
 }
 
-class _WindowButtonState extends State<_WindowButton> {
+class _WinBtnState extends State<_WinBtn> {
   bool _hovered = false;
 
   @override
   Widget build(BuildContext context) {
+    final hoverBg = widget.isClose
+        ? const Color(0xFFE81123) // Classic Windows red
+        : Colors.white.withOpacity(0.12);
+
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
+      cursor: SystemMouseCursors.click,
       child: GestureDetector(
         onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          width: 46,
-          height: 36,
-          color: _hovered
-              ? (widget.hoverColor ?? Colors.white.withOpacity(0.1))
-              : Colors.transparent,
-          child: Icon(
-            widget.icon,
-            size: 16,
-            color: _hovered ? Colors.white : Colors.white54,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MaximizeButton extends StatefulWidget {
-  @override
-  State<_MaximizeButton> createState() => _MaximizeButtonState();
-}
-
-class _MaximizeButtonState extends State<_MaximizeButton> {
-  bool _hovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
-        onTap: () async {
-          final isMaximized = await windowManager.isMaximized();
-          if (isMaximized) {
-            windowManager.unmaximize();
-          } else {
-            windowManager.maximize();
-          }
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          width: 46,
-          height: 36,
-          color: _hovered ? Colors.white.withOpacity(0.1) : Colors.transparent,
-          child: Icon(
-            Icons.crop_square_rounded,
-            size: 14,
-            color: _hovered ? Colors.white : Colors.white54,
+        child: Tooltip(
+          message: widget.tooltip,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 100),
+            width: 46,
+            height: 40,
+            color: _hovered ? hoverBg : Colors.transparent,
+            alignment: Alignment.center,
+            child: Icon(
+              widget.icon,
+              size: 18,
+              color: _hovered ? Colors.white : Colors.white60,
+            ),
           ),
         ),
       ),

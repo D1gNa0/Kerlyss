@@ -138,12 +138,26 @@ class FullPlayerView extends ConsumerWidget {
 
                   const SizedBox(height: 24),
 
-                  // Playback Controls Refined
+                  // Playback Controls
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      const Icon(Icons.shuffle_rounded, color: AetherColors.textSecondary, size: 20),
-                      const Icon(Icons.skip_previous_rounded, size: 40),
+                      // STUB: shuffle not implemented
+                      Tooltip(
+                        message: 'STUB — Not Implemented',
+                        child: Stack(children: [
+                          const Icon(Icons.shuffle_rounded, color: AetherColors.textSecondary, size: 20),
+                          Positioned(top: 0, right: 0, child: Container(width: 6, height: 6, decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle))),
+                        ]),
+                      ),
+                      // STUB: skip previous not implemented
+                      Tooltip(
+                        message: 'STUB — Not Implemented',
+                        child: Stack(children: [
+                          const Icon(Icons.skip_previous_rounded, size: 40),
+                          Positioned(top: 0, right: 0, child: Container(width: 8, height: 8, decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle))),
+                        ]),
+                      ),
                       GestureDetector(
                         onTap: () => ref.read(audioProvider.notifier).togglePlay(),
                         child: Container(
@@ -168,8 +182,22 @@ class FullPlayerView extends ConsumerWidget {
                           ),
                         ),
                       ),
-                      const Icon(Icons.skip_next_rounded, size: 40),
-                      const Icon(Icons.repeat_rounded, color: AetherColors.textSecondary, size: 20),
+                      // STUB: skip next not implemented
+                      Tooltip(
+                        message: 'STUB — Not Implemented',
+                        child: Stack(children: [
+                          const Icon(Icons.skip_next_rounded, size: 40),
+                          Positioned(top: 0, right: 0, child: Container(width: 8, height: 8, decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle))),
+                        ]),
+                      ),
+                      // STUB: repeat not implemented
+                      Tooltip(
+                        message: 'STUB — Not Implemented',
+                        child: Stack(children: [
+                          const Icon(Icons.repeat_rounded, color: AetherColors.textSecondary, size: 20),
+                          Positioned(top: 0, right: 0, child: Container(width: 6, height: 6, decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle))),
+                        ]),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 20),

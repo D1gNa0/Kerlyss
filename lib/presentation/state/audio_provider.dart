@@ -4,6 +4,7 @@ import 'package:just_audio/just_audio.dart';
 import 'audio_state.dart';
 import '../../data/repositories/repository_providers.dart';
 import '../../data/datasources/remote/youtube_audio_engine.dart';
+import '../../data/datasources/remote/youtube_audio_source.dart';
 
 final audioProvider = StateNotifierProvider<AudioNotifier, AudioState>((ref) {
   final ytEngine = ref.watch(youtubeAudioEngineProvider);
@@ -80,25 +81,26 @@ class AudioNotifier extends StateNotifier<AudioState> {
   Future<void> playSong(SongMetadata song, String sourceUrl) async {
     state = state.copyWith(currentSong: song, status: PlaybackStatus.loading);
     try {
-      // sourceUrl from Isar is a YouTube video URL (youtube.com/watch?v=ID)
-      // or just a video ID. We must resolve the actual audio stream URI first.
-      String streamUrl = sourceUrl;
-      
       // Extract YouTube video ID from any format
       String? videoId;
       final uri = Uri.tryParse(sourceUrl);
       if (uri != null && (uri.host.contains('youtube') || uri.host.contains('youtu.be'))) {
         videoId = uri.queryParameters['v'] ?? uri.pathSegments.lastOrNull;
       } else if (!sourceUrl.startsWith('http')) {
-        // Treat bare strings as video IDs
         videoId = sourceUrl;
       }
 
       if (videoId != null && videoId.isNotEmpty) {
-        streamUrl = await _ytEngine.getStreamUri(videoId);
+        // Use YoutubeAudioSource — pipes bytes through youtube_explode's
+        // own authenticated HTTP client. This bypasses the header restriction
+        // that causes [just_audio_windows] Media error on raw CDN URLs.
+        final source = YoutubeAudioSource(videoId: videoId);
+        await _player.setAudioSource(source);
+      } else {
+        // Fallback: direct URL (for local files or non-YouTube sources)
+        await _player.setUrl(sourceUrl);
       }
 
-      await _player.setUrl(streamUrl);
       _player.play();
     } catch (e) {
       state = state.copyWith(status: PlaybackStatus.error);
