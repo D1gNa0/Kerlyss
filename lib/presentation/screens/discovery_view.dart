@@ -38,6 +38,28 @@ class DiscoveryView extends ConsumerWidget {
               ),
             ),
             actions: [
+              // STUB: filter/sort menu — not yet implemented
+              Tooltip(
+                message: 'STUB — Filter/Sort not implemented',
+                child: Stack(
+                  children: [
+                    IconButton(
+                      onPressed: () {},
+                      icon: const Icon(Icons.tune_rounded, color: Colors.white24, size: 22),
+                    ),
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        width: 7,
+                        height: 7,
+                        decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Link import — functional
               IconButton(
                 onPressed: () {
                   showModalBottomSheet(

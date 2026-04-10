@@ -20,8 +20,10 @@ class AetherTitleBar extends StatelessWidget {
       top: 0,
       left: 0,
       right: 0,
-      child: SizedBox(
+      child: Container(
         height: 40,
+        // Always-visible dark strip — guarantees buttons render regardless of background
+        color: const Color(0xCC0A0A0A),
         child: Row(
           children: [
             // Drag area — takes all space except the buttons

@@ -111,10 +111,12 @@ class _SettingsSection extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
-        AetherGlass(
-          borderRadius: 20,
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Column(children: children),
+        IntrinsicHeight(
+          child: AetherGlass(
+            borderRadius: 20,
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Column(children: children),
+          ),
         ),
       ],
     );
