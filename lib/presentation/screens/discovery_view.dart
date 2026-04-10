@@ -73,6 +73,7 @@ class DiscoveryView extends ConsumerWidget {
                   const SizedBox(width: 12),
                   // Import Source button — paste a YouTube/Spotify link
                   SizedBox(
+                    width: 56,
                     height: 56,
                     child: AetherGlass(
                       borderRadius: 16,
