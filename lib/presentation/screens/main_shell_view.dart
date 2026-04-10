@@ -1,5 +1,8 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:window_manager/window_manager.dart';
 import '../state/navigation_provider.dart';
 import '../state/audio_provider.dart';
 import 'home_view.dart';
@@ -29,6 +32,23 @@ class MainShellView extends ConsumerWidget {
               Center(child: Text('Profile Under Construction', style: TextStyle(color: Colors.white24))),
             ],
           ),
+
+          // Custom Desktop Title Bar (Frameless Wrap)
+          if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS))
+            const Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: SizedBox(
+                height: 32,
+                child: DragToMoveArea(
+                  child: WindowCaption(
+                    brightness: Brightness.dark,
+                    backgroundColor: Colors.transparent,
+                  ),
+                ),
+              ),
+            ),
 
           // Global Player & Navigation
           Align(

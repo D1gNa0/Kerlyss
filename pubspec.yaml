@@ -21,6 +21,7 @@ dependencies:
   youtube_explode_dart: ^2.2.2
   string_similarity: ^2.0.0
   html: ^0.15.4
+  window_manager: ^0.5.1
 
 dev_dependencies:
   flutter_test:
