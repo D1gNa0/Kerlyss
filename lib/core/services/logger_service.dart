@@ -9,7 +9,7 @@ class _FileSysLogOutput extends LogOutput {
 
   Future<void> init() async {
     try {
-      final dir = await getApplicationDocumentsDirectory();
+      final dir = await getApplicationSupportDirectory();
       file = File('${dir.path}/kerlyss_runtime.log');
       
       // Print boundary for cold start
