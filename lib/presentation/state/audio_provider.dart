@@ -144,11 +144,15 @@ class AudioNotifier extends StateNotifier<AudioState> {
         Log.i('playSong -> Using raw streamUrl: $streamUrl');
       }
 
-      // 4. Open via media_kit. Let libmpv handle it without forged User-Agent headers
-      // which previously mismatched youtube_explode_dart's internal fetcher and caused
-      // a silent CDN blackhole (0 bytes transferred, no 403 thrown).
+      // 3. YouTube CDN returns 403 Forbidden if libmpv uses its default User-Agent.
+      // We must pass a standard browser User-Agent so the CDN accepts the connection.
+      final headers = {
+        'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      };
+
       Log.i('playSong -> Instructing media_kit to open stream...');
-      await _player.open(Media(streamUrl));
+      await _player.open(Media(streamUrl, httpHeaders: headers));
       Log.i('playSong -> media_kit instructed successfully.');
 
     } catch (e, stacktrace) {
