@@ -76,13 +76,13 @@ class HomeView extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               child: Row(
                 children: [
-                  _CategoryChip(label: 'ALL TRACKS', isActive: true),
+                  _CategoryChip(label: 'ALL TRACKS', isActive: true, onTap: () {}),
                   const SizedBox(width: 24),
-                  _CategoryChip(label: 'PLAYLISTS', isActive: false),
+                  _CategoryChip(label: 'PLAYLISTS', isActive: false, onTap: () {}),
                   const SizedBox(width: 24),
-                  _CategoryChip(label: 'FAVORITES', isActive: false),
+                  _CategoryChip(label: 'FAVORITES', isActive: false, onTap: () {}),
                   const SizedBox(width: 24),
-                  _CategoryChip(label: 'FOLDERS', isActive: false),
+                  _CategoryChip(label: 'FOLDERS', isActive: false, onTap: () {}),
                 ],
               ),
             ),
@@ -220,18 +220,26 @@ class HomeView extends ConsumerWidget {
 class _CategoryChip extends StatelessWidget {
   final String label;
   final bool isActive;
+  final VoidCallback onTap;
 
-  const _CategoryChip({required this.label, required this.isActive});
+  const _CategoryChip({required this.label, required this.isActive, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      label,
-      style: Theme.of(context).textTheme.displayMedium?.copyWith(
-            fontSize: 11,
-            color: isActive ? Colors.white : AetherColors.textSecondary,
-            fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-          ),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
+        child: Text(
+          label,
+          style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                fontSize: 11,
+                color: isActive ? Colors.white : AetherColors.textSecondary,
+                fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+              ),
+        ),
+      ),
     );
   }
 }
