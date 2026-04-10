@@ -8,6 +8,7 @@ import '../common/aether_loading_pulse.dart';
 import '../common/source_badge.dart';
 import '../common/aether_link_bar.dart';
 import '../../domain/entities/audio_source_type.dart';
+import '../state/library_provider.dart';
 import 'settings_view.dart';
 import 'profile_view.dart';
 
@@ -16,6 +17,8 @@ class HomeView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final libraryState = ref.watch(libraryProvider);
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: CustomScrollView(
@@ -108,66 +111,104 @@ class HomeView extends ConsumerWidget {
           ),
 
           // Track List
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0),
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  final song = SongMetadata(
-                    id: 'song_$index',
-                    title: 'Current Aether Track',
-                    artist: 'Flux Architect',
-                    duration: const Duration(minutes: 3, seconds: 45),
-                    artworkUrl: 'https://picsum.photos/seed/${index+20}/400/400',
-                    source: index % 3 == 0 ? AudioSourceType.local : (index % 3 == 1 ? AudioSourceType.youtube : AudioSourceType.spotify),
-                  );
-
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12.0),
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      tileColor: Colors.white.withOpacity(0.02),
-                      leading: Stack(
-                        alignment: Alignment.bottomRight,
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
-                            child: Image.network(
-                              song.artworkUrl!,
-                              width: 44,
-                              height: 44,
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.all(2),
-                            child: SourceBadge(source: song.source),
-                          ),
-                        ],
-                      ),
-                      title: Text(
-                        song.title,
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 15),
-                      ),
-                      subtitle: Text(
-                        song.artist,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 12),
-                      ),
-                      trailing: const Icon(Icons.more_horiz_rounded, color: AetherColors.textSecondary, size: 18),
-                      onTap: () {
-                        ref.read(audioProvider.notifier).playSong(
-                              song,
-                              'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
-                            );
-                      },
+          libraryState.isLoading
+              ? const SliverToBoxAdapter(
+                  child: Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(40),
+                      child: CircularProgressIndicator(color: Colors.white24),
                     ),
-                  );
-                },
-                childCount: 3,
-              ),
-            ),
-          ),
+                  ),
+                )
+              : libraryState.favoriteSongs.isEmpty
+                  ? SliverToBoxAdapter(
+                      child: Center(
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 60),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.library_music_outlined, color: Colors.white10, size: 48),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'LIBRARY EMPTY',
+                                style: TextStyle(color: Colors.white24, letterSpacing: 2, fontSize: 10),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    )
+                  : SliverPadding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) {
+                            final song = libraryState.favoriteSongs[index];
+
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 12.0),
+                              child: ListTile(
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                tileColor: Colors.white.withOpacity(0.02),
+                                leading: Stack(
+                                  alignment: Alignment.bottomRight,
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(10),
+                                      child: Image.network(
+                                        song.albumArtUrl ?? 'https://picsum.photos/seed/placeholder/200/200',
+                                        width: 44,
+                                        height: 44,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.all(2),
+                                      child: SourceBadge(source: song.sourceType),
+                                    ),
+                                  ],
+                                ),
+                                title: Text(
+                                  song.title,
+                                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 15),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                subtitle: Text(
+                                  song.artist,
+                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 12),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                trailing: IconButton(
+                                  icon: const Icon(Icons.favorite_rounded, color: Colors.redAccent, size: 18),
+                                  onPressed: () {
+                                    ref.read(libraryProvider.notifier).toggleFavorite(song);
+                                  },
+                                ),
+                                onTap: () {
+                                  ref.read(audioProvider.notifier).playSong(
+                                        SongMetadata(
+                                          id: song.id,
+                                          title: song.title,
+                                          artist: song.artist,
+                                          album: song.album,
+                                          artworkUrl: song.albumArtUrl,
+                                          duration: song.duration,
+                                          source: song.sourceType,
+                                        ),
+                                        song.sourceUrl,
+                                      );
+                                },
+                              ),
+                            );
+                          },
+                          childCount: libraryState.favoriteSongs.length,
+                        ),
+                      ),
+                    ),
           
           const SliverToBoxAdapter(child: SizedBox(height: 180)),
         ],

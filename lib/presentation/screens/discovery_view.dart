@@ -7,6 +7,7 @@ import '../common/source_badge.dart';
 import '../state/discovery_search_provider.dart';
 import '../state/audio_provider.dart';
 import '../state/audio_state.dart';
+import '../state/library_provider.dart';
 
 class DiscoveryView extends ConsumerWidget {
   const DiscoveryView({super.key});
@@ -14,6 +15,7 @@ class DiscoveryView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final searchState = ref.watch(discoverySearchProvider);
+    final libraryState = ref.watch(libraryProvider);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -127,6 +129,20 @@ class DiscoveryView extends ConsumerWidget {
                         subtitle: Text(
                           song.artist,
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 12),
+                        ),
+                        trailing: IconButton(
+                          icon: Icon(
+                            ref.read(libraryProvider.notifier).isSongFavorite(song.id) 
+                                ? Icons.favorite_rounded 
+                                : Icons.favorite_border_rounded,
+                            color: ref.read(libraryProvider.notifier).isSongFavorite(song.id) 
+                                ? Colors.redAccent 
+                                : Colors.white24,
+                            size: 20,
+                          ),
+                          onPressed: () {
+                            ref.read(libraryProvider.notifier).toggleFavorite(song);
+                          },
                         ),
                         onTap: () {
                           // Pass actual song data to player
