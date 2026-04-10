@@ -1,92 +1,71 @@
 import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:just_audio/just_audio.dart';
+
 import 'package:kerlyss/core/services/logger_service.dart';
 import 'package:kerlyss/core/services/youtube_proxy_server.dart';
-import 'package:media_kit/media_kit.dart';
-import 'package:youtube_explode_dart/youtube_explode_dart.dart';
+
 import 'audio_state.dart';
-import '../../core/services/logger_service.dart';
 
 final audioProvider = StateNotifierProvider<AudioNotifier, AudioState>((ref) {
   return AudioNotifier();
 });
 
-/// Audio engine backed by media_kit (libmpv).
-/// Replaces just_audio_windows which had unfixable threading crashes.
-///
-/// YouTube resolution strategy:
-///   1. Extract video ID from any source URL format
-///   2. Use youtube_explode_dart to get the signed CDN URL + provide YouTube headers
-///   3. media_kit / libmpv passes headers on every HTTP request (including range requests)
-///   → Seeking works natively, no buffer-all-first issue.
+/// Audio engine backed by just_audio.
+/// YouTube playback goes through a local proxy so the player only sees a plain
+/// HTTP audio stream.
 class AudioNotifier extends StateNotifier<AudioState> {
-  final Player _player = Player(
-    configuration: const PlayerConfiguration(
-      logLevel: MPVLogLevel.debug,
-      title: 'Kerlyss',
-    ),
-  );
-  final YoutubeExplode _yt = YoutubeExplode();
+  final AudioPlayer _player = AudioPlayer();
 
-  // Visualizer
   final _frequencyController = StreamController<List<double>>.broadcast();
   Stream<List<double>> get frequencyStream => _frequencyController.stream;
   Timer? _visualizerTimer;
 
-  // Subscriptions
-  final List<StreamSubscription> _subs = [];
+  final List<StreamSubscription<dynamic>> _subs = [];
 
   AudioNotifier()
-      : super(AudioState(
-          currentSong: SongMetadata.empty(),
-          status: PlaybackStatus.idle,
-          position: Duration.zero,
-          bufferedPosition: Duration.zero,
-        )) {
+      : super(
+          AudioState(
+            currentSong: SongMetadata.empty(),
+            status: PlaybackStatus.idle,
+            position: Duration.zero,
+            bufferedPosition: Duration.zero,
+          ),
+        ) {
     _init();
     _startVibrancyLoop();
   }
 
   void _init() {
-    _subs.add(_player.stream.playing.listen((playing) {
+    _subs.add(_player.playerStateStream.listen((playerState) {
       if (!mounted) return;
-      Log.i('media_kit playing: $playing');
-      state = state.copyWith(
-        status: playing ? PlaybackStatus.playing : PlaybackStatus.paused,
-      );
+
+      final nextStatus = switch (playerState.processingState) {
+        ProcessingState.idle => PlaybackStatus.idle,
+        ProcessingState.loading => PlaybackStatus.loading,
+        ProcessingState.buffering => PlaybackStatus.buffering,
+        ProcessingState.ready =>
+          playerState.playing ? PlaybackStatus.playing : PlaybackStatus.paused,
+        ProcessingState.completed => PlaybackStatus.completed,
+      };
+
+      Log.i('just_audio state: playing=${playerState.playing}, processing=${playerState.processingState}');
+      state = state.copyWith(status: nextStatus);
     }));
 
-    _subs.add(_player.stream.log.listen((event) {
-      Log.i('MPV LOG: [${event.level}] ${event.prefix}: ${event.text}');
+    _subs.add(_player.positionStream.listen((position) {
+      if (!mounted) return;
+      state = state.copyWith(position: position);
     }));
 
-    _subs.add(_player.stream.position.listen((pos) {
+    _subs.add(_player.bufferedPositionStream.listen((bufferedPosition) {
       if (!mounted) return;
-      state = state.copyWith(position: pos);
-    }));
-    
-    _player.setVolume(100.0);
-
-    _subs.add(_player.stream.buffering.listen((buffering) {
-      if (!mounted) return;
-      if (buffering && state.status == PlaybackStatus.loading) {
-        state = state.copyWith(status: PlaybackStatus.buffering);
-      }
+      state = state.copyWith(bufferedPosition: bufferedPosition);
     }));
 
-    _subs.add(_player.stream.completed.listen((completed) {
-      if (!mounted) return;
-      if (completed) {
-        state = state.copyWith(status: PlaybackStatus.completed);
-      }
-    }));
-
-    _subs.add(_player.stream.error.listen((error) {
-      if (!mounted) return;
-      if (error != null) {
-        state = state.copyWith(status: PlaybackStatus.error);
-      }
-    }));
+    _player.setVolume(1.0);
   }
 
   void _startVibrancyLoop() {
@@ -94,8 +73,8 @@ class AudioNotifier extends StateNotifier<AudioState> {
     _visualizerTimer = Timer.periodic(const Duration(milliseconds: 50), (_) {
       if (!mounted) return;
       if (state.status == PlaybackStatus.playing) {
-        final List<double> bands = List.generate(16, (i) {
-          final double base = (1.0 - (i / 16.0)) * 0.4;
+        final bands = List.generate(16, (i) {
+          final base = (1.0 - (i / 16.0)) * 0.4;
           return (base + (DateTime.now().millisecond % 1000) / 1000.0 * 0.6)
               .clamp(0.1, 1.0);
         });
@@ -109,51 +88,61 @@ class AudioNotifier extends StateNotifier<AudioState> {
   Future<void> playSong(SongMetadata song, String sourceUrl) async {
     state = state.copyWith(currentSong: song, status: PlaybackStatus.loading);
     Log.i('playSong triggered. Initial sourceUrl: $sourceUrl');
+
     try {
-      // 1. Extract YouTube video ID from any format:
-      //    - https://www.youtube.com/watch?v=VIDEO_ID
-      //    - https://youtu.be/VIDEO_ID
-      //    - bare VIDEO_ID string
+      if (sourceUrl.startsWith('file://') || File(sourceUrl).existsSync()) {
+        final localPath = sourceUrl.startsWith('file://')
+            ? Uri.parse(sourceUrl).toFilePath()
+            : sourceUrl;
+
+        Log.i('playSong -> Opening local file: $localPath');
+        await _player.setFilePath(localPath);
+        await _player.play();
+        Log.i('playSong -> local file started successfully');
+        return;
+      }
+
       String? videoId;
       final uri = Uri.tryParse(sourceUrl);
+
       if (uri != null &&
           (uri.host.contains('youtube') || uri.host.contains('youtu.be'))) {
-        videoId = uri.queryParameters['v'] ?? uri.pathSegments.lastOrNull;
+        videoId = uri.queryParameters['v'];
+        videoId ??= uri.pathSegments.isNotEmpty ? uri.pathSegments.last : null;
       } else if (!sourceUrl.startsWith('http')) {
         videoId = sourceUrl;
       }
 
-      Log.i('playSong -> Extracted videoId: $videoId');
+      if (videoId != null && videoId.length != 11) {
+        Log.w(
+          'VideoId validation warning: extracted "$videoId" '
+          '(length=${videoId.length}, expected 11)',
+        );
+      }
 
-      String streamUrl;
+      Log.i('playSong -> Extracted videoId: "$videoId" from sourceUrl: "$sourceUrl"');
+
+      final headers = {
+        'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      };
 
       if (videoId != null && videoId.isNotEmpty) {
-        // 2. Resolve signed CDN URL via youtube_explode_dart
-        // Start the proxy server to handle streaming internally and absolutely bypass 403s
         final port = await YoutubeProxyServer.start();
         final proxyUrl = 'http://127.0.0.1:$port/?id=$videoId';
 
-        Log.i('playSong -> Instructing media_kit to open PROXY stream: $proxyUrl');
-        
-        // Pass standard headers just in case, though the proxy handles the fetch.
-        final headers = {
-          'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        };
-
-        await _player.open(Media(proxyUrl, httpHeaders: headers));
-        Log.i('playSong -> media_kit instructed successfully.');
-
+        Log.i('playSong -> Opening PROXY stream: $proxyUrl');
+        await _player.setUrl(proxyUrl, headers: headers);
       } else {
-        final streamUrl = sourceUrl;
-        Log.i('playSong -> Instructing media_kit to open direct stream...');
-        await _player.open(Media(streamUrl));
-        Log.i('playSong -> media_kit instructed successfully.');
+        Log.i('playSong -> Opening direct stream: $sourceUrl');
+        await _player.setUrl(sourceUrl, headers: headers);
       }
 
+      await _player.play();
+      Log.i('playSong -> just_audio started successfully');
     } catch (e, stacktrace) {
-      Log.e('playSong -> FATAL ERROR during launch: $e');
-      Log.e(stacktrace.toString());
+      Log.e('playSong -> FATAL ERROR: $e');
+      Log.e('Stacktrace: $stacktrace');
       if (mounted) {
         state = state.copyWith(status: PlaybackStatus.error);
       }
@@ -161,7 +150,11 @@ class AudioNotifier extends StateNotifier<AudioState> {
   }
 
   void togglePlay() {
-    _player.playOrPause();
+    if (_player.playing) {
+      _player.pause();
+    } else {
+      _player.play();
+    }
   }
 
   void seek(Duration position) {
@@ -176,7 +169,6 @@ class AudioNotifier extends StateNotifier<AudioState> {
     _visualizerTimer?.cancel();
     _frequencyController.close();
     _player.dispose();
-    _yt.close();
     super.dispose();
   }
 }

@@ -31,7 +31,7 @@ class AetherBottomNav extends ConsumerWidget {
               onTap: () => ref.read(navigationProvider.notifier).setIndex(1),
             ),
             _NavIcon(
-              icon: Icons.person_rounded,
+              icon: Icons.download_rounded,
               isActive: currentIndex == 2,
               onTap: () => ref.read(navigationProvider.notifier).setIndex(2),
             ),

@@ -12,9 +12,11 @@ dependencies:
   isar: ^3.1.0+1
   isar_flutter_libs: ^3.1.0+1
   just_audio: ^0.9.36
+  just_audio_windows: ^0.2.3
   audio_service: ^0.18.12
   dio: ^5.4.3
   path_provider: ^2.1.2
+  path: ^1.9.1
   on_audio_query: ^2.9.0
   glassmorphism: ^3.0.0
   google_fonts: ^6.2.1
@@ -23,8 +25,7 @@ dependencies:
   html: ^0.15.4
   window_manager: ^0.5.1
   logger: ^2.7.0
-  media_kit: ^1.2.6
-  media_kit_libs_windows_video: ^1.0.11
+  desktop_drop: ^0.4.4
 
 dev_dependencies:
   flutter_test:

@@ -16,6 +16,9 @@ class FullPlayerView extends ConsumerWidget {
     final audioState = ref.watch(audioProvider);
     final currentSong = audioState.currentSong;
     final screenWidth = MediaQuery.of(context).size.width;
+    final durationSeconds = currentSong.duration.inSeconds.toDouble();
+    final sliderMax = durationSeconds > 0 ? durationSeconds : 1.0;
+    final sliderValue = audioState.position.inSeconds.toDouble().clamp(0.0, sliderMax);
 
     return Scaffold(
       backgroundColor: AetherColors.deepMatteBlack,
@@ -230,9 +233,12 @@ class FullPlayerView extends ConsumerWidget {
                           inactiveTrackColor: Colors.white.withOpacity(0.1),
                         ),
                         child: Slider(
-                          value: audioState.position.inSeconds.toDouble(),
-                          max: currentSong.duration.inSeconds.toDouble(),
+                          value: sliderValue,
+                          max: sliderMax,
                           onChanged: (value) {
+                            if (durationSeconds <= 0) {
+                              return;
+                            }
                             ref.read(audioProvider.notifier).seek(Duration(seconds: value.toInt()));
                           },
                         ),

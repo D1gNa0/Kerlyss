@@ -4,6 +4,7 @@ import '../state/navigation_provider.dart';
 import '../state/audio_provider.dart';
 import 'home_view.dart';
 import 'discovery_view.dart';
+import 'downloaded_songs_view.dart';
 import '../common/aether_bottom_nav.dart';
 import '../common/mini_player.dart';
 import '../common/aether_title_bar.dart';
@@ -27,7 +28,7 @@ class MainShellView extends ConsumerWidget {
             children: const [
               HomeView(),
               DiscoveryView(),
-              Center(child: Text('Profile Under Construction', style: TextStyle(color: Colors.white24))),
+              DownloadedSongsView(),
             ],
           ),
 

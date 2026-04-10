@@ -1,6 +1,35 @@
 import 'dart:io';
 import 'package:logger/logger.dart';
-import 'package:path_provider/path_provider.dart';
+import 'app_storage_paths.dart';
+
+class _FlatLogPrinter extends LogPrinter {
+  _FlatLogPrinter();
+
+  @override
+  List<String> log(LogEvent event) {
+    final level = switch (event.level) {
+      Level.trace => 'TRACE',
+      Level.debug => 'DEBUG',
+      Level.info => 'INFO',
+      Level.warning => 'WARN',
+      Level.error => 'ERROR',
+      Level.fatal => 'FATAL',
+      _ => 'LOG',
+    };
+
+    final lines = <String>['$level: ${event.message}'];
+
+    if (event.error != null) {
+      lines.add('$level: ${event.error}');
+    }
+
+    if (event.stackTrace != null) {
+      lines.add('$level: ${event.stackTrace}');
+    }
+
+    return lines;
+  }
+}
 
 class _FileSysLogOutput extends LogOutput {
   File? file;
@@ -9,12 +38,7 @@ class _FileSysLogOutput extends LogOutput {
 
   Future<void> init() async {
     try {
-      final dir = await getApplicationDocumentsDirectory();
-      // Place logs in a named "Kerlyss" subfolder so the user can find them
-      final logDir = Directory('${dir.path}/Kerlyss');
-      if (!await logDir.exists()) {
-        await logDir.create(recursive: true);
-      }
+      final logDir = await AppStoragePaths.appRootDirectory();
       file = File('${logDir.path}/kerlyss_runtime.log');
       
       // Print boundary for cold start
@@ -46,14 +70,7 @@ class Log {
     await _fileOutput.init();
 
     _logger = Logger(
-      printer: PrettyPrinter(
-        methodCount: 2, 
-        errorMethodCount: 8, 
-        lineLength: 120, 
-        colors: true, 
-        printEmojis: true, 
-        dateTimeFormat: DateTimeFormat.dateAndTime,
-      ),
+      printer: _FlatLogPrinter(),
       output: MultiOutput([
         ConsoleOutput(),
         _fileOutput,
