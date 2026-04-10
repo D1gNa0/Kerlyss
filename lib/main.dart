@@ -15,15 +15,6 @@ void main() async {
   MediaKit.ensureInitialized(); // Must be called before any Player() is created
   await Log.init();
 
-  // DIAGNOSTIC BEEP - tests if MediaKit WASAPI is working at all 
-  try {
-    final testPlayer = Player();
-    await testPlayer.open(Media('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'));
-    Log.i('Launched diagnostic test beep on media_kit WASAPI');
-  } catch (e) {
-    Log.e('Failed to play diagnostic beep: $e');
-  }
-
   final isarService = IsarDatabaseService();
   await isarService.init();
 

@@ -106,6 +106,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
 
   Future<void> playSong(SongMetadata song, String sourceUrl) async {
     state = state.copyWith(currentSong: song, status: PlaybackStatus.loading);
+    Log.i('playSong triggered. Initial sourceUrl: $sourceUrl');
     try {
       // 1. Extract YouTube video ID from any format:
       //    - https://www.youtube.com/watch?v=VIDEO_ID
@@ -120,8 +121,9 @@ class AudioNotifier extends StateNotifier<AudioState> {
         videoId = sourceUrl;
       }
 
+      Log.i('playSong -> Extracted videoId: $videoId');
+
       String streamUrl;
-      Map<String, String> headers = {};
 
       if (videoId != null && videoId.isNotEmpty) {
         // 2. Resolve signed CDN URL via youtube_explode_dart
@@ -136,13 +138,16 @@ class AudioNotifier extends StateNotifier<AudioState> {
             audioStreams.withHighestBitrate();
             
         streamUrl = info.url.toString();
+        Log.i('playSong -> Extracted progressive streamUrl: ${streamUrl.substring(0, 40)}...');
       } else {
         streamUrl = sourceUrl;
+        Log.i('playSong -> Using raw streamUrl: $streamUrl');
       }
 
       // 4. Open via media_kit. Let libmpv handle it without forged User-Agent headers
       // which previously mismatched youtube_explode_dart's internal fetcher and caused
       // a silent CDN blackhole (0 bytes transferred, no 403 thrown).
+      Log.i('playSong -> Instructing media_kit to open stream...');
       await _player.open(Media(streamUrl));
 
     } catch (e) {
