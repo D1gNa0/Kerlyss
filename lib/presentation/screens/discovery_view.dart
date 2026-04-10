@@ -57,22 +57,25 @@ class DiscoveryView extends ConsumerWidget {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
-              child: AetherGlass(
-                borderRadius: 16,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                child: TextField(
-                  onChanged: (value) => 
-                      ref.read(discoverySearchProvider.notifier).onSearchQueryChanged(value),
-                  style: const TextStyle(color: Colors.white, fontSize: 14),
-                  decoration: InputDecoration(
-                    border: InputBorder.none,
-                    hintText: 'SEARCH SONGS, ARTISTS...',
-                    hintStyle: TextStyle(
-                      color: Colors.white.withOpacity(0.2),
-                      fontSize: 12,
-                      letterSpacing: 2,
+              child: SizedBox(
+                height: 56, // Bound the infinite height of AetherGlass
+                child: AetherGlass(
+                  borderRadius: 16,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                  child: TextField(
+                    onChanged: (value) => 
+                        ref.read(discoverySearchProvider.notifier).onSearchQueryChanged(value),
+                    style: const TextStyle(color: Colors.white, fontSize: 14),
+                    decoration: InputDecoration(
+                      border: InputBorder.none,
+                      hintText: 'SEARCH SONGS, ARTISTS...',
+                      hintStyle: TextStyle(
+                        color: Colors.white.withOpacity(0.2),
+                        fontSize: 12,
+                        letterSpacing: 2,
+                      ),
+                      icon: const Icon(Icons.search_rounded, color: Colors.white24, size: 20),
                     ),
-                    icon: const Icon(Icons.search_rounded, color: Colors.white24, size: 20),
                   ),
                 ),
               ),
