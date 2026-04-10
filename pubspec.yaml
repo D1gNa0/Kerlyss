@@ -22,6 +22,7 @@ dependencies:
   string_similarity: ^2.0.0
   html: ^0.15.4
   window_manager: ^0.5.1
+  logger: ^2.7.0
 
 dev_dependencies:
   flutter_test:

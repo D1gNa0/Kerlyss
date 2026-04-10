@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
+import 'core/services/logger_service.dart';
 import 'presentation/theme/aether_theme.dart';
 import 'data/datasources/local/isar_database_service.dart';
 import 'data/repositories/repository_providers.dart';
@@ -10,6 +11,7 @@ import 'presentation/screens/main_shell_view.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Log.init();
 
   final isarService = IsarDatabaseService();
   await isarService.init();
