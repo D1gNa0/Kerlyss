@@ -23,66 +23,58 @@ class DiscoveryView extends ConsumerWidget {
         slivers: [
           // Header & Search Input
           SliverAppBar(
-            expandedHeight: 180,
+            expandedHeight: 100,
             backgroundColor: Colors.transparent,
             pinned: true,
             flexibleSpace: FlexibleSpaceBar(
-              background: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'DISCOVER',
-                    style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                          fontSize: 10,
-                          letterSpacing: 8,
-                          color: Colors.white38,
-                        ),
-                  ),
-                  const SizedBox(height: 24),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: AetherGlass(
-                            borderRadius: 27,
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            child: TextField(
-                              onChanged: (value) => 
-                                  ref.read(discoverySearchProvider.notifier).onSearchQueryChanged(value),
-                              style: const TextStyle(color: Colors.white, fontSize: 14),
-                              decoration: InputDecoration(
-                                border: InputBorder.none,
-                                hintText: 'SEARCH SONGS, ARTISTS...',
-                                hintStyle: TextStyle(
-                                  color: Colors.white.withOpacity(0.2),
-                                  fontSize: 12,
-                                  letterSpacing: 2,
-                                ),
-                                icon: const Icon(Icons.search_rounded, color: Colors.white24, size: 20),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        IconButton(
-                          onPressed: () {
-                            showModalBottomSheet(
-                              context: context,
-                              backgroundColor: Colors.transparent,
-                              isScrollControlled: true,
-                              builder: (context) => const AetherSourceBottomSheet(),
-                            );
-                          },
-                          icon: CircleAvatar(
-                            backgroundColor: Colors.white.withOpacity(0.05),
-                            child: const Icon(Icons.add_link_rounded, color: Colors.white, size: 20),
-                          ),
-                        ),
-                      ],
+              centerTitle: true,
+              title: Text(
+                'DISCOVER',
+                style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                      fontSize: 14,
+                      letterSpacing: 8,
+                      color: Colors.white38,
                     ),
+              ),
+            ),
+            actions: [
+              IconButton(
+                onPressed: () {
+                  showModalBottomSheet(
+                    context: context,
+                    backgroundColor: Colors.transparent,
+                    isScrollControlled: true,
+                    builder: (context) => const AetherSourceBottomSheet(),
+                  );
+                },
+                icon: const Icon(Icons.add_link_rounded, color: Colors.white54, size: 22),
+              ),
+              const SizedBox(width: 8),
+            ],
+          ),
+          
+          // Search Input
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
+              child: AetherGlass(
+                borderRadius: 16,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                child: TextField(
+                  onChanged: (value) => 
+                      ref.read(discoverySearchProvider.notifier).onSearchQueryChanged(value),
+                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                  decoration: InputDecoration(
+                    border: InputBorder.none,
+                    hintText: 'SEARCH SONGS, ARTISTS...',
+                    hintStyle: TextStyle(
+                      color: Colors.white.withOpacity(0.2),
+                      fontSize: 12,
+                      letterSpacing: 2,
+                    ),
+                    icon: const Icon(Icons.search_rounded, color: Colors.white24, size: 20),
                   ),
-                ],
+                ),
               ),
             ),
           ),
