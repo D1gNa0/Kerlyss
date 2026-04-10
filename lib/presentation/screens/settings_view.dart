@@ -80,8 +80,8 @@ class SettingsView extends ConsumerWidget {
           _SettingsSection(
             title: 'ABOUT',
             children: [
-              _SettingsTile(label: 'Version', value: '0.5.0-Alpha'),
-              _SettingsTile(label: 'Build', value: 'Architect-Preview'),
+              _SettingsTile(label: 'Version', value: '0.5.0-Alpha', onTap: () {}),
+              _SettingsTile(label: 'Build', value: 'Architect-Preview', onTap: () {}),
             ],
           ),
         ],

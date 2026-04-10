@@ -2,25 +2,29 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:kerlyss/data/repositories/song_repository_impl.dart';
 import 'package:kerlyss/data/datasources/local/isar_database_service.dart';
-import 'package:kerlyss/data/datasources/remote/spotify_metadata_service.dart';
+import 'package:kerlyss/data/datasources/remote/spotify_public_service.dart';
+import 'package:kerlyss/data/datasources/remote/search_aggregator.dart';
 import 'package:kerlyss/data/datasources/remote/youtube_audio_engine.dart';
 import 'package:kerlyss/data/datasources/remote/youtube_service.dart';
 
 class MockIsarDatabaseService extends Mock implements IsarDatabaseService {}
-class MockSpotifyMetadataService extends Mock implements SpotifyMetadataService {}
+class MockSpotifyPublicService extends Mock implements SpotifyPublicService {}
+class MockSearchAggregator extends Mock implements SearchAggregator {}
 class MockYoutubeService extends Mock implements YoutubeService {}
 class MockYoutubeAudioEngine extends Mock implements YoutubeAudioEngine {}
 
 void main() {
   late SongRepositoryImpl repository;
   late MockIsarDatabaseService mockLocal;
-  late MockSpotifyMetadataService mockRemote;
+  late MockSpotifyPublicService mockRemote;
+  late MockSearchAggregator mockSearch;
   late MockYoutubeService mockYoutube;
   late MockYoutubeAudioEngine mockYtEngine;
 
   setUp(() {
     mockLocal = MockIsarDatabaseService();
-    mockRemote = MockSpotifyMetadataService();
+    mockRemote = MockSpotifyPublicService();
+    mockSearch = MockSearchAggregator();
     mockYoutube = MockYoutubeService();
     mockYtEngine = MockYoutubeAudioEngine();
     
@@ -29,6 +33,7 @@ void main() {
       mockRemote,
       mockYoutube,
       mockYtEngine,
+      mockSearch,
     );
   });
 
