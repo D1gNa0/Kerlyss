@@ -3,7 +3,7 @@ import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 void main() async {
   final yt = YoutubeExplode();
   try {
-    final manifest = await yt.videos.streamsClient.getManifest('dQw4w9WgXcQ');
+    final manifest = await yt.videos.streamsClient.getManifest('KeXDAPQBG5Y');
     final highest = manifest.audioOnly.withHighestBitrate();
     print('Highest: \${highest.codec.mimeType} | \${highest.container.name} | \${highest.bitrate}');
     print('URL: \${highest.url.toString().substring(0, 50)}...');

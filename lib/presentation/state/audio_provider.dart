@@ -149,8 +149,11 @@ class AudioNotifier extends StateNotifier<AudioState> {
       // a silent CDN blackhole (0 bytes transferred, no 403 thrown).
       Log.i('playSong -> Instructing media_kit to open stream...');
       await _player.open(Media(streamUrl));
+      Log.i('playSong -> media_kit instructed successfully.');
 
-    } catch (e) {
+    } catch (e, stacktrace) {
+      Log.e('playSong -> FATAL ERROR during launch: $e');
+      Log.e(stacktrace.toString());
       if (mounted) {
         state = state.copyWith(status: PlaybackStatus.error);
       }
