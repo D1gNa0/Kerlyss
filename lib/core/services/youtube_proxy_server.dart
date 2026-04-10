@@ -72,9 +72,11 @@ class YoutubeProxyServer {
         await dataStream.pipe(request.response);
       } catch (e) {
         Log.e('YoutubeProxyServer error for id $videoId: $e');
-        if (!request.response.isClosed) {
+        try {
            request.response.statusCode = 500;
            await request.response.close();
+        } catch (_) {
+           // Ignore if already completely closed by client abortion
         }
       }
     });
