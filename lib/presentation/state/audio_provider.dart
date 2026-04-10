@@ -18,7 +18,12 @@ final audioProvider = StateNotifierProvider<AudioNotifier, AudioState>((ref) {
 ///   3. media_kit / libmpv passes headers on every HTTP request (including range requests)
 ///   → Seeking works natively, no buffer-all-first issue.
 class AudioNotifier extends StateNotifier<AudioState> {
-  final Player _player = Player();
+  final Player _player = Player(
+    configuration: const PlayerConfiguration(
+      logLevel: MPVLogLevel.debug,
+      title: 'Kerlyss',
+    ),
+  );
   final YoutubeExplode _yt = YoutubeExplode();
 
   // Visualizer
@@ -131,22 +136,14 @@ class AudioNotifier extends StateNotifier<AudioState> {
             audioStreams.withHighestBitrate();
             
         streamUrl = info.url.toString();
-
-        // 3. YouTube headers that libmpv WILL send on every request.
-        //    This is what just_audio_windows was missing entirely.
-        headers = {
-          'User-Agent':
-              'com.google.android.youtube/17.36.4 (Linux; U; Android 12; GB) gzip',
-          'Origin': 'https://www.youtube.com',
-          'Referer': 'https://www.youtube.com/',
-        };
       } else {
         streamUrl = sourceUrl;
       }
 
-      // 4. Open via media_kit. libmpv handles range requests, seeking,
-      //    and buffering natively with these headers attached.
-      await _player.open(Media(streamUrl, httpHeaders: headers));
+      // 4. Open via media_kit. Let libmpv handle it without forged User-Agent headers
+      // which previously mismatched youtube_explode_dart's internal fetcher and caused
+      // a silent CDN blackhole (0 bytes transferred, no 403 thrown).
+      await _player.open(Media(streamUrl));
 
     } catch (e) {
       if (mounted) {
