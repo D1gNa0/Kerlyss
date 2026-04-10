@@ -23,6 +23,7 @@ dependencies:
   html: ^0.15.4
   window_manager: ^0.5.1
   logger: ^2.7.0
+  just_audio_windows: ^0.2.3
 
 dev_dependencies:
   flutter_test:

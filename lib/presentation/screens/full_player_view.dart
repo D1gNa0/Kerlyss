@@ -63,7 +63,7 @@ class FullPlayerView extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  const Spacer(flex: 2),
+                  const SizedBox(height: 20),
 
                   // Aether Pulse Visualizer (Behind Album Art)
                   Stack(
@@ -71,16 +71,16 @@ class FullPlayerView extends ConsumerWidget {
                     children: [
                       if (audioState.status == PlaybackStatus.playing)
                         const RepaintBoundary(
-                          child: AetherPulseVisualizer(size: 400),
+                          child: AetherPulseVisualizer(size: 300),
                         ),
                       
-                      // Album Art Hero Refined
+                      // Album Art — capped at 300 to prevent overflow on 800px desktop
                       Hero(
                         tag: 'album_art_${currentSong.id}',
                         child: Center(
                           child: Container(
-                            width: screenWidth * 0.8,
-                            height: screenWidth * 0.8,
+                            width: screenWidth * 0.55 > 300 ? 300 : screenWidth * 0.55,
+                            height: screenWidth * 0.55 > 300 ? 300 : screenWidth * 0.55,
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(24),
                               boxShadow: [
@@ -106,8 +106,7 @@ class FullPlayerView extends ConsumerWidget {
                       ),
                     ],
                   ),
-
-                  const Spacer(flex: 3),
+                  const SizedBox(height: 20),
 
                   // Song Info Refined
                   Column(
@@ -133,7 +132,7 @@ class FullPlayerView extends ConsumerWidget {
                     ],
                   ),
 
-                  const Spacer(flex: 2),
+                  const SizedBox(height: 24),
 
                   // Playback Controls Refined
                   Row(
@@ -169,8 +168,7 @@ class FullPlayerView extends ConsumerWidget {
                       const Icon(Icons.repeat_rounded, color: AetherColors.textSecondary, size: 20),
                     ],
                   ),
-                  
-                  const Spacer(flex: 3),
+                  const SizedBox(height: 20),
 
                   // Horizon Progress Bar (Thin line at the bottom)
                   Column(
