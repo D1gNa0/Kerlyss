@@ -1,23 +1,36 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:path/path.dart' as p;
+
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 
 import 'package:kerlyss/core/services/logger_service.dart';
 import 'package:kerlyss/core/services/youtube_proxy_server.dart';
+import 'package:kerlyss/data/datasources/local/local_download_library.dart';
+import 'package:kerlyss/data/datasources/remote/youtube_service.dart';
+import 'package:kerlyss/data/repositories/repository_providers.dart';
+import 'package:kerlyss/presentation/state/downloaded_songs_provider.dart';
+
 
 import 'audio_state.dart';
 
 final audioProvider = StateNotifierProvider<AudioNotifier, AudioState>((ref) {
-  return AudioNotifier();
+  final localDownloadLibrary = ref.watch(localDownloadLibraryProvider);
+  final youtubeService = ref.watch(youtubeServiceProvider);
+  return AudioNotifier(localDownloadLibrary, youtubeService);
 });
+
 
 /// Audio engine backed by just_audio.
 /// YouTube playback goes through a local proxy so the player only sees a plain
 /// HTTP audio stream.
 class AudioNotifier extends StateNotifier<AudioState> {
   final AudioPlayer _player = AudioPlayer();
+  final LocalDownloadLibrary _localDownloadLibrary;
+  final YoutubeService _youtubeService;
+
 
   final _frequencyController = StreamController<List<double>>.broadcast();
   Stream<List<double>> get frequencyStream => _frequencyController.stream;
@@ -25,9 +38,11 @@ class AudioNotifier extends StateNotifier<AudioState> {
 
   final List<StreamSubscription<dynamic>> _subs = [];
 
-  AudioNotifier()
+  AudioNotifier(this._localDownloadLibrary, this._youtubeService)
+
       : super(
           AudioState(
+
             currentSong: SongMetadata.empty(),
             status: PlaybackStatus.idle,
             position: Duration.zero,
@@ -90,18 +105,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
     Log.i('playSong triggered. Initial sourceUrl: $sourceUrl');
 
     try {
-      if (sourceUrl.startsWith('file://') || File(sourceUrl).existsSync()) {
-        final localPath = sourceUrl.startsWith('file://')
-            ? Uri.parse(sourceUrl).toFilePath()
-            : sourceUrl;
-
-        Log.i('playSong -> Opening local file: $localPath');
-        await _player.setFilePath(localPath);
-        await _player.play();
-        Log.i('playSong -> local file started successfully');
-        return;
-      }
-
+      // 1. Check for local download first
       String? videoId;
       final uri = Uri.tryParse(sourceUrl);
 
@@ -113,14 +117,43 @@ class AudioNotifier extends StateNotifier<AudioState> {
         videoId = sourceUrl;
       }
 
-      if (videoId != null && videoId.length != 11) {
-        Log.w(
-          'VideoId validation warning: extracted "$videoId" '
-          '(length=${videoId.length}, expected 11)',
-        );
+      // Special case: Jamendo IDs are jamendo_ID
+      final lookupId = videoId ?? song.id;
+      final actualId = lookupId.startsWith('jamendo_') 
+          ? lookupId.replaceFirst('jamendo_', '') 
+          : lookupId;
+
+      Log.i('playSong -> Looking for local file with ID: $actualId');
+      final localSong = await _localDownloadLibrary.findDownloadedSongById(actualId);
+      
+      if (localSong != null) {
+        final normalizedPath = _normalizePath(localSong.path);
+        Log.i('playSong -> FOUND local file! Playing: $normalizedPath');
+        
+        // Brief delay to ensure file handle is released by OS after download
+        await Future.delayed(const Duration(milliseconds: 200));
+        await _player.setFilePath(normalizedPath);
+        await _player.play();
+        return;
       }
 
-      Log.i('playSong -> Extracted videoId: "$videoId" from sourceUrl: "$sourceUrl"');
+      // 2. If not local, proceed with streaming
+      if (sourceUrl.startsWith('file://') || File(sourceUrl).existsSync()) {
+        final localPath = sourceUrl.startsWith('file://')
+            ? Uri.parse(sourceUrl).toFilePath()
+            : sourceUrl;
+
+        final finalPath = _normalizePath(localPath);
+        Log.i('playSong -> Opening direct local file (fallback): $finalPath');
+
+        // Brief delay to ensure file handle is released by OS after download
+        await Future.delayed(const Duration(milliseconds: 200));
+        await _player.setFilePath(finalPath);
+        await _player.play();
+        return;
+      }
+
+      Log.i('playSong -> No local file found. Proceeding with stream for ID: "$videoId"');
 
       final headers = {
         'User-Agent':
@@ -128,7 +161,8 @@ class AudioNotifier extends StateNotifier<AudioState> {
       };
 
       if (videoId != null && videoId.isNotEmpty) {
-        final port = await YoutubeProxyServer.start();
+        final port = await YoutubeProxyServer.start(_youtubeService.client);
+
         final proxyUrl = 'http://127.0.0.1:$port/?id=$videoId';
 
         Log.i('playSong -> Opening PROXY stream: $proxyUrl');
@@ -141,6 +175,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
       await _player.play();
       Log.i('playSong -> just_audio started successfully');
     } catch (e, stacktrace) {
+
       Log.e('playSong -> FATAL ERROR: $e');
       Log.e('Stacktrace: $stacktrace');
       if (mounted) {
@@ -161,14 +196,24 @@ class AudioNotifier extends StateNotifier<AudioState> {
     _player.seek(position);
   }
 
-  @override
-  void dispose() {
-    for (final sub in _subs) {
-      sub.cancel();
+  void seekRelative(int seconds) {
+    final currentPosition = _player.position;
+    final duration = _player.duration ?? Duration.zero;
+    final nextPosition = currentPosition + Duration(seconds: seconds);
+    
+    // Clamp to [0, duration]
+    if (nextPosition < Duration.zero) {
+      _player.seek(Duration.zero);
+    } else if (nextPosition > duration) {
+      _player.seek(duration);
+    } else {
+      _player.seek(nextPosition);
     }
-    _visualizerTimer?.cancel();
-    _frequencyController.close();
-    _player.dispose();
-    super.dispose();
+  }
+
+  /// Normalizes file path separators for Windows.
+  /// just_audio_windows passes paths directly to WMF which requires backslashes.
+  String _normalizePath(String path) {
+    return p.normalize(path).replaceAll('/', '\\');
   }
 }

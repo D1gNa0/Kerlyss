@@ -19,7 +19,17 @@ class DownloadedSongsView extends ConsumerStatefulWidget {
 class _DownloadedSongsViewState extends ConsumerState<DownloadedSongsView> {
   bool _isDragging = false;
 
+  @override
+  void initState() {
+    super.initState();
+    // Refresh the library every time the view is entered
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.invalidate(downloadedSongsProvider);
+    });
+  }
+
   Future<void> _handleDrop(DropDoneDetails detail) async {
+
     final localDownloadLibrary = ref.read(localDownloadLibraryProvider);
     var importedCount = 0;
     final failures = <String>[];

@@ -32,4 +32,24 @@ class IsarDatabaseService {
       await isar.songModels.filter().songIdEqualTo(songId).deleteAll();
     });
   }
+
+  Future<SongModel?> getSongById(String songId) async {
+    return await isar.songModels.filter().songIdEqualTo(songId).findFirst();
+  }
+
+  Future<void> updateLocalPath(SongModel songData, String localPath) async {
+    await isar.writeTxn(() async {
+      final existing = await isar.songModels.filter().songIdEqualTo(songData.songId).findFirst();
+      if (existing != null) {
+        existing.localPath = localPath;
+        await isar.songModels.put(existing);
+      } else {
+        // First download, create record
+        songData.localPath = localPath;
+        await isar.songModels.put(songData);
+      }
+    });
+  }
 }
+
+

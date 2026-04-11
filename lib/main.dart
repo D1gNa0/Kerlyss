@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:window_manager/window_manager.dart';
 import 'core/services/logger_service.dart';
 import 'presentation/theme/aether_theme.dart';
@@ -11,6 +12,13 @@ import 'presentation/screens/main_shell_view.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  try {
+    await dotenv.load(fileName: '.env');
+  } catch (_) {
+    // .env is optional in local setups; fall back to env vars or dart-define.
+  }
+
   await Log.init();
 
   final isarService = IsarDatabaseService();

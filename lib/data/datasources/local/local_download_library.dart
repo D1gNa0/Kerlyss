@@ -37,7 +37,24 @@ class LocalDownloadLibrary {
     return songs;
   }
 
+  Future<DownloadedSong?> findDownloadedSongById(String id) async {
+    final downloadsDirectory = await AppStoragePaths.downloadsDirectory();
+    final idPart = '_$id';
+
+    await for (final entity in downloadsDirectory.list(recursive: false)) {
+      if (entity is! File) continue;
+
+      final fileName = p.basename(entity.path);
+      // Check if the filename contains the ID (youtube_ID_... or jamendo_ID_...)
+      if (fileName.contains(idPart)) {
+        return await DownloadedSong.fromFile(entity);
+      }
+    }
+    return null;
+  }
+
   Future<String> get downloadsPath async {
+
     return (await AppStoragePaths.downloadsDirectory()).path;
   }
 

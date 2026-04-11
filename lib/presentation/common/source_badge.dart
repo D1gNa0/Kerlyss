@@ -23,6 +23,10 @@ class SourceBadge extends StatelessWidget {
         iconData = Icons.circle_rounded;
         color = Colors.greenAccent.withOpacity(0.8);
         break;
+      case AudioSourceType.jamendo:
+        iconData = Icons.library_music_rounded;
+        color = Colors.orangeAccent.withOpacity(0.8);
+        break;
     }
 
     return Container(

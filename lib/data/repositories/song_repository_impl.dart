@@ -3,7 +3,6 @@ import '../../domain/repositories/song_repository.dart';
 import '../datasources/local/isar_database_service.dart';
 import '../datasources/remote/spotify_public_service.dart';
 import '../datasources/remote/youtube_audio_engine.dart';
-import '../datasources/remote/youtube_service.dart';
 import '../datasources/remote/search_aggregator.dart';
 import '../models/song_model.dart';
 import '../../domain/entities/audio_source_type.dart';
@@ -11,14 +10,12 @@ import '../../domain/entities/audio_source_type.dart';
 class SongRepositoryImpl implements SongRepository {
   final IsarDatabaseService _localDataSource;
   final SpotifyPublicService _spotifyPublicService;
-  final YoutubeService _youtubeService;
   final YoutubeAudioEngine _youtubeAudioEngine;
   final SearchAggregator _searchAggregator;
 
   SongRepositoryImpl(
     this._localDataSource,
     this._spotifyPublicService,
-    this._youtubeService,
     this._youtubeAudioEngine,
     this._searchAggregator,
   );
@@ -72,7 +69,13 @@ class SongRepositoryImpl implements SongRepository {
       throw Exception('Could not find a YouTube mirror for: $fullTitle');
     }
 
-    final topMatch = results.first;
+    final topMatch = results.firstWhere(
+      (song) => song.sourceType == AudioSourceType.youtube,
+      orElse: () => results.firstWhere(
+        (song) => song.sourceUrl.isNotEmpty,
+        orElse: () => results.first,
+      ),
+    );
 
     // 3. Construct a Hybrid Entity (Spotify Identity + YouTube Stream)
     return SongEntity(

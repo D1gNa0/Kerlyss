@@ -42,24 +42,29 @@ const SongModelSchema = CollectionSchema(
       name: r'isFavorite',
       type: IsarType.bool,
     ),
-    r'songId': PropertySchema(
+    r'localPath': PropertySchema(
       id: 5,
+      name: r'localPath',
+      type: IsarType.string,
+    ),
+    r'songId': PropertySchema(
+      id: 6,
       name: r'songId',
       type: IsarType.string,
     ),
     r'sourceType': PropertySchema(
-      id: 6,
+      id: 7,
       name: r'sourceType',
       type: IsarType.byte,
       enumMap: _SongModelsourceTypeEnumValueMap,
     ),
     r'sourceUrl': PropertySchema(
-      id: 7,
+      id: 8,
       name: r'sourceUrl',
       type: IsarType.string,
     ),
     r'title': PropertySchema(
-      id: 8,
+      id: 9,
       name: r'title',
       type: IsarType.string,
     )
@@ -106,6 +111,12 @@ int _songModelEstimateSize(
     }
   }
   bytesCount += 3 + object.artist.length * 3;
+  {
+    final value = object.localPath;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
   bytesCount += 3 + object.songId.length * 3;
   bytesCount += 3 + object.sourceUrl.length * 3;
   bytesCount += 3 + object.title.length * 3;
@@ -123,10 +134,11 @@ void _songModelSerialize(
   writer.writeString(offsets[2], object.artist);
   writer.writeLong(offsets[3], object.durationMs);
   writer.writeBool(offsets[4], object.isFavorite);
-  writer.writeString(offsets[5], object.songId);
-  writer.writeByte(offsets[6], object.sourceType.index);
-  writer.writeString(offsets[7], object.sourceUrl);
-  writer.writeString(offsets[8], object.title);
+  writer.writeString(offsets[5], object.localPath);
+  writer.writeString(offsets[6], object.songId);
+  writer.writeByte(offsets[7], object.sourceType.index);
+  writer.writeString(offsets[8], object.sourceUrl);
+  writer.writeString(offsets[9], object.title);
 }
 
 SongModel _songModelDeserialize(
@@ -142,12 +154,13 @@ SongModel _songModelDeserialize(
   object.durationMs = reader.readLong(offsets[3]);
   object.id = id;
   object.isFavorite = reader.readBool(offsets[4]);
-  object.songId = reader.readString(offsets[5]);
+  object.localPath = reader.readStringOrNull(offsets[5]);
+  object.songId = reader.readString(offsets[6]);
   object.sourceType =
-      _SongModelsourceTypeValueEnumMap[reader.readByteOrNull(offsets[6])] ??
+      _SongModelsourceTypeValueEnumMap[reader.readByteOrNull(offsets[7])] ??
           AudioSourceType.local;
-  object.sourceUrl = reader.readString(offsets[7]);
-  object.title = reader.readString(offsets[8]);
+  object.sourceUrl = reader.readString(offsets[8]);
+  object.title = reader.readString(offsets[9]);
   return object;
 }
 
@@ -169,13 +182,15 @@ P _songModelDeserializeProp<P>(
     case 4:
       return (reader.readBool(offset)) as P;
     case 5:
-      return (reader.readString(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 6:
+      return (reader.readString(offset)) as P;
+    case 7:
       return (_SongModelsourceTypeValueEnumMap[reader.readByteOrNull(offset)] ??
           AudioSourceType.local) as P;
-    case 7:
-      return (reader.readString(offset)) as P;
     case 8:
+      return (reader.readString(offset)) as P;
+    case 9:
       return (reader.readString(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -186,11 +201,13 @@ const _SongModelsourceTypeEnumValueMap = {
   'local': 0,
   'spotify': 1,
   'youtube': 2,
+  'jamendo': 3,
 };
 const _SongModelsourceTypeValueEnumMap = {
   0: AudioSourceType.local,
   1: AudioSourceType.spotify,
   2: AudioSourceType.youtube,
+  3: AudioSourceType.jamendo,
 };
 
 Id _songModelGetId(SongModel object) {
@@ -913,6 +930,155 @@ extension SongModelQueryFilter
     });
   }
 
+  QueryBuilder<SongModel, SongModel, QAfterFilterCondition> localPathIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'localPath',
+      ));
+    });
+  }
+
+  QueryBuilder<SongModel, SongModel, QAfterFilterCondition>
+      localPathIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'localPath',
+      ));
+    });
+  }
+
+  QueryBuilder<SongModel, SongModel, QAfterFilterCondition> localPathEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'localPath',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SongModel, SongModel, QAfterFilterCondition>
+      localPathGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'localPath',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SongModel, SongModel, QAfterFilterCondition> localPathLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'localPath',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SongModel, SongModel, QAfterFilterCondition> localPathBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'localPath',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SongModel, SongModel, QAfterFilterCondition> localPathStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'localPath',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SongModel, SongModel, QAfterFilterCondition> localPathEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'localPath',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SongModel, SongModel, QAfterFilterCondition> localPathContains(
+      String value,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'localPath',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SongModel, SongModel, QAfterFilterCondition> localPathMatches(
+      String pattern,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'localPath',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SongModel, SongModel, QAfterFilterCondition> localPathIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'localPath',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<SongModel, SongModel, QAfterFilterCondition>
+      localPathIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'localPath',
+        value: '',
+      ));
+    });
+  }
+
   QueryBuilder<SongModel, SongModel, QAfterFilterCondition> songIdEqualTo(
     String value, {
     bool caseSensitive = true,
@@ -1427,6 +1593,18 @@ extension SongModelQuerySortBy on QueryBuilder<SongModel, SongModel, QSortBy> {
     });
   }
 
+  QueryBuilder<SongModel, SongModel, QAfterSortBy> sortByLocalPath() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'localPath', Sort.asc);
+    });
+  }
+
+  QueryBuilder<SongModel, SongModel, QAfterSortBy> sortByLocalPathDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'localPath', Sort.desc);
+    });
+  }
+
   QueryBuilder<SongModel, SongModel, QAfterSortBy> sortBySongId() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'songId', Sort.asc);
@@ -1550,6 +1728,18 @@ extension SongModelQuerySortThenBy
     });
   }
 
+  QueryBuilder<SongModel, SongModel, QAfterSortBy> thenByLocalPath() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'localPath', Sort.asc);
+    });
+  }
+
+  QueryBuilder<SongModel, SongModel, QAfterSortBy> thenByLocalPathDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'localPath', Sort.desc);
+    });
+  }
+
   QueryBuilder<SongModel, SongModel, QAfterSortBy> thenBySongId() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'songId', Sort.asc);
@@ -1634,6 +1824,13 @@ extension SongModelQueryWhereDistinct
     });
   }
 
+  QueryBuilder<SongModel, SongModel, QDistinct> distinctByLocalPath(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'localPath', caseSensitive: caseSensitive);
+    });
+  }
+
   QueryBuilder<SongModel, SongModel, QDistinct> distinctBySongId(
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
@@ -1697,6 +1894,12 @@ extension SongModelQueryProperty
   QueryBuilder<SongModel, bool, QQueryOperations> isFavoriteProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'isFavorite');
+    });
+  }
+
+  QueryBuilder<SongModel, String?, QQueryOperations> localPathProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'localPath');
     });
   }
 

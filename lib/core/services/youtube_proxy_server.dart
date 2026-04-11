@@ -5,12 +5,12 @@ import 'package:kerlyss/core/services/logger_service.dart';
 class YoutubeProxyServer {
   static HttpServer? _server;
   static int? _port;
-  static final YoutubeExplode _yt = YoutubeExplode();
 
   /// Starts the proxy server if it is not already running.
   /// Returns the local port the server is listening on.
-  static Future<int> start() async {
+  static Future<int> start(YoutubeExplode yt) async {
     if (_server != null && _port != null) return _port!;
+
 
     _server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     _port = _server!.port;
@@ -29,11 +29,24 @@ class YoutubeProxyServer {
 
       try {
         Log.i('Proxy: Fetching YouTube manifest for videoId=$queryId...');
-        final manifest = await _yt.videos.streamsClient.getManifest(queryId);
+        final manifest = await yt.videos.streamsClient.getManifest(
+          queryId,
+          ytClients: [YoutubeApiClient.androidVr],
+        );
+
         Log.i('Proxy: Manifest fetched successfully');
         
-        final info = manifest.audioOnly.withHighestBitrate();
-        Log.i('Proxy: Using audio stream - codec=${info.codec.mimeType}, container=${info.container.name}, bitrate=${info.bitrate.kiloBitsPerSecond}kbps, size=${info.size.totalBytes} bytes');
+        // We MUST use 'muxed' streams for Windows playback compatibility.
+        // DASH fragments (audioOnly) are not supported by WMF via the proxy.
+        final muxedStreams = manifest.muxed.toList();
+        if (muxedStreams.isEmpty) {
+          throw Exception('No standalone muxed streams available.');
+        }
+
+        final info = (muxedStreams..sort((a, b) => b.bitrate.compareTo(a.bitrate))).first;
+        Log.i('Proxy: Using STANDALONE muxed stream - Bitrate: ${info.bitrate.kiloBitsPerSecond}kbps, Quality: ${info.videoQuality}');
+
+
         
         // Support HTTP Range requests for seeking
         final rangeHeader = request.headers.value(HttpHeaders.rangeHeader);
@@ -62,34 +75,33 @@ class YoutubeProxyServer {
 
         Log.i('Proxy: Streaming audio...');
 
-        // Stream the audio
-        final stream = _yt.videos.streamsClient.get(info);
-        
-        if (start == 0) {
-          await stream.pipe(request.response);
-        } else {
-          // Efficient byte skipping without expand()
-          int bytesToSkip = start;
-          await for (final chunk in stream) {
-            if (bytesToSkip > 0) {
-              if (chunk.length <= bytesToSkip) {
-                bytesToSkip -= chunk.length;
-                continue;
-              } else {
-                final remaining = chunk.sublist(bytesToSkip);
-                request.response.add(remaining);
-                bytesToSkip = 0;
-              }
-            } else {
-              request.response.add(chunk);
-            }
-          }
-          await request.response.close();
+        // youtube_explode stream client hangs on Windows — use raw HttpClient instead
+        final rawUrl = info.url;
+        final httpClient = HttpClient();
+        final httpRequest = await httpClient.getUrl(rawUrl);
+        httpRequest.headers.set(HttpHeaders.userAgentHeader,
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+        httpRequest.headers.set('Referer', 'https://www.youtube.com/');
+        if (start > 0) {
+          httpRequest.headers.set(HttpHeaders.rangeHeader, 'bytes=$start-$end');
         }
+
+        final httpResponse = await httpRequest.close();
+        Log.i('Proxy: CDN responded with ${httpResponse.statusCode}');
+
+        await for (final List<int> chunk in httpResponse) {
+          request.response.add(chunk);
+        }
+
+        await request.response.close();
+        httpClient.close();
         Log.i('Proxy: Stream completed successfully');
+
+
       } catch (e, stacktrace) {
         Log.e('Proxy Error getting manifest for videoId=$queryId: $e');
         Log.e('Stack: $stacktrace');
+
         try {
           request.response.statusCode = 500;
           request.response.write('Proxy Error: $e');

@@ -26,6 +26,7 @@ dependencies:
   window_manager: ^0.5.1
   logger: ^2.7.0
   desktop_drop: ^0.4.4
+  flutter_dotenv: ^5.2.1
 
 dev_dependencies:
   flutter_test:
@@ -38,4 +39,5 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
+    - .env
     - assets/

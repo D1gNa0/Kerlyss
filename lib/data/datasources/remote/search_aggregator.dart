@@ -2,35 +2,72 @@ import 'package:string_similarity/string_similarity.dart';
 import '../../../domain/entities/song_entity.dart';
 import '../../../domain/entities/audio_source_type.dart';
 import 'spotify_public_service.dart';
+import 'jamendo_service.dart';
 import 'youtube_service.dart';
 
 class SearchAggregator {
   final SpotifyPublicService _spotifyService;
   final YoutubeService _youtubeService;
+  final JamendoService _jamendoService;
 
-  SearchAggregator(this._spotifyService, this._youtubeService);
+  SearchAggregator(
+    this._spotifyService,
+    this._youtubeService,
+    this._jamendoService,
+  );
 
   Future<List<SongEntity>> search(String query) async {
     // 1. Parallel Search (Robust against individual failures)
-    List<Map<String, dynamic>> spotifyResults = [];
-    List<dynamic> youtubeResults = [];
-
     try {
-      final results = await Future.wait([
-        _spotifyService.searchTracks(query).catchError((_) => <Map<String, dynamic>>[]),
-        _youtubeService.searchVideos(query).catchError((_) => []),
-      ]);
-      spotifyResults = results[0] as List<Map<String, dynamic>>;
-      youtubeResults = results[1] as List<dynamic>;
+      final spotifyFuture = _safeSpotifySearch(query);
+      final youtubeFuture = _safeYoutubeSearch(query);
+      final jamendoFuture = _safeJamendoSearch(query);
+
+      final spotifyResults = await spotifyFuture;
+      final youtubeResults = await youtubeFuture;
+      final jamendoResults = await jamendoFuture;
+
+      return _mergeResults(spotifyResults, youtubeResults, jamendoResults);
     } catch (e) {
       throw Exception('Search Aggregator failed to initialize network connections: $e');
     }
 
+  }
+
+  Future<List<Map<String, dynamic>>> _safeSpotifySearch(String query) async {
+    try {
+      return await _spotifyService.searchTracks(query);
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<List<dynamic>> _safeYoutubeSearch(String query) async {
+    try {
+      return await _youtubeService.searchVideos(query);
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<List<SongEntity>> _safeJamendoSearch(String query) async {
+    try {
+      return await _jamendoService.searchTracks(query);
+    } catch (_) {
+      return [];
+    }
+  }
+
+  List<SongEntity> _mergeResults(
+    List<Map<String, dynamic>> spotifyResults,
+    List<dynamic> youtubeResults,
+    List<SongEntity> jamendoResults,
+  ) {
     final List<SongEntity> aggregatedResults = [];
     final Set<String> matchedYoutubeIds = {};
 
     // 2. Fuzzy Matching & Merging
-    // Note: Since searchTracks currently returns empty in this draft, 
+    // Note: Since searchTracks currently returns empty in this draft,
     // we focus on the logic structure for merging.
     for (var sTrack in spotifyResults) {
       final sTitle = sTrack['name'] ?? '';
@@ -105,6 +142,8 @@ class SearchAggregator {
         );
       }
     }
+
+    aggregatedResults.addAll(jamendoResults);
 
     return aggregatedResults;
   }

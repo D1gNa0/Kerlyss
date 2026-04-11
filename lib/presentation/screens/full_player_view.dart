@@ -157,15 +157,22 @@ class FullPlayerView extends ConsumerWidget {
                       Tooltip(
                         message: 'STUB — Not Implemented',
                         child: Stack(children: [
-                          const Icon(Icons.skip_previous_rounded, size: 40),
-                          Positioned(top: 0, right: 0, child: Container(width: 8, height: 8, decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle))),
+                          const Icon(Icons.skip_previous_rounded, size: 32),
+                          Positioned(top: 0, right: 0, child: Container(width: 6, height: 6, decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle))),
                         ]),
                       ),
+                      const SizedBox(width: 8),
+                      // Skip Back 5s
+                      IconButton(
+                        icon: const Icon(Icons.replay_5_rounded, size: 28, color: Colors.white70),
+                        onPressed: () => ref.read(audioProvider.notifier).seekRelative(-5),
+                      ),
+                      const SizedBox(width: 8),
                       GestureDetector(
                         onTap: () => ref.read(audioProvider.notifier).togglePlay(),
                         child: Container(
-                          width: 72,
-                          height: 72,
+                          width: 68,
+                          height: 68,
                           decoration: BoxDecoration(
                             color: Colors.white,
                             shape: BoxShape.circle,
@@ -185,12 +192,19 @@ class FullPlayerView extends ConsumerWidget {
                           ),
                         ),
                       ),
+                      const SizedBox(width: 8),
+                      // Skip Forward 5s
+                      IconButton(
+                        icon: const Icon(Icons.forward_5_rounded, size: 28, color: Colors.white70),
+                        onPressed: () => ref.read(audioProvider.notifier).seekRelative(5),
+                      ),
+                      const SizedBox(width: 8),
                       // STUB: skip next not implemented
                       Tooltip(
                         message: 'STUB — Not Implemented',
                         child: Stack(children: [
-                          const Icon(Icons.skip_next_rounded, size: 40),
-                          Positioned(top: 0, right: 0, child: Container(width: 8, height: 8, decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle))),
+                          const Icon(Icons.skip_next_rounded, size: 32),
+                          Positioned(top: 0, right: 0, child: Container(width: 6, height: 6, decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle))),
                         ]),
                       ),
                       // STUB: repeat not implemented
@@ -227,10 +241,11 @@ class FullPlayerView extends ConsumerWidget {
                       SliderTheme(
                         data: SliderTheme.of(context).copyWith(
                           trackHeight: 2,
-                          thumbShape: SliderComponentShape.noThumb,
-                          overlayShape: SliderComponentShape.noOverlay,
+                          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                          overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
                           activeTrackColor: Colors.white,
                           inactiveTrackColor: Colors.white.withOpacity(0.1),
+                          thumbColor: Colors.white,
                         ),
                         child: Slider(
                           value: sliderValue,

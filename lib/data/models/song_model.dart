@@ -22,6 +22,9 @@ class SongModel {
   late AudioSourceType sourceType;
 
   bool isFavorite = false;
+  
+  String? localPath;
+
 
   SongEntity toEntity() {
     return SongEntity(
@@ -45,6 +48,8 @@ class SongModel {
       ..albumArtUrl = entity.albumArtUrl
       ..durationMs = entity.duration.inMilliseconds
       ..sourceUrl = entity.sourceUrl
-      ..sourceType = entity.sourceType;
+      ..sourceType = entity.sourceType
+      ..localPath = null; // New models start with no local path
   }
 }
+
