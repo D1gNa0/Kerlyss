@@ -40,14 +40,26 @@ class SongRepositoryImpl implements SongRepository {
 
   @override
   Future<void> removeFromFavorites(String id) async {
-    await _localDataSource.deleteSong(id);
+    final existing = await _localDataSource.getSongById(id);
+    if (existing != null) {
+      existing.isFavorite = false;
+      await _localDataSource.saveSong(existing);
+    }
   }
+
 
   @override
   Future<List<SongEntity>> getFavorites() async {
     final models = await _localDataSource.getFavorites();
     return models.map((m) => m.toEntity()).toList();
   }
+
+  @override
+  Future<List<SongEntity>> getAllSongs() async {
+    final models = await _localDataSource.getAllSongs();
+    return models.map((m) => m.toEntity()).toList();
+  }
+
 
   @override
   Future<String> resolveStreamUri(String songId) async {
@@ -89,4 +101,23 @@ class SongRepositoryImpl implements SongRepository {
       sourceType: AudioSourceType.spotify,
     );
   }
+
+  @override
+  Future<void> saveSong(SongEntity song) async {
+    final model = SongModel.fromEntity(song);
+    // Preserving favorite status if it already exists
+    final existing = await _localDataSource.getSongById(song.id);
+    if (existing != null) {
+      model.isFavorite = existing.isFavorite;
+      model.localPath = existing.localPath;
+    }
+    await _localDataSource.saveSong(model);
+  }
+
+  @override
+  Future<SongEntity?> getSongById(String id) async {
+    final model = await _localDataSource.getSongById(id);
+    return model?.toEntity();
+  }
 }
+

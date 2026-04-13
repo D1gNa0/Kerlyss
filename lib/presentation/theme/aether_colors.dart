@@ -13,6 +13,8 @@ class AetherColors {
   // Accent (Dynamic placeholder)
   static const Color primaryAccent = Color(0xFFA855F7); // Lucid Purple
   static const Color secondaryAccent = Color(0xFF3B82F6); // Electric Blue
+  static const Color accentCyan = Color(0xFF22D3EE); // Vibrant Cyan
+
 
   // Text
   static const Color textPrimary = Color(0xFFF9FAFB);

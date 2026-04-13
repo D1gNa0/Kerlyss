@@ -46,6 +46,8 @@ class AudioState {
   final Duration bufferedPosition;
   final bool isShuffleEnabled;
   final bool isRepeatEnabled;
+  final List<SongMetadata> playlist;
+  final int currentIndex;
 
   const AudioState({
     required this.currentSong,
@@ -54,6 +56,8 @@ class AudioState {
     required this.bufferedPosition,
     this.isShuffleEnabled = false,
     this.isRepeatEnabled = false,
+    this.playlist = const [],
+    this.currentIndex = -1,
   });
 
   AudioState copyWith({
@@ -63,6 +67,8 @@ class AudioState {
     Duration? bufferedPosition,
     bool? isShuffleEnabled,
     bool? isRepeatEnabled,
+    List<SongMetadata>? playlist,
+    int? currentIndex,
   }) {
     return AudioState(
       currentSong: currentSong ?? this.currentSong,
@@ -71,6 +77,9 @@ class AudioState {
       bufferedPosition: bufferedPosition ?? this.bufferedPosition,
       isShuffleEnabled: isShuffleEnabled ?? this.isShuffleEnabled,
       isRepeatEnabled: isRepeatEnabled ?? this.isRepeatEnabled,
+      playlist: playlist ?? this.playlist,
+      currentIndex: currentIndex ?? this.currentIndex,
     );
   }
 }
+

@@ -7,8 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 
 import 'package:kerlyss/core/services/logger_service.dart';
-import 'package:kerlyss/core/services/youtube_proxy_server.dart';
 import 'package:kerlyss/data/datasources/local/local_download_library.dart';
+import 'package:kerlyss/core/services/youtube_proxy_server.dart';
 import 'package:kerlyss/data/datasources/remote/youtube_service.dart';
 import 'package:kerlyss/data/repositories/repository_providers.dart';
 import 'package:kerlyss/presentation/state/downloaded_songs_provider.dart';
@@ -68,11 +68,33 @@ class AudioNotifier extends StateNotifier<AudioState> {
 
       Log.i('just_audio state: playing=${playerState.playing}, processing=${playerState.processingState}');
       state = state.copyWith(status: nextStatus);
+      
+      // Auto-advance logic
+      if (playerState.processingState == ProcessingState.completed) {
+        next();
+      }
     }));
 
     _subs.add(_player.positionStream.listen((position) {
       if (!mounted) return;
       state = state.copyWith(position: position);
+    }));
+
+    _subs.add(_player.durationStream.listen((duration) {
+      if (!mounted || duration == null) return;
+      if (state.currentSong.duration != duration) {
+        state = state.copyWith(
+          currentSong: SongMetadata(
+            id: state.currentSong.id,
+            title: state.currentSong.title,
+            artist: state.currentSong.artist,
+            album: state.currentSong.album,
+            artworkUrl: state.currentSong.artworkUrl,
+            duration: duration,
+            source: state.currentSong.source,
+          ),
+        );
+      }
     }));
 
     _subs.add(_player.bufferedPositionStream.listen((bufferedPosition) {
@@ -98,6 +120,36 @@ class AudioNotifier extends StateNotifier<AudioState> {
         _frequencyController.add(List.generate(16, (_) => 0.0));
       }
     });
+  }
+
+  /// Plays a specific song from a playlist and loads the rest of the list into the queue.
+  Future<void> playPlaylist(List<SongMetadata> playlist, int index) async {
+    if (index < 0 || index >= playlist.length) return;
+    
+    state = state.copyWith(
+      playlist: playlist,
+      currentIndex: index,
+    );
+    
+    final song = playlist[index];
+    // We need to resolve the source URL. 
+    // If it's a local song, we use its ID as source.
+    // If it's a remote song, we'd ideally have its stream URL, 
+    // but here we rely on playSong to handle resolution.
+    await playSong(song, song.id); 
+  }
+
+  void next() {
+    if (state.playlist.isEmpty) return;
+    final nextIndex = (state.currentIndex + 1) % state.playlist.length;
+    playPlaylist(state.playlist, nextIndex);
+  }
+
+  void previous() {
+    if (state.playlist.isEmpty) return;
+    var prevIndex = state.currentIndex - 1;
+    if (prevIndex < 0) prevIndex = state.playlist.length - 1;
+    playPlaylist(state.playlist, prevIndex);
   }
 
   Future<void> playSong(SongMetadata song, String sourceUrl) async {
@@ -162,7 +214,6 @@ class AudioNotifier extends StateNotifier<AudioState> {
 
       if (videoId != null && videoId.isNotEmpty) {
         final port = await YoutubeProxyServer.start(_youtubeService.client);
-
         final proxyUrl = 'http://127.0.0.1:$port/?id=$videoId';
 
         Log.i('playSong -> Opening PROXY stream: $proxyUrl');

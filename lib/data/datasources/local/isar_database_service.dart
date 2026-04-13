@@ -1,6 +1,7 @@
 import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
 import '../../models/song_model.dart';
+import '../../models/playlist_model.dart';
 
 class IsarDatabaseService {
   late Isar isar;
@@ -8,10 +9,35 @@ class IsarDatabaseService {
   Future<void> init() async {
     final dir = await getApplicationDocumentsDirectory();
     isar = await Isar.open(
-      [SongModelSchema],
+      [SongModelSchema, PlaylistModelSchema],
       directory: dir.path,
     );
   }
+
+  // --- Song Operations ---
+  // ... (previous code)
+
+  // --- Playlist Operations ---
+  Future<void> savePlaylist(PlaylistModel playlist) async {
+    await isar.writeTxn(() async {
+      await isar.playlistModels.put(playlist);
+    });
+  }
+
+  Future<List<PlaylistModel>> getAllPlaylists() async {
+    return await isar.playlistModels.where().findAll();
+  }
+
+  Future<void> deletePlaylist(int id) async {
+    await isar.writeTxn(() async {
+      await isar.playlistModels.delete(id);
+    });
+  }
+
+  Future<PlaylistModel?> getPlaylistById(int id) async {
+    return await isar.playlistModels.get(id);
+  }
+
 
   Future<void> saveSong(SongModel song) async {
     await isar.writeTxn(() async {

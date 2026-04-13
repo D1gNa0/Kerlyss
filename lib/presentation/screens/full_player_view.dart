@@ -16,9 +16,10 @@ class FullPlayerView extends ConsumerWidget {
     final audioState = ref.watch(audioProvider);
     final currentSong = audioState.currentSong;
     final screenWidth = MediaQuery.of(context).size.width;
-    final durationSeconds = currentSong.duration.inSeconds.toDouble();
-    final sliderMax = durationSeconds > 0 ? durationSeconds : 1.0;
-    final sliderValue = audioState.position.inSeconds.toDouble().clamp(0.0, sliderMax);
+    final durationMs = currentSong.duration.inMilliseconds.toDouble();
+    final sliderMax = durationMs > 0 ? durationMs : 1000.0;
+    final sliderValue = audioState.position.inMilliseconds.toDouble().clamp(0.0, sliderMax);
+
 
     return Scaffold(
       backgroundColor: AetherColors.deepMatteBlack,
@@ -31,7 +32,12 @@ class FullPlayerView extends ConsumerWidget {
               child: Opacity(
                 opacity: 0.5,
                 child: currentSong.artworkUrl != null
-                    ? Image.network(currentSong.artworkUrl!, fit: BoxFit.cover)
+                    ? Image.network(
+                        currentSong.artworkUrl!, 
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                      )
+
                     : const SizedBox.shrink(),
               ),
             ),
@@ -102,7 +108,15 @@ class FullPlayerView extends ConsumerWidget {
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(24),
                               child: currentSong.artworkUrl != null
-                                  ? Image.network(currentSong.artworkUrl!, fit: BoxFit.cover)
+                                  ? Image.network(
+                                      currentSong.artworkUrl!, 
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => Container(
+                                        color: Colors.white.withOpacity(0.03),
+                                        child: const Icon(Icons.music_note_rounded, color: Colors.white24, size: 64),
+                                      ),
+                                    )
+
                                   : Container(
                                       color: AetherColors.ultraDarkGray,
                                       child: const Icon(Icons.music_note, size: 60),
@@ -153,59 +167,62 @@ class FullPlayerView extends ConsumerWidget {
                           Positioned(top: 0, right: 0, child: Container(width: 6, height: 6, decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle))),
                         ]),
                       ),
-                      // STUB: skip previous not implemented
-                      Tooltip(
-                        message: 'STUB — Not Implemented',
-                        child: Stack(children: [
-                          const Icon(Icons.skip_previous_rounded, size: 32),
-                          Positioned(top: 0, right: 0, child: Container(width: 6, height: 6, decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle))),
-                        ]),
+                      IconButton(
+                        icon: const Icon(Icons.skip_previous_rounded, size: 32, color: Colors.white),
+                        onPressed: () => ref.read(audioProvider.notifier).previous(),
+                        tooltip: 'Previous (Ctrl + Left)',
                       ),
                       const SizedBox(width: 8),
                       // Skip Back 5s
-                      IconButton(
-                        icon: const Icon(Icons.replay_5_rounded, size: 28, color: Colors.white70),
-                        onPressed: () => ref.read(audioProvider.notifier).seekRelative(-5),
+                      Tooltip(
+                        message: 'Back 5s (Left Arrow)',
+                        child: IconButton(
+                          icon: const Icon(Icons.replay_5_rounded, size: 28, color: Colors.white70),
+                          onPressed: () => ref.read(audioProvider.notifier).seekRelative(-5),
+                        ),
                       ),
                       const SizedBox(width: 8),
-                      GestureDetector(
-                        onTap: () => ref.read(audioProvider.notifier).togglePlay(),
-                        child: Container(
-                          width: 68,
-                          height: 68,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.white.withOpacity(0.2),
-                                blurRadius: 20,
-                              ),
-                            ],
-                          ),
-                          child: Icon(
-                            audioState.status == PlaybackStatus.playing
-                                ? Icons.pause_rounded
-                                : Icons.play_arrow_rounded,
-                            color: Colors.black,
-                            size: 40,
+                      Tooltip(
+                        message: 'Play/Pause (Space)',
+                        child: GestureDetector(
+                          onTap: () => ref.read(audioProvider.notifier).togglePlay(),
+                          child: Container(
+                            width: 68,
+                            height: 68,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.white.withOpacity(0.2),
+                                  blurRadius: 20,
+                                ),
+                              ],
+                            ),
+                            child: Icon(
+                              audioState.status == PlaybackStatus.playing
+                                  ? Icons.pause_rounded
+                                  : Icons.play_arrow_rounded,
+                              color: Colors.black,
+                              size: 40,
+                            ),
                           ),
                         ),
                       ),
                       const SizedBox(width: 8),
                       // Skip Forward 5s
-                      IconButton(
-                        icon: const Icon(Icons.forward_5_rounded, size: 28, color: Colors.white70),
-                        onPressed: () => ref.read(audioProvider.notifier).seekRelative(5),
+                      Tooltip(
+                        message: 'Forward 5s (Right Arrow)',
+                        child: IconButton(
+                          icon: const Icon(Icons.forward_5_rounded, size: 28, color: Colors.white70),
+                          onPressed: () => ref.read(audioProvider.notifier).seekRelative(5),
+                        ),
                       ),
                       const SizedBox(width: 8),
-                      // STUB: skip next not implemented
-                      Tooltip(
-                        message: 'STUB — Not Implemented',
-                        child: Stack(children: [
-                          const Icon(Icons.skip_next_rounded, size: 32),
-                          Positioned(top: 0, right: 0, child: Container(width: 6, height: 6, decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle))),
-                        ]),
+                      IconButton(
+                        icon: const Icon(Icons.skip_next_rounded, size: 32, color: Colors.white),
+                        onPressed: () => ref.read(audioProvider.notifier).next(),
+                        tooltip: 'Next (Ctrl + Right)',
                       ),
                       // STUB: repeat not implemented
                       Tooltip(
@@ -251,11 +268,12 @@ class FullPlayerView extends ConsumerWidget {
                           value: sliderValue,
                           max: sliderMax,
                           onChanged: (value) {
-                            if (durationSeconds <= 0) {
+                            if (durationMs <= 0) {
                               return;
                             }
-                            ref.read(audioProvider.notifier).seek(Duration(seconds: value.toInt()));
+                            ref.read(audioProvider.notifier).seek(Duration(milliseconds: value.toInt()));
                           },
+
                         ),
                       ),
                     ],

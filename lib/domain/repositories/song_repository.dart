@@ -16,9 +16,20 @@ abstract class SongRepository {
   /// Fetches favorite songs.
   Future<List<SongEntity>> getFavorites();
 
+  /// Fetches all songs in the library.
+  Future<List<SongEntity>> getAllSongs();
+
+
   /// Resolves the direct stream URI for a song (e.g. YouTube stream).
   Future<String> resolveStreamUri(String songId);
 
   /// Resolves metadata from a Spotify URL and mirrors it to a YouTube stream.
   Future<SongEntity> getSongFromSpotifyUrl(String url);
+
+  /// Saves or updates song metadata without necessarily marking as favorite.
+  Future<void> saveSong(SongEntity song);
+
+  /// Fetches a song by its unique ID.
+  Future<SongEntity?> getSongById(String id);
 }
+

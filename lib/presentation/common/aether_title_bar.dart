@@ -29,8 +29,11 @@ class AetherTitleBar extends StatelessWidget {
             // Drag area — takes all space except the buttons
             Expanded(
               child: DragToMoveArea(
-                child: Padding(
+                child: Container(
+                  width: double.infinity,
+                  height: double.infinity,
                   padding: const EdgeInsets.only(left: 16),
+                  alignment: Alignment.centerLeft,
                   child: showTitle
                       ? const Text(
                           'KERLYSS',
@@ -44,6 +47,8 @@ class AetherTitleBar extends StatelessWidget {
                 ),
               ),
             ),
+
+
             // Window control buttons — outside DragToMoveArea so clicks register
             _WinBtn(
               icon: Icons.remove_rounded,

@@ -7,7 +7,17 @@ class _FlatLogPrinter extends LogPrinter {
 
   @override
   List<String> log(LogEvent event) {
-    final level = switch (event.level) {
+    final color = switch (event.level) {
+      Level.error || Level.fatal => '\x1b[31m', // Red
+      Level.warning => '\x1b[33m',             // Yellow
+      Level.info => '\x1b[36m',                // Cyan
+      Level.debug => '\x1b[32m',               // Green
+      _ => '',
+    };
+    const reset = '\x1b[0m';
+
+
+    final levelStr = switch (event.level) {
       Level.trace => 'TRACE',
       Level.debug => 'DEBUG',
       Level.info => 'INFO',
@@ -17,15 +27,17 @@ class _FlatLogPrinter extends LogPrinter {
       _ => 'LOG',
     };
 
-    final lines = <String>['$level: ${event.message}'];
+    final prefix = '$color$levelStr$reset';
+    final lines = <String>['$color$levelStr: ${event.message}$reset'];
 
     if (event.error != null) {
-      lines.add('$level: ${event.error}');
+      lines.add('$color$levelStr ERROR: ${event.error}$reset');
     }
 
     if (event.stackTrace != null) {
-      lines.add('$level: ${event.stackTrace}');
+      lines.add('$color$levelStr STACKTRACE:\n${event.stackTrace}$reset');
     }
+
 
     return lines;
   }
@@ -41,13 +53,10 @@ class _FileSysLogOutput extends LogOutput {
       final logDir = await AppStoragePaths.appRootDirectory();
       file = File('${logDir.path}/kerlyss_runtime.log');
       
-      // Print boundary for cold start
       if (await file!.exists()) {
         await file!.writeAsString('\n--- NEW SESSION ---\n', mode: FileMode.append);
       }
-    } catch (e) {
-      // If we can't create the file, we fail silently to not break boot
-    }
+    } catch (_) {}
   }
 
   @override
@@ -55,11 +64,14 @@ class _FileSysLogOutput extends LogOutput {
     if (file == null) return;
     
     try {
-      final text = event.lines.join('\n') + '\n';
+      // Strip ANSI color codes for file logging
+      final ansiRegex = RegExp(r'\x1B\[[0-9;]*m');
+      final text = event.lines.map((l) => l.replaceAll(ansiRegex, '')).join('\n') + '\n';
       file!.writeAsStringSync(text, mode: FileMode.append);
     } catch (_) {}
   }
 }
+
 
 class Log {
   static late Logger _logger;

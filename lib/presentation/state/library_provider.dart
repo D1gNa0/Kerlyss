@@ -2,31 +2,59 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/song_entity.dart';
 import '../../domain/repositories/song_repository.dart';
 import '../../data/repositories/repository_providers.dart';
+import '../../data/datasources/local/local_download_library.dart';
+import '../../domain/entities/audio_source_type.dart';
+import 'downloaded_songs_provider.dart';
 
 class LibraryState {
   final bool isLoading;
   final List<SongEntity> favoriteSongs;
+  final List<SongEntity> allSongs;
 
   const LibraryState({
     this.isLoading = false,
     this.favoriteSongs = const [],
+    this.allSongs = const [],
   });
 }
 
 class LibraryNotifier extends StateNotifier<LibraryState> {
   final SongRepository _repository;
+  final LocalDownloadLibrary _localDownloadLibrary;
 
-  LibraryNotifier(this._repository) : super(const LibraryState()) {
-    loadFavorites();
+  LibraryNotifier(this._repository, this._localDownloadLibrary) : super(const LibraryState()) {
+    loadLibrary();
   }
 
-  Future<void> loadFavorites() async {
-    state = const LibraryState(isLoading: true, favoriteSongs: []);
+  Future<void> loadLibrary() async {
+    state = LibraryState(isLoading: true, favoriteSongs: state.favoriteSongs, allSongs: state.allSongs);
     try {
       final favorites = await _repository.getFavorites();
-      state = LibraryState(isLoading: false, favoriteSongs: favorites);
+      final all = await _repository.getAllSongs();
+      
+      // Also scan disk for anything that might not be in Isar (e.g. manually added files)
+      final downloaded = await _localDownloadLibrary.listDownloadedSongs();
+      final List<SongEntity> syncedAll = List.from(all);
+      
+      for (final diskSong in downloaded) {
+        final existsInIsar = all.any((s) => s.localPath == diskSong.path);
+        if (!existsInIsar) {
+          syncedAll.add(SongEntity(
+            id: diskSong.path,
+            title: diskSong.title,
+            artist: 'Local File',
+            album: 'Downloads',
+            duration: Duration.zero,
+            sourceUrl: diskSong.path,
+            sourceType: AudioSourceType.local,
+            localPath: diskSong.path,
+          ));
+        }
+      }
+
+      state = LibraryState(isLoading: false, favoriteSongs: favorites, allSongs: syncedAll);
     } catch (e) {
-      state = const LibraryState(isLoading: false, favoriteSongs: []);
+      state = LibraryState(isLoading: false, favoriteSongs: state.favoriteSongs, allSongs: state.allSongs);
     }
   }
 
@@ -40,9 +68,9 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
         await _repository.addToFavorites(song);
       }
       // Refresh state from DB
-      await loadFavorites();
+      await loadLibrary();
     } catch (e) {
-      // Allow soft fail, usually log it
+      // Allow soft fail
     }
   }
 
@@ -53,5 +81,7 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
 
 final libraryProvider = StateNotifierProvider<LibraryNotifier, LibraryState>((ref) {
   final repository = ref.watch(songRepositoryProvider);
-  return LibraryNotifier(repository);
+  final localDownloadLibrary = ref.watch(localDownloadLibraryProvider);
+  return LibraryNotifier(repository, localDownloadLibrary);
 });
+

@@ -9,8 +9,6 @@ class SettingsView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final settings = ref.watch(appSettingsProvider);
-
     return Scaffold(
       backgroundColor: AetherColors.deepMatteBlack,
       appBar: AppBar(
@@ -30,49 +28,31 @@ class SettingsView extends ConsumerWidget {
         centerTitle: true,
       ),
       body: ListView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
         children: [
           _SettingsSection(
-            title: 'AUDIO',
+            title: 'PLAYBACK CONTROLS',
             children: [
-              _SettingsTile(
-                label: 'Audio Quality', 
-                value: settings.audioQuality,
-                onTap: () {
-                  ref.read(appSettingsProvider.notifier).setAudioQuality(
-                    settings.audioQuality == 'High (320kbps)' ? 'Standard (128kbps)' : 'High (320kbps)'
-                  );
-                },
-              ),
-              _SettingsTile(
-                label: 'Gapless Playback', 
-                value: settings.gaplessPlayback ? 'Enabled' : 'Disabled',
-                onTap: () => ref.read(appSettingsProvider.notifier).toggleGapless(),
-              ),
-              _SettingsTile(
-                label: 'Equalizer', 
-                value: settings.equalizer,
-                onTap: () {},
-              ),
+              _ShortcutTile(label: 'Play / Pause', value: 'Space'),
+              _ShortcutTile(label: 'Seek Forward 5s', value: '→ Arrow'),
+              _ShortcutTile(label: 'Seek Backward 5s', value: '← Arrow'),
+              _ShortcutTile(label: 'Next track', value: 'Ctrl + →'),
+              _ShortcutTile(label: 'Previous track', value: 'Ctrl + ←'),
             ],
           ),
           const SizedBox(height: 32),
           _SettingsSection(
-            title: 'INTERFACE',
+            title: 'APPLICATION',
             children: [
               _SettingsTile(
-                label: 'Theme', 
-                value: settings.theme,
-                onTap: () {
-                  ref.read(appSettingsProvider.notifier).setTheme(
-                    settings.theme == 'Deep Matte' ? 'Light mode (Sacrilege)' : 'Deep Matte'
-                  );
-                },
+                label: 'Window Style', 
+                value: 'Shadow Glass',
+                onTap: () {},
               ),
               _SettingsTile(
-                label: 'Animations', 
-                value: settings.animationsEnabled ? 'Fluid (60Hz+)' : 'Reduced',
-                onTap: () => ref.read(appSettingsProvider.notifier).toggleAnimations(),
+                label: 'Downloads Folder', 
+                value: 'User/Documents/Kerlyss',
+                onTap: () {},
               ),
             ],
           ),
@@ -80,8 +60,8 @@ class SettingsView extends ConsumerWidget {
           _SettingsSection(
             title: 'ABOUT',
             children: [
-              _SettingsTile(label: 'Version', value: '0.5.0-Alpha', onTap: () {}),
-              _SettingsTile(label: 'Build', value: 'Architect-Preview', onTap: () {}),
+              _SettingsTile(label: 'Version', value: '0.6.2-Alpha', onTap: () {}),
+              _SettingsTile(label: 'Build', value: 'Aether-Refined', onTap: () {}),
             ],
           ),
         ],
@@ -111,13 +91,18 @@ class _SettingsSection extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
-        IntrinsicHeight(
-          child: AetherGlass(
-            borderRadius: 20,
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Column(children: children),
+        AetherGlass(
+          borderRadius: 20,
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          height: (children.length * 60.0) + 16.0,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: children,
           ),
         ),
+
+
+
       ],
     );
   }
@@ -133,16 +118,48 @@ class _SettingsTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      title: Text(label, style: const TextStyle(color: Colors.white, fontSize: 14)),
+      title: Text(label, style: const TextStyle(color: Colors.white, fontSize: 13, letterSpacing: 0.5)),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(value, style: const TextStyle(color: AetherColors.textSecondary, fontSize: 12)),
+          Text(value, style: const TextStyle(color: AetherColors.textSecondary, fontSize: 11)),
           const SizedBox(width: 8),
-          const Icon(Icons.chevron_right_rounded, color: Colors.white24, size: 18),
+          const Icon(Icons.chevron_right_rounded, color: Colors.white24, size: 16),
         ],
       ),
       onTap: onTap,
     );
   }
 }
+
+class _ShortcutTile extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _ShortcutTile({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      title: Text(label, style: const TextStyle(color: Colors.white, fontSize: 13, letterSpacing: 0.5)),
+      trailing: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: Colors.white.withOpacity(0.1)),
+        ),
+        child: Text(
+          value, 
+          style: const TextStyle(
+            color: AetherColors.accentCyan, 
+            fontSize: 10, 
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1,
+          ),
+        ),
+      ),
+    );
+  }
+}
+

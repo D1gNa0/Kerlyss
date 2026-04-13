@@ -10,15 +10,22 @@ import '../state/audio_provider.dart';
 import '../state/audio_state.dart';
 import '../state/library_provider.dart';
 import '../state/downloaded_songs_provider.dart';
+import '../state/keyboard_shortcuts_provider.dart';
 import '../../core/services/logger_service.dart';
 import '../../core/services/app_storage_paths.dart';
-import '../../core/services/youtube_proxy_server.dart';
 import '../../data/datasources/remote/youtube_service.dart';
 
-import '../../data/models/song_model.dart';
 import '../../data/repositories/repository_providers.dart';
 import '../../domain/entities/audio_source_type.dart';
+import '../../data/models/song_model.dart';
 import '../../domain/entities/song_entity.dart';
+import '../../data/datasources/remote/jamendo_service.dart';
+
+import '../state/playlist_provider.dart';
+import 'playlists_view.dart';
+import '../theme/aether_colors.dart';
+
+
 
 class DiscoveryView extends ConsumerStatefulWidget {
   const DiscoveryView({super.key});
@@ -32,6 +39,7 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
   final Map<String, double> _downloadProgress = {};
   final Set<String> _alreadyDownloadedIds = {};
   bool _hasShownMissingKeyWarning = false;
+  final FocusNode _searchFocusNode = FocusNode();
 
 
   void _showEnvSetupInstructions() {
@@ -69,9 +77,25 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
   @override
   void initState() {
     super.initState();
+    _searchFocusNode.addListener(_syncShortcutSuppression);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showMissingKeyWarningIfNeeded();
     });
+  }
+
+  void _syncShortcutSuppression() {
+    if (!mounted) {
+      return;
+    }
+
+    ref.read(keyboardShortcutsSuppressedProvider.notifier).state = _searchFocusNode.hasFocus;
+  }
+
+  @override
+  void dispose() {
+    _searchFocusNode.removeListener(_syncShortcutSuppression);
+    _searchFocusNode.dispose();
+    super.dispose();
   }
 
   void _showMissingKeyWarningIfNeeded() {
@@ -262,7 +286,16 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
   Widget build(BuildContext context) {
     final ref = this.ref;
     final searchState = ref.watch(discoverySearchProvider);
+    
+    // Auto-check for existing downloads whenever results change
+    ref.listen(discoverySearchProvider, (previous, next) {
+      if (previous?.results.length != next.results.length || next.results.isNotEmpty) {
+        _updateExistingDownloads();
+      }
+    });
+
     final jamendoConfigured = ref.watch(jamendoServiceProvider).isConfigured;
+
     final jamendoResultsCount = searchState.results
         .where((song) => song.sourceType == AudioSourceType.jamendo)
         .length;
@@ -304,6 +337,7 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
                         borderRadius: 16,
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
                         child: TextField(
+                          focusNode: _searchFocusNode,
                           onChanged: (value) {
                             ref.read(discoverySearchProvider.notifier).onSearchQueryChanged(value);
                             // Trigger duplicate check after search results update (small delay for notifier)
@@ -486,50 +520,20 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            IconButton(
-                              icon: Icon(
-                                ref.read(libraryProvider.notifier).isSongFavorite(song.id)
-                                    ? Icons.favorite_rounded
-                                    : Icons.favorite_border_rounded,
-                                color: ref.read(libraryProvider.notifier).isSongFavorite(song.id)
-                                    ? Colors.redAccent
-                                    : Colors.white24,
-                                size: 20,
-                              ),
-                              onPressed: () {
-                                ref.read(libraryProvider.notifier).toggleFavorite(song);
-                              },
-                            ),
                             if (song.sourceType == AudioSourceType.jamendo ||
                                 song.sourceType == AudioSourceType.youtube)
                               Padding(
-                                padding: const EdgeInsets.only(left: 4.0),
+                                padding: const EdgeInsets.only(right: 4.0),
                                 child: _isAlreadyDownloaded(song.id)
-                                    ? const Padding(
-                                        padding: EdgeInsets.symmetric(horizontal: 12),
-                                        child: Icon(Icons.check_circle_outline_rounded,
-                                            color: Colors.lightGreenAccent, size: 20),
-                                      )
-                                    : TextButton.icon(
-                                        style: TextButton.styleFrom(
-                                          foregroundColor: Colors.white,
-                                          backgroundColor: Colors.white.withOpacity(0.08),
-                                          minimumSize: const Size(94, 34),
-                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(10),
-                                          ),
+                                    ? const SizedBox(
+                                        width: 40,
+                                        height: 40,
+                                        child: Center(
+                                          child: Icon(Icons.check_circle_rounded,
+                                              color: Colors.lightGreenAccent, size: 20),
                                         ),
-                                        icon: _isDownloading(song.id)
-                                            ? const SizedBox(
-                                                width: 12,
-                                                height: 12,
-                                                child: CircularProgressIndicator(strokeWidth: 2),
-                                              )
-                                            : const Icon(Icons.download_rounded, size: 14),
-                                        label: Text(_isDownloading(song.id)
-                                            ? '${(_getProgress(song.id) * 100).toInt()}%'
-                                            : 'DOWNLOAD'),
+                                      )
+                                    : IconButton(
                                         onPressed: _isDownloading(song.id)
                                             ? null
                                             : () {
@@ -539,25 +543,72 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
                                                   _downloadYoutubeTrack(song);
                                                 }
                                               },
+                                        icon: _isDownloading(song.id)
+                                            ? const SizedBox(
+                                                width: 14,
+                                                height: 14,
+                                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white38),
+                                              )
+                                            : const Icon(Icons.download_rounded, color: Colors.white30, size: 20),
+                                        tooltip: 'Install to local library',
                                       ),
                               ),
+                            IconButton(
+                              icon: Icon(
+                                ref.read(libraryProvider.notifier).isSongFavorite(song.id)
+                                    ? Icons.favorite_rounded
+                                    : Icons.favorite_border_rounded,
+                                color: ref.read(libraryProvider.notifier).isSongFavorite(song.id)
+                                    ? Colors.redAccent
+                                    : Colors.white24,
+                                size: 18,
+                              ),
+                              onPressed: () {
+                                ref.read(libraryProvider.notifier).toggleFavorite(song);
+                              },
+                            ),
+                            PopupMenuButton<String>(
+                              icon: const Icon(Icons.more_vert_rounded, color: Colors.white24, size: 20),
+                              padding: EdgeInsets.zero,
+                              color: AetherColors.ultraDarkGray,
+                              offset: const Offset(0, 40),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              onSelected: (value) {
+                                if (value == 'add_to_playlist') {
+                                  _showAddToPlaylistDialog(context, ref, song);
+                                }
+                              },
+                              itemBuilder: (context) => [
+                                const PopupMenuItem(
+                                  value: 'add_to_playlist',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.playlist_add_rounded, color: Colors.white70, size: 18),
+                                      SizedBox(width: 8),
+                                      Text('Add to Playlist', style: TextStyle(color: Colors.white, fontSize: 13)),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
                           ],
                         ),
+
                         onTap: () {
-                          // Pass actual song data to player
-                          ref.read(audioProvider.notifier).playSong(
-                                SongMetadata(
-                                  id: song.id,
-                                  title: song.title,
-                                  artist: song.artist,
-                                  album: song.album,
-                                  artworkUrl: song.albumArtUrl,
-                                  duration: song.duration,
-                                  source: song.sourceType,
-                                ), 
-                                song.sourceUrl,
-                              );
+                          // Convert search results to a playlist
+                          final playlist = searchState.results.map((s) => SongMetadata(
+                            id: s.id,
+                            title: s.title,
+                            artist: s.artist,
+                            album: s.album,
+                            artworkUrl: s.albumArtUrl,
+                            duration: s.duration,
+                            source: s.sourceType,
+                          )).toList();
+                          
+                          ref.read(audioProvider.notifier).playPlaylist(playlist, index);
                         },
+
                       ),
                     );
                   },
@@ -614,4 +665,46 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
       ),
     );
   }
+
+  void _showAddToPlaylistDialog(BuildContext context, WidgetRef ref, SongEntity song) {
+    final playlistState = ref.read(playlistProvider);
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AetherColors.ultraDarkGray,
+        title: const Text('ADD TO PLAYLIST', style: TextStyle(color: Colors.white, fontSize: 13, letterSpacing: 2)),
+        content: playlistState.playlists.isEmpty
+            ? const Text('No playlists found. Create one first!', style: TextStyle(color: Colors.white38, fontSize: 12))
+            : SizedBox(
+                width: double.maxFinite,
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: playlistState.playlists.length,
+                  itemBuilder: (context, index) {
+                    final playlist = playlistState.playlists[index];
+                    return ListTile(
+                      title: Text(playlist.name, style: const TextStyle(color: Colors.white, fontSize: 14)),
+                      onTap: () {
+                        ref.read(playlistProvider.notifier).addSongToPlaylist(playlist.id, song);
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Added to ${playlist.name}'), backgroundColor: Colors.white10),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('CLOSE', style: TextStyle(color: Color(0x57FFFFFF))),
+
+          ),
+        ],
+      ),
+    );
+  }
 }
+

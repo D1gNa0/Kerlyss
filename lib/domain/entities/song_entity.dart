@@ -9,6 +9,7 @@ class SongEntity {
   final Duration duration;
   final String sourceUrl; // YouTube Stream URI or Local File Path
   final AudioSourceType sourceType;
+  final String? localPath;
 
   const SongEntity({
     required this.id,
@@ -19,7 +20,9 @@ class SongEntity {
     required this.duration,
     required this.sourceUrl,
     required this.sourceType,
+    this.localPath,
   });
+
 
   @override
   bool operator ==(Object other) =>

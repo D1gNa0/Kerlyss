@@ -36,6 +36,7 @@ class SongModel {
       duration: Duration(milliseconds: durationMs),
       sourceUrl: sourceUrl,
       sourceType: sourceType,
+      localPath: localPath,
     );
   }
 
@@ -49,7 +50,8 @@ class SongModel {
       ..durationMs = entity.duration.inMilliseconds
       ..sourceUrl = entity.sourceUrl
       ..sourceType = entity.sourceType
-      ..localPath = null; // New models start with no local path
+      ..localPath = entity.localPath;
   }
+
 }
 

@@ -1,15 +1,46 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../state/link_resolver_provider.dart';
+import '../state/keyboard_shortcuts_provider.dart';
 import '../theme/aether_colors.dart';
 import 'aether_glass.dart';
 
-class AetherLinkSearchBar extends ConsumerWidget {
+class AetherLinkSearchBar extends ConsumerStatefulWidget {
   const AetherLinkSearchBar({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final controller = TextEditingController();
+  ConsumerState<AetherLinkSearchBar> createState() => _AetherLinkSearchBarState();
+}
+
+class _AetherLinkSearchBarState extends ConsumerState<AetherLinkSearchBar> {
+  final TextEditingController _controller = TextEditingController();
+  final FocusNode _focusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode.addListener(_syncShortcutSuppression);
+  }
+
+  void _syncShortcutSuppression() {
+    if (!mounted) {
+      return;
+    }
+
+    ref.read(keyboardShortcutsSuppressedProvider.notifier).state = _focusNode.hasFocus;
+  }
+
+  @override
+  void dispose() {
+    _focusNode.removeListener(_syncShortcutSuppression);
+    _focusNode.dispose();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ref = this.ref;
 
     return Container(
       height: 56,
@@ -18,11 +49,12 @@ class AetherLinkSearchBar extends ConsumerWidget {
         borderRadius: 16,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: TextField(
-          controller: controller,
+          controller: _controller,
+          focusNode: _focusNode,
           onSubmitted: (value) {
             if (value.isNotEmpty) {
               ref.read(linkResolverProvider.notifier).resolveLink(value);
-              controller.clear();
+              _controller.clear();
             }
           },
           style: const TextStyle(color: Colors.white, fontSize: 14),
@@ -62,7 +94,19 @@ class ResolutionPreviewCard extends ConsumerWidget {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: Image.network(song.artworkUrl!, width: 56, height: 56, fit: BoxFit.cover),
+              child: Image.network(
+                song.artworkUrl!, 
+                width: 56, 
+                height: 56, 
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  width: 56,
+                  height: 56,
+                  color: Colors.white.withOpacity(0.05),
+                  child: const Icon(Icons.music_note_rounded, color: Colors.white24, size: 24),
+                ),
+              ),
+
             ),
             const SizedBox(width: 16),
             Expanded(
