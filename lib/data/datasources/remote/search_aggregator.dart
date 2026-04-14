@@ -1,3 +1,4 @@
+import '../../models/spotify_track_model.dart';
 import 'package:string_similarity/string_similarity.dart';
 import '../../../domain/entities/song_entity.dart';
 import '../../../domain/entities/audio_source_type.dart';
@@ -34,7 +35,7 @@ class SearchAggregator {
 
   }
 
-  Future<List<Map<String, dynamic>>> _safeSpotifySearch(String query) async {
+  Future<List<SpotifyTrackModel>> _safeSpotifySearch(String query) async {
     try {
       return await _spotifyService.searchTracks(query);
     } catch (_) {
@@ -59,7 +60,7 @@ class SearchAggregator {
   }
 
   List<SongEntity> _mergeResults(
-    List<Map<String, dynamic>> spotifyResults,
+    List<SpotifyTrackModel> spotifyResults,
     List<dynamic> youtubeResults,
     List<SongEntity> jamendoResults,
   ) {
@@ -70,8 +71,8 @@ class SearchAggregator {
     // Note: Since searchTracks currently returns empty in this draft,
     // we focus on the logic structure for merging.
     for (var sTrack in spotifyResults) {
-      final sTitle = sTrack['name'] ?? '';
-      final sArtist = sTrack['artist'] ?? '';
+      final sTitle = sTrack.name;
+      final sArtist = sTrack.artist;
 
       dynamic bestMatch;
       double bestScore = 0;
@@ -98,11 +99,11 @@ class SearchAggregator {
         matchedYoutubeIds.add(bestMatch.id.value);
         aggregatedResults.add(
           SongEntity(
-            id: sTrack['id'] ?? 'spotify_${sTitle.hashCode}',
+            id: sTrack.id.isNotEmpty ? sTrack.id : 'spotify_${sTitle.hashCode}',
             title: sTitle,
             artist: sArtist,
-            album: sTrack['album'] ?? 'Unknown Album',
-            albumArtUrl: sTrack['artworkUrl'],
+            album: sTrack.album,
+            albumArtUrl: sTrack.artworkUrl,
             duration: bestMatch.duration ?? Duration.zero,
             sourceUrl: 'https://www.youtube.com/watch?v=${bestMatch.id.value}',
             sourceType: AudioSourceType.spotify,
@@ -112,11 +113,11 @@ class SearchAggregator {
         // Add Spotify-only result if no match found (would need a resolution later)
         aggregatedResults.add(
           SongEntity(
-            id: sTrack['id'] ?? 'spotify_${sTitle.hashCode}',
+            id: sTrack.id.isNotEmpty ? sTrack.id : 'spotify_${sTitle.hashCode}',
             title: sTitle,
             artist: sArtist,
-            album: sTrack['album'] ?? 'Unknown Album',
-            albumArtUrl: sTrack['artworkUrl'],
+            album: sTrack.album,
+            albumArtUrl: sTrack.artworkUrl,
             duration: Duration.zero,
             sourceUrl: '',
             sourceType: AudioSourceType.spotify,

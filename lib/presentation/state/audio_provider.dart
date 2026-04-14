@@ -1,10 +1,12 @@
+import '../../domain/repositories/audio_service_interface.dart';
+import '../../data/datasources/local/just_audio_service.dart';
 import 'dart:async';
 import 'dart:io';
 import 'package:path/path.dart' as p;
 
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:just_audio/just_audio.dart';
+// Using custom AudioServiceInterface
 
 import 'package:kerlyss/core/services/logger_service.dart';
 import 'package:kerlyss/data/datasources/local/local_download_library.dart';
@@ -18,8 +20,9 @@ import 'audio_state.dart';
 
 final audioProvider = StateNotifierProvider<AudioNotifier, AudioState>((ref) {
   final localDownloadLibrary = ref.watch(localDownloadLibraryProvider);
+  final audioService = JustAudioService();
   final youtubeService = ref.watch(youtubeServiceProvider);
-  return AudioNotifier(localDownloadLibrary, youtubeService);
+  return AudioNotifier(localDownloadLibrary, youtubeService, audioService);
 });
 
 
@@ -27,7 +30,7 @@ final audioProvider = StateNotifierProvider<AudioNotifier, AudioState>((ref) {
 /// YouTube playback goes through a local proxy so the player only sees a plain
 /// HTTP audio stream.
 class AudioNotifier extends StateNotifier<AudioState> {
-  final AudioPlayer _player = AudioPlayer();
+  final AudioServiceInterface _audioService;
   final LocalDownloadLibrary _localDownloadLibrary;
   final YoutubeService _youtubeService;
 
@@ -38,7 +41,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
 
   final List<StreamSubscription<dynamic>> _subs = [];
 
-  AudioNotifier(this._localDownloadLibrary, this._youtubeService)
+  AudioNotifier(this._localDownloadLibrary, this._youtubeService, this._audioService)
 
       : super(
           AudioState(
@@ -54,33 +57,24 @@ class AudioNotifier extends StateNotifier<AudioState> {
   }
 
   void _init() {
-    _subs.add(_player.playerStateStream.listen((playerState) {
+        _subs.add(_audioService.playbackStatusStream.listen((status) {
       if (!mounted) return;
-
-      final nextStatus = switch (playerState.processingState) {
-        ProcessingState.idle => PlaybackStatus.idle,
-        ProcessingState.loading => PlaybackStatus.loading,
-        ProcessingState.buffering => PlaybackStatus.buffering,
-        ProcessingState.ready =>
-          playerState.playing ? PlaybackStatus.playing : PlaybackStatus.paused,
-        ProcessingState.completed => PlaybackStatus.completed,
-      };
-
-      Log.i('just_audio state: playing=${playerState.playing}, processing=${playerState.processingState}');
-      state = state.copyWith(status: nextStatus);
       
-      // Auto-advance logic
-      if (playerState.processingState == ProcessingState.completed) {
+      Log.i('Audio status changed: $status');
+      state = state.copyWith(status: status);
+
+      if (status == PlaybackStatus.completed) {
         next();
       }
     }));
 
-    _subs.add(_player.positionStream.listen((position) {
+
+    _subs.add(_audioService.positionStream.listen((position) {
       if (!mounted) return;
       state = state.copyWith(position: position);
     }));
 
-    _subs.add(_player.durationStream.listen((duration) {
+    _subs.add(_audioService.durationStream.listen((duration) {
       if (!mounted || duration == null) return;
       if (state.currentSong.duration != duration) {
         state = state.copyWith(
@@ -97,12 +91,12 @@ class AudioNotifier extends StateNotifier<AudioState> {
       }
     }));
 
-    _subs.add(_player.bufferedPositionStream.listen((bufferedPosition) {
+    _subs.add(_audioService.bufferedPositionStream.listen((bufferedPosition) {
       if (!mounted) return;
       state = state.copyWith(bufferedPosition: bufferedPosition);
     }));
 
-    _player.setVolume(1.0);
+    _audioService.setVolume(1.0);
   }
 
   void _startVibrancyLoop() {
@@ -184,8 +178,8 @@ class AudioNotifier extends StateNotifier<AudioState> {
         
         // Brief delay to ensure file handle is released by OS after download
         await Future.delayed(const Duration(milliseconds: 200));
-        await _player.setFilePath(normalizedPath);
-        await _player.play();
+        await _audioService.setFilePath(normalizedPath);
+        await _audioService.play();
         return;
       }
 
@@ -200,8 +194,8 @@ class AudioNotifier extends StateNotifier<AudioState> {
 
         // Brief delay to ensure file handle is released by OS after download
         await Future.delayed(const Duration(milliseconds: 200));
-        await _player.setFilePath(finalPath);
-        await _player.play();
+        await _audioService.setFilePath(finalPath);
+        await _audioService.play();
         return;
       }
 
@@ -217,13 +211,13 @@ class AudioNotifier extends StateNotifier<AudioState> {
         final proxyUrl = 'http://127.0.0.1:$port/?id=$videoId';
 
         Log.i('playSong -> Opening PROXY stream: $proxyUrl');
-        await _player.setUrl(proxyUrl, headers: headers);
+        await _audioService.setUrl(proxyUrl, headers: headers);
       } else {
         Log.i('playSong -> Opening direct stream: $sourceUrl');
-        await _player.setUrl(sourceUrl, headers: headers);
+        await _audioService.setUrl(sourceUrl, headers: headers);
       }
 
-      await _player.play();
+      await _audioService.play();
       Log.i('playSong -> just_audio started successfully');
     } catch (e, stacktrace) {
 
@@ -236,29 +230,29 @@ class AudioNotifier extends StateNotifier<AudioState> {
   }
 
   void togglePlay() {
-    if (_player.playing) {
-      _player.pause();
+    if (_audioService.playing) {
+      _audioService.pause();
     } else {
-      _player.play();
+      _audioService.play();
     }
   }
 
   void seek(Duration position) {
-    _player.seek(position);
+    _audioService.seek(position);
   }
 
   void seekRelative(int seconds) {
-    final currentPosition = _player.position;
-    final duration = _player.duration ?? Duration.zero;
+    final currentPosition = _audioService.position;
+    final duration = _audioService.duration ?? Duration.zero;
     final nextPosition = currentPosition + Duration(seconds: seconds);
     
     // Clamp to [0, duration]
     if (nextPosition < Duration.zero) {
-      _player.seek(Duration.zero);
+      _audioService.seek(Duration.zero);
     } else if (nextPosition > duration) {
-      _player.seek(duration);
+      _audioService.seek(duration);
     } else {
-      _player.seek(nextPosition);
+      _audioService.seek(nextPosition);
     }
   }
 
