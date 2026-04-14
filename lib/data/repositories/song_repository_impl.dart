@@ -70,8 +70,8 @@ class SongRepositoryImpl implements SongRepository {
   Future<SongEntity> getSongFromSpotifyUrl(String url) async {
     // 1. Fetch Metadata from public oEmbed
     final metadata = await _spotifyPublicService.fetchMetadata(url);
-    final String fullTitle = metadata['title'] ?? 'Unknown Track';
-    final String artworkUrl = metadata['thumbnail_url'];
+    final String fullTitle = metadata.title;
+    final String artworkUrl = metadata.thumbnailUrl;
     final String spotifyId = _spotifyPublicService.extractId(url) ?? 'spotify_${fullTitle.hashCode}';
 
     // 2. Mirror to YouTube: Search with "Track Name - Artist Name"

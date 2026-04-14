@@ -1,4 +1,8 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
+import '../../models/spotify_metadata_model.dart';
+import '../../models/spotify_track_model.dart';
+import '../../../core/error/exceptions.dart';
 
 class SpotifyPublicService {
   final Dio _dio;
@@ -8,7 +12,7 @@ class SpotifyPublicService {
   SpotifyPublicService(this._dio);
 
   /// Fetches metadata from a Spotify track/album/playlist URL using the public oEmbed endpoint.
-  Future<Map<String, dynamic>> fetchMetadata(String spotifyUrl) async {
+  Future<SpotifyMetadataModel> fetchMetadata(String spotifyUrl) async {
     try {
       final response = await _dio.get(
         _oEmbedBaseUrl,
@@ -16,12 +20,12 @@ class SpotifyPublicService {
       );
 
       if (response.statusCode == 200) {
-        return response.data as Map<String, dynamic>;
+        return SpotifyMetadataModel.fromJson(response.data as Map<String, dynamic>);
       } else {
-        throw Exception('Failed to fetch Spotify metadata: ${response.statusCode}');
+        throw ServerException('Failed to fetch Spotify metadata: ${response.statusCode}');
       }
     } catch (e) {
-      throw Exception('Error resolving Spotify OEmbed: $e');
+      throw ServerException('Error resolving Spotify OEmbed: $e');
     }
   }
 
@@ -34,7 +38,7 @@ class SpotifyPublicService {
 
   /// Searches for tracks on Spotify using the public search page (No-API).
   /// Note: This is a robust fallback for the "No-API" protocol.
-  Future<List<Map<String, dynamic>>> searchTracks(String query) async {
+  Future<List<SpotifyTrackModel>> searchTracks(String query) async {
     try {
       final String searchUrl = 'https://open.spotify.com/search/${Uri.encodeComponent(query)}';
       final response = await _dio.get(
@@ -57,10 +61,30 @@ class SpotifyPublicService {
 
       if (match == null) return [];
 
-      // The content is usually Base64 encoded or plain text depending on the version.
-      // For now, we provide a placeholder list as full complex scraping state logic 
-      // is beyond a single script, but we lay the functional foundation.
-      return []; 
+      try {
+        final decoded = utf8.decode(base64.decode(match.group(1)!));
+        final json = jsonDecode(decoded);
+        final tracks = json['entities']['items'] as Map<String, dynamic>?;
+
+        if (tracks == null) return [];
+
+        final results = <SpotifyTrackModel>[];
+        for (final entry in tracks.values) {
+          if (entry['type'] == 'track') {
+            results.add(SpotifyTrackModel(
+              id: entry['id'] ?? '',
+              name: entry['name'] ?? 'Unknown Track',
+              artist: entry['firstArtist'] ?? 'Unknown Artist',
+              album: entry['album']?['name'] ?? 'Unknown Album',
+              artworkUrl: entry['album']?['coverArt']?['sources']?[0]?['url'] ?? '',
+            ));
+          }
+        }
+        return results;
+      } catch (e) {
+        // Fallback to empty list if Spotify changes their internal state structure
+        return [];
+      }
     } catch (e) {
       return [];
     }

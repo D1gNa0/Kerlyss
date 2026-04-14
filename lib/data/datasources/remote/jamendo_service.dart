@@ -1,3 +1,4 @@
+import '../../models/jamendo_track_model.dart';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -49,7 +50,7 @@ class JamendoService {
 
       return results
           .whereType<Map>()
-          .map((entry) => _mapTrack(entry.cast<String, dynamic>()))
+          .map((entry) => _mapTrack(JamendoTrackModel.fromJson(entry.cast<String, dynamic>())))
           .where((song) => song.sourceUrl.isNotEmpty)
           .toList();
     } catch (e, stackTrace) {
@@ -90,24 +91,15 @@ class JamendoService {
     return DownloadedSong.fromFile(destinationFile);
   }
 
-  SongEntity _mapTrack(Map<String, dynamic> raw) {
-    final rawId = raw['id']?.toString() ?? '';
-    final title = _stringValue(raw['name']) ?? 'Untitled track';
-    final artist = _stringValue(raw['artist_name']) ?? 'Unknown artist';
-    final album = _stringValue(raw['album_name']) ?? 'Jamendo';
-    final audioDownloadUrl = _stringValue(raw['audiodownload']) ?? '';
-    final imageUrl = _stringValue(raw['image']) ?? _stringValue(raw['album_image']);
-    final durationSeconds = _intValue(raw['duration']);
-    final allowed = raw['audiodownload_allowed'] == true;
-
+        SongEntity _mapTrack(JamendoTrackModel model) {
     return SongEntity(
-      id: rawId.isEmpty ? 'jamendo_${title.hashCode}' : 'jamendo_$rawId',
-      title: title,
-      artist: artist,
-      album: album,
-      albumArtUrl: imageUrl,
-      duration: Duration(seconds: durationSeconds),
-      sourceUrl: allowed ? audioDownloadUrl : '',
+      id: model.id.isEmpty ? 'jamendo_${model.name.hashCode}' : 'jamendo_${model.id}',
+      title: model.name,
+      artist: model.artistName,
+      album: model.albumName,
+      albumArtUrl: model.image,
+      duration: Duration(seconds: model.duration),
+      sourceUrl: model.audioDownloadUrl,
       sourceType: AudioSourceType.jamendo,
     );
   }
@@ -144,26 +136,5 @@ class JamendoService {
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
     return cleaned.replaceAll(' ', '_');
-  }
-
-  static String? _stringValue(dynamic value) {
-    if (value == null) {
-      return null;
-    }
-
-    final text = value.toString().trim();
-    if (text.isEmpty) {
-      return null;
-    }
-
-    return text;
-  }
-
-  static int _intValue(dynamic value) {
-    if (value is int) {
-      return value;
-    }
-
-    return int.tryParse(value?.toString() ?? '') ?? 0;
   }
 }

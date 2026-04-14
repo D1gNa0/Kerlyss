@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'audio_state.dart';
 import 'dart:async';
+import '../../data/repositories/repository_providers.dart';
+import '../../domain/repositories/song_repository.dart';
 
 enum LinkResolverStatus { idle, resolving, success, error }
 
@@ -29,11 +31,14 @@ class LinkResolverState {
 }
 
 final linkResolverProvider = StateNotifierProvider<LinkResolverNotifier, LinkResolverState>((ref) {
-  return LinkResolverNotifier();
+  final repository = ref.watch(songRepositoryProvider);
+  return LinkResolverNotifier(repository);
 });
 
 class LinkResolverNotifier extends StateNotifier<LinkResolverState> {
-  LinkResolverNotifier() : super(const LinkResolverState());
+  final SongRepository _repository;
+
+  LinkResolverNotifier(this._repository) : super(const LinkResolverState());
 
   Future<void> resolveLink(String url) async {
     if (url.isEmpty || !url.startsWith('http')) return;
@@ -41,26 +46,26 @@ class LinkResolverNotifier extends StateNotifier<LinkResolverState> {
     state = state.copyWith(status: LinkResolverStatus.resolving);
 
     try {
-      // Mocking the "Hybrid Bridge" resolution logic for Phase 3
-      // In a real scenario, this would call Spotify/YouTube repositories
-      await Future.delayed(const Duration(seconds: 3));
+      final entity = await _repository.getSongFromSpotifyUrl(url);
 
-      final mockResolvedSong = SongMetadata(
-        id: 'external_${DateTime.now().millisecondsSinceEpoch}',
-        title: 'Resolved Aether Track',
-        artist: 'Hybrid Artist',
-        duration: const Duration(minutes: 4, seconds: 20),
-        artworkUrl: 'https://picsum.photos/seed/resolved/400/400',
+      final resolvedSong = SongMetadata(
+        id: entity.id,
+        title: entity.title,
+        artist: entity.artist,
+        album: entity.album,
+        duration: entity.duration,
+        artworkUrl: entity.albumArtUrl,
+        source: entity.sourceType,
       );
 
       state = state.copyWith(
         status: LinkResolverStatus.success,
-        resolvedSong: mockResolvedSong,
+        resolvedSong: resolvedSong,
       );
     } catch (e) {
       state = state.copyWith(
         status: LinkResolverStatus.error,
-        errorMessage: 'Failed to resolve link',
+        errorMessage: 'Failed to resolve link: ${e.toString()}',
       );
     }
   }

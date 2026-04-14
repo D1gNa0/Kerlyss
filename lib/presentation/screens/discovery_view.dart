@@ -1,3 +1,4 @@
+import '../state/download_state_provider.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -35,9 +36,6 @@ class DiscoveryView extends ConsumerStatefulWidget {
 }
 
 class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
-  final Set<String> _downloadingTrackIds = {};
-  final Map<String, double> _downloadProgress = {};
-  final Set<String> _alreadyDownloadedIds = {};
   bool _hasShownMissingKeyWarning = false;
   final FocusNode _searchFocusNode = FocusNode();
 
@@ -139,15 +137,15 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
 
     if (mounted) {
       setState(() {
-        _alreadyDownloadedIds.clear();
-        _alreadyDownloadedIds.addAll(newAlreadyDownloaded);
+
+        ref.read(downloadStateProvider.notifier).setAlreadyDownloaded(newAlreadyDownloaded);
       });
     }
   }
 
-  bool _isDownloading(String songId) => _downloadingTrackIds.contains(songId);
-  bool _isAlreadyDownloaded(String songId) => _alreadyDownloadedIds.contains(songId);
-  double _getProgress(String songId) => _downloadProgress[songId] ?? 0.0;
+  bool _isDownloading(String songId) => ref.read(downloadStateProvider).downloadingTrackIds.contains(songId);
+  bool _isAlreadyDownloaded(String songId) => ref.read(downloadStateProvider).alreadyDownloadedIds.contains(songId);
+  double _getProgress(String songId) => ref.read(downloadStateProvider).downloadProgress[songId] ?? 0.0;
 
 
   Future<void> _downloadJamendoTrack(SongEntity song) async {
@@ -155,9 +153,7 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
       return;
     }
 
-    setState(() {
-      _downloadingTrackIds.add(song.id);
-    });
+    ref.read(downloadStateProvider.notifier).setDownloading(song.id);
 
     try {
       final jamendoService = ref.read(jamendoServiceProvider);
@@ -198,9 +194,7 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
       );
     } finally {
       if (mounted) {
-        setState(() {
-          _downloadingTrackIds.remove(song.id);
-        });
+        ref.read(downloadStateProvider.notifier).completeDownload(song.id);
       }
     }
   }
@@ -210,9 +204,7 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
       return;
     }
 
-    setState(() {
-      _downloadingTrackIds.add(song.id);
-    });
+    ref.read(downloadStateProvider.notifier).setDownloading(song.id);
 
     try {
       final youtubeService = ref.read(youtubeServiceProvider);
@@ -231,9 +223,7 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
         destinationPath,
         onProgress: (progress) {
           if (mounted) {
-            setState(() {
-              _downloadProgress[song.id] = progress;
-            });
+            ref.read(downloadStateProvider.notifier).updateProgress(song.id, progress);
           }
         },
       );
@@ -274,9 +264,7 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
       );
     } finally {
       if (mounted) {
-        setState(() {
-          _downloadingTrackIds.remove(song.id);
-        });
+        ref.read(downloadStateProvider.notifier).completeDownload(song.id);
       }
     }
   }
