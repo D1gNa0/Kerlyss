@@ -1,3 +1,6 @@
+import 'discovery_components/spotify_import_panel.dart';
+import '../state/import_state_provider.dart';
+import 'discovery_components/spotify_import_panel.dart';
 import '../state/download_state_provider.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -324,25 +327,65 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
                       child: AetherGlass(
                         borderRadius: 16,
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                        child: TextField(
-                          focusNode: _searchFocusNode,
-                          onChanged: (value) {
-                            ref.read(discoverySearchProvider.notifier).onSearchQueryChanged(value);
-                            // Trigger duplicate check after search results update (small delay for notifier)
-                            Future.delayed(const Duration(milliseconds: 600), _updateExistingDownloads);
-                          },
-                          style: const TextStyle(color: Colors.white, fontSize: 14),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                focusNode: _searchFocusNode,
+                                onChanged: (value) {
+                                  ref.read(discoverySearchProvider.notifier).onSearchQueryChanged(value);
+                                  Future.delayed(const Duration(milliseconds: 600), _updateExistingDownloads);
+                                },
+                                style: const TextStyle(color: Colors.white, fontSize: 14),
 
-                          decoration: InputDecoration(
-                            border: InputBorder.none,
-                            hintText: 'SEARCH SONGS, ARTISTS...',
-                            hintStyle: TextStyle(
-                              color: Colors.white.withOpacity(0.2),
-                              fontSize: 12,
-                              letterSpacing: 2,
+                                decoration: InputDecoration(
+                                  border: InputBorder.none,
+                                  hintText: searchState.searchMode == SearchMode.spotifyImport
+                                      ? 'PASTE SPOTIFY PLAYLIST LINK...'
+                                      : 'SEARCH SONGS, ARTISTS...',
+                                  hintStyle: TextStyle(
+                                    color: Colors.white.withOpacity(0.2),
+                                    fontSize: 12,
+                                    letterSpacing: 2,
+                                  ),
+                                  icon: IconButton(
+                                    icon: Icon(
+                                      searchState.searchMode == SearchMode.spotifyImport
+                                          ? Icons.queue_music_rounded
+                                          : Icons.search_rounded,
+                                      color: searchState.searchMode == SearchMode.spotifyImport
+                                          ? Colors.lightGreenAccent
+                                          : Colors.white24,
+                                      size: 20,
+                                    ),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    onPressed: () {
+                                      ref.read(discoverySearchProvider.notifier).toggleSearchMode();
+                                    },
+                                    tooltip: 'Toggle Spotify Import Mode',
+                                  ),
+                                ),
+                              ),
                             ),
-                            icon: const Icon(Icons.search_rounded, color: Colors.white24, size: 20),
-                          ),
+                            if (searchState.searchMode == SearchMode.spotifyImport)
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Checkbox(
+                                    value: searchState.downloadOnImport,
+                                    activeColor: Colors.lightGreenAccent,
+                                    checkColor: Colors.black,
+                                    onChanged: (val) {
+                                      if (val != null) {
+                                        ref.read(discoverySearchProvider.notifier).toggleDownloadOnImport(val);
+                                      }
+                                    },
+                                  ),
+                                  const Text('Download', style: TextStyle(color: Colors.white70, fontSize: 10)),
+                                ],
+                              ),
+                          ],
                         ),
                       ),
                     ),
@@ -436,7 +479,12 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
           ),
           
           // Result Body
-          if (searchState.isLoading)
+          if (searchState.searchMode == SearchMode.spotifyImport)
+            const SliverFillRemaining(
+              hasScrollBody: false,
+              child: SpotifyImportPanel(),
+            )
+          else if (searchState.isLoading)
             const SliverFillRemaining(
               child: Center(child: CircularProgressIndicator(color: Colors.white24)),
             )

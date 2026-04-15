@@ -1,3 +1,4 @@
+import '../../models/spotify_playlist_model.dart';
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import '../../models/spotify_metadata_model.dart';
@@ -10,6 +11,75 @@ class SpotifyPublicService {
   static const String _oEmbedBaseUrl = 'https://open.spotify.com/oembed';
 
   SpotifyPublicService(this._dio);
+
+  /// Scrapes public Spotify playlist page to extract title and tracklist
+  Future<SpotifyPlaylistModel> extractPlaylistData(String playlistUrl) async {
+    try {
+      final response = await _dio.get(
+        playlistUrl,
+        options: Options(
+          headers: {
+            'User-Agent':
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          },
+        ),
+      );
+
+      if (response.statusCode != 200) {
+        throw ServerException('Failed to fetch Spotify playlist');
+      }
+
+      final String html = response.data.toString();
+
+      // Extract Playlist Name
+      String playlistName = 'Imported Spotify Playlist';
+      final titleMatch = RegExp(r'<title>(.*?) - playlist by (.*?) | Spotify</title>').firstMatch(html)
+                      ?? RegExp(r'<title>(.*?) | Spotify</title>').firstMatch(html)
+                      ?? RegExp(r'<meta property="og:title" content="(.*?)"').firstMatch(html);
+
+      if (titleMatch != null) {
+        playlistName = titleMatch.group(1)?.trim() ?? playlistName;
+      }
+
+      // Extract tracks from initial state JSON block
+      final regExp = RegExp(r'<script id="initial-state" type="text/plain">([sS]*?)</script>');
+      final match = regExp.firstMatch(html);
+
+      if (match == null) {
+        throw ServerException('Could not find initial-state JSON block in Spotify HTML');
+      }
+
+      final decoded = utf8.decode(base64.decode(match.group(1)!));
+      final json = jsonDecode(decoded);
+
+      final tracks = <String>[];
+      final entities = json['entities']['items'];
+
+      if (entities != null) {
+        for (final entry in entities.values) {
+          if (entry['type'] == 'track') {
+            final name = entry['name'] ?? '';
+            final artist = entry['firstArtist'] ?? '';
+            if (name.isNotEmpty && artist.isNotEmpty) {
+              tracks.add('$name - $artist');
+            } else if (name.isNotEmpty) {
+              tracks.add(name);
+            }
+          }
+        }
+      }
+
+      if (tracks.isEmpty) {
+        throw ServerException('Could not extract any tracks from the playlist');
+      }
+
+      return SpotifyPlaylistModel(name: playlistName, trackQueries: tracks);
+    } catch (e) {
+      if (e is ServerException || e is ServerException) rethrow;
+      throw ServerException('Error scraping Spotify playlist: ${e.toString()}');
+    }
+  }
+
 
   /// Fetches metadata from a Spotify track/album/playlist URL using the public oEmbed endpoint.
   Future<SpotifyMetadataModel> fetchMetadata(String spotifyUrl) async {
