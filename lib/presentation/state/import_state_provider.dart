@@ -1,8 +1,9 @@
+import '../../core/constants/app_constants.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/repositories/song_repository.dart';
 import '../../data/repositories/repository_providers.dart';
-import '../../data/models/playlist_model.dart';
-import '../../data/datasources/local/isar_database_service.dart';
+import '../../domain/repositories/playlist_repository.dart';
+
 
 enum ImportStatus { idle, analyzing, resolving, complete, error }
 
@@ -44,9 +45,9 @@ class ImportState {
 
 class ImportStateNotifier extends StateNotifier<ImportState> {
   final SongRepository _repository;
-  final IsarDatabaseService _dbService;
+  final PlaylistRepository _playlistRepo;
 
-  ImportStateNotifier(this._repository, this._dbService) : super(const ImportState());
+  ImportStateNotifier(this._repository, this._playlistRepo) : super(const ImportState());
 
   void setStatus(ImportStatus status, {String? errorMessage}) {
     state = state.copyWith(status: status, errorMessage: errorMessage);
@@ -84,9 +85,9 @@ class ImportStateNotifier extends StateNotifier<ImportState> {
       final resolvedSongIds = <String>[];
       final newFailed = <String>[];
 
-      // Process concurrently with a throttle buffer of 5
-      for (int i = 0; i < total; i += 5) {
-        final chunk = playlistData.trackQueries.skip(i).take(5).toList();
+      // Process concurrently with a throttle buffer
+      for (int i = 0; i < total; i += AppConstants.spotifyImportBatchSize) {
+        final chunk = playlistData.trackQueries.skip(i).take(AppConstants.spotifyImportBatchSize).toList();
 
         final futures = chunk.map((query) async {
 
@@ -115,11 +116,7 @@ class ImportStateNotifier extends StateNotifier<ImportState> {
 
         // Create the playlist in DB
         if (resolvedSongIds.isNotEmpty) {
-          final dbPlaylist = PlaylistModel()
-            ..name = playlistData.name
-            ..songIds = resolvedSongIds;
-
-          await _dbService.savePlaylist(dbPlaylist);
+          await _playlistRepo.createPlaylist(playlistData.name, resolvedSongIds);
 
           setStatus(ImportStatus.complete);
         } else {
@@ -136,6 +133,6 @@ class ImportStateNotifier extends StateNotifier<ImportState> {
 
 final importStateProvider = StateNotifierProvider<ImportStateNotifier, ImportState>((ref) {
   final repository = ref.watch(songRepositoryProvider);
-  final dbService = ref.watch(isarDatabaseServiceProvider);
-  return ImportStateNotifier(repository, dbService);
+  final playlistRepo = ref.watch(playlistRepositoryProvider);
+  return ImportStateNotifier(repository, playlistRepo);
 });

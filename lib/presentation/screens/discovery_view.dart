@@ -1,6 +1,10 @@
+import 'discovery_components/discovery_results_list.dart';
 import 'discovery_components/spotify_import_panel.dart';
-import '../state/import_state_provider.dart';
-import 'discovery_components/spotify_import_panel.dart';
+import 'discovery_components/discovery_search_bar.dart';
+import 'discovery_components/discovery_empty_state.dart';
+import 'discovery_components/discovery_error_state.dart';
+
+
 import '../state/download_state_provider.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -8,10 +12,10 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../common/aether_glass.dart';
 import '../common/aether_source_bottom_sheet.dart';
-import '../common/source_badge.dart';
+
 import '../state/discovery_search_provider.dart';
-import '../state/audio_provider.dart';
-import '../state/audio_state.dart';
+
+
 import '../state/library_provider.dart';
 import '../state/downloaded_songs_provider.dart';
 import '../state/keyboard_shortcuts_provider.dart';
@@ -23,10 +27,10 @@ import '../../data/repositories/repository_providers.dart';
 import '../../domain/entities/audio_source_type.dart';
 import '../../data/models/song_model.dart';
 import '../../domain/entities/song_entity.dart';
-import '../../data/datasources/remote/jamendo_service.dart';
+
 
 import '../state/playlist_provider.dart';
-import 'playlists_view.dart';
+
 import '../theme/aether_colors.dart';
 
 
@@ -324,76 +328,10 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
               child: Row(
                 children: [
                   Expanded(
-                    child: SizedBox(
-                      height: 56,
-                      child: AetherGlass(
-                        borderRadius: 16,
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                controller: _searchController,
-                                focusNode: _searchFocusNode,
-                                onChanged: (value) {
-                                  ref.read(discoverySearchProvider.notifier).onSearchQueryChanged(value);
-                                  Future.delayed(const Duration(milliseconds: 600), _updateExistingDownloads);
-                                },
-                                style: const TextStyle(color: Colors.white, fontSize: 14),
-
-                                decoration: InputDecoration(
-                                  border: InputBorder.none,
-                                  hintText: searchState.searchMode == SearchMode.spotifyImport
-                                      ? 'PASTE SPOTIFY PLAYLIST LINK...'
-                                      : 'SEARCH SONGS, ARTISTS...',
-                                  hintStyle: TextStyle(
-                                    color: Colors.white.withOpacity(0.2),
-                                    fontSize: 12,
-                                    letterSpacing: 2,
-                                  ),
-                                  icon: IconButton(
-                                    icon: Icon(
-                                      searchState.searchMode == SearchMode.spotifyImport
-                                          ? Icons.queue_music_rounded
-                                          : Icons.search_rounded,
-                                      color: searchState.searchMode == SearchMode.spotifyImport
-                                          ? Colors.lightGreenAccent
-                                          : Colors.white24,
-                                      size: 20,
-                                    ),
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(),
-                                    onPressed: () {
-                                      _searchController.clear();
-                                      ref.read(discoverySearchProvider.notifier).toggleSearchMode();
-                                      // Force UI rebuild for the hint text
-                                      setState(() {});
-                                    },
-                                    tooltip: 'Toggle Spotify Import Mode',
-                                  ),
-                                ),
-                              ),
-                            ),
-                            if (searchState.searchMode == SearchMode.spotifyImport)
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Checkbox(
-                                    value: searchState.downloadOnImport,
-                                    activeColor: Colors.lightGreenAccent,
-                                    checkColor: Colors.black,
-                                    onChanged: (val) {
-                                      if (val != null) {
-                                        ref.read(discoverySearchProvider.notifier).toggleDownloadOnImport(val);
-                                      }
-                                    },
-                                  ),
-                                  const Text('Download', style: TextStyle(color: Colors.white70, fontSize: 10)),
-                                ],
-                              ),
-                          ],
-                        ),
-                      ),
+                    child: DiscoverySearchBar(
+                      focusNode: _searchFocusNode,
+                      controller: _searchController,
+                      onSearchTriggered: _updateExistingDownloads,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -495,211 +433,24 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
               child: Center(child: CircularProgressIndicator(color: Colors.white24)),
             )
           else if (searchState.results.isNotEmpty)
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final song = searchState.results[index];
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12.0),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        tileColor: Colors.white.withOpacity(0.02),
-                        leading: Stack(
-                          alignment: Alignment.bottomRight,
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.network(
-                                song.albumArtUrl ?? 'https://picsum.photos/seed/placeholder/200/200',
-                                width: 44,
-                                height: 44,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Container(
-                                  width: 44,
-                                  height: 44,
-                                  color: Colors.white10,
-                                  child: const Icon(Icons.music_note_rounded, color: Colors.white38, size: 20),
-                                ),
-                              ),
-                            ),
-                            SourceBadge(source: song.sourceType),
-                          ],
-                        ),
-                        title: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              song.title,
-                              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 14),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            if (_isDownloading(song.id))
-                              Padding(
-                                padding: const EdgeInsets.only(top: 6.0, right: 20),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(2),
-                                  child: LinearProgressIndicator(
-                                    value: _getProgress(song.id),
-                                    backgroundColor: Colors.white.withOpacity(0.05),
-                                    valueColor: const AlwaysStoppedAnimation<Color>(Colors.white30),
-                                    minHeight: 2,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-
-                        subtitle: Text(
-                          song.sourceType == AudioSourceType.jamendo
-                              ? '${song.artist}  •  Tap INSTALL to save'
-                              : song.artist,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 12),
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (song.sourceType == AudioSourceType.jamendo ||
-                                song.sourceType == AudioSourceType.youtube)
-                              Padding(
-                                padding: const EdgeInsets.only(right: 4.0),
-                                child: _isAlreadyDownloaded(song.id)
-                                    ? const SizedBox(
-                                        width: 40,
-                                        height: 40,
-                                        child: Center(
-                                          child: Icon(Icons.check_circle_rounded,
-                                              color: Colors.lightGreenAccent, size: 20),
-                                        ),
-                                      )
-                                    : IconButton(
-                                        onPressed: _isDownloading(song.id)
-                                            ? null
-                                            : () {
-                                                if (song.sourceType == AudioSourceType.jamendo) {
-                                                  _downloadJamendoTrack(song);
-                                                } else if (song.sourceType == AudioSourceType.youtube) {
-                                                  _downloadYoutubeTrack(song);
-                                                }
-                                              },
-                                        icon: _isDownloading(song.id)
-                                            ? const SizedBox(
-                                                width: 14,
-                                                height: 14,
-                                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white38),
-                                              )
-                                            : const Icon(Icons.download_rounded, color: Colors.white30, size: 20),
-                                        tooltip: 'Install to local library',
-                                      ),
-                              ),
-                            IconButton(
-                              icon: Icon(
-                                ref.read(libraryProvider.notifier).isSongFavorite(song.id)
-                                    ? Icons.favorite_rounded
-                                    : Icons.favorite_border_rounded,
-                                color: ref.read(libraryProvider.notifier).isSongFavorite(song.id)
-                                    ? Colors.redAccent
-                                    : Colors.white24,
-                                size: 18,
-                              ),
-                              onPressed: () {
-                                ref.read(libraryProvider.notifier).toggleFavorite(song);
-                              },
-                            ),
-                            PopupMenuButton<String>(
-                              icon: const Icon(Icons.more_vert_rounded, color: Colors.white24, size: 20),
-                              padding: EdgeInsets.zero,
-                              color: AetherColors.ultraDarkGray,
-                              offset: const Offset(0, 40),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              onSelected: (value) {
-                                if (value == 'add_to_playlist') {
-                                  _showAddToPlaylistDialog(context, ref, song);
-                                }
-                              },
-                              itemBuilder: (context) => [
-                                const PopupMenuItem(
-                                  value: 'add_to_playlist',
-                                  child: Row(
-                                    children: [
-                                      Icon(Icons.playlist_add_rounded, color: Colors.white70, size: 18),
-                                      SizedBox(width: 8),
-                                      Text('Add to Playlist', style: TextStyle(color: Colors.white, fontSize: 13)),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-
-                        onTap: () {
-                          // Convert search results to a playlist
-                          final playlist = searchState.results.map((s) => SongMetadata(
-                            id: s.id,
-                            title: s.title,
-                            artist: s.artist,
-                            album: s.album,
-                            artworkUrl: s.albumArtUrl,
-                            duration: s.duration,
-                            source: s.sourceType,
-                          )).toList();
-                          
-                          ref.read(audioProvider.notifier).playPlaylist(playlist, index);
-                        },
-
-                      ),
-                    );
-                  },
-                  childCount: searchState.results.length,
-                ),
-              ),
+            DiscoveryResultsList(
+              results: searchState.results,
+              isAlreadyDownloaded: _isAlreadyDownloaded,
+              isDownloading: _isDownloading,
+              getProgress: _getProgress,
+              onDownloadJamendo: _downloadJamendoTrack,
+              onDownloadYoutube: _downloadYoutubeTrack,
+              onAddToPlaylist: _showAddToPlaylistDialog,
             )
           else if (searchState.error != null)
             SliverFillRemaining(
               hasScrollBody: false,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 48),
-                      const SizedBox(height: 16),
-                      Text(
-                        'SEARCH FAILED',
-                        style: const TextStyle(color: Colors.redAccent, letterSpacing: 2, fontSize: 12, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        searchState.error!,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.white70, fontSize: 10),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              child: DiscoveryErrorState(error: searchState.error!),
             )
           else
             SliverFillRemaining(
               hasScrollBody: false,
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.explore_outlined, color: Colors.white10, size: 48),
-                    const SizedBox(height: 16),
-                    Text(
-                      searchState.query.isEmpty ? 'START YOUR SEARCH' : 'NO RESULTS FOUND',
-                      style: const TextStyle(color: Colors.white12, letterSpacing: 2, fontSize: 10),
-                    ),
-                  ],
-                ),
-              ),
+              child: DiscoveryEmptyState(hasQuery: searchState.query.isNotEmpty),
             ),
           
           const SliverToBoxAdapter(child: SizedBox(height: 100)),

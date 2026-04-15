@@ -1,3 +1,5 @@
+import '../../domain/repositories/playlist_repository.dart';
+import 'playlist_repository_impl.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../datasources/local/isar_database_service.dart';
@@ -45,6 +47,11 @@ final searchAggregatorProvider = Provider((ref) {
 });
 
 // Repositories
+final playlistRepositoryProvider = Provider<PlaylistRepository>((ref) {
+  final localDataSource = ref.watch(isarDatabaseServiceProvider);
+  return PlaylistRepositoryImpl(localDataSource);
+});
+
 final songRepositoryProvider = Provider<SongRepository>((ref) {
   final localDataSource = ref.watch(isarDatabaseServiceProvider);
   final spotifyPublicService = ref.watch(spotifyPublicServiceProvider);
