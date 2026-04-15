@@ -4,18 +4,26 @@ import '../../domain/entities/song_entity.dart';
 import '../../domain/repositories/song_repository.dart';
 import '../../data/repositories/repository_providers.dart';
 
-// State definition
+enum SearchMode {
+  songs,
+  spotifyImport,
+}
+
 class DiscoverySearchState {
   final String query;
   final bool isLoading;
   final List<SongEntity> results;
   final String? error;
+  final SearchMode searchMode;
+  final bool downloadOnImport;
 
   const DiscoverySearchState({
     this.query = '',
     this.isLoading = false,
     this.results = const [],
     this.error,
+    this.searchMode = SearchMode.songs,
+    this.downloadOnImport = false,
   });
 
   DiscoverySearchState copyWith({
@@ -23,25 +31,43 @@ class DiscoverySearchState {
     bool? isLoading,
     List<SongEntity>? results,
     String? error,
+    SearchMode? searchMode,
+    bool? downloadOnImport,
   }) {
     return DiscoverySearchState(
       query: query ?? this.query,
       isLoading: isLoading ?? this.isLoading,
       results: results ?? this.results,
       error: error, // Allow nulling out the error
+      searchMode: searchMode ?? this.searchMode,
+      downloadOnImport: downloadOnImport ?? this.downloadOnImport,
     );
   }
 }
 
-// StateNotifier definition
 class DiscoverySearchNotifier extends StateNotifier<DiscoverySearchState> {
   final SongRepository _repository;
   Timer? _debounce;
 
   DiscoverySearchNotifier(this._repository) : super(const DiscoverySearchState());
 
+  void toggleSearchMode() {
+    final nextMode = state.searchMode == SearchMode.songs ? SearchMode.spotifyImport : SearchMode.songs;
+    state = state.copyWith(searchMode: nextMode, query: '', results: [], error: null);
+  }
+
+  void toggleDownloadOnImport(bool value) {
+    state = state.copyWith(downloadOnImport: value);
+  }
+
   void onSearchQueryChanged(String query) {
-    // Cancel previous timer if the user types quickly
+    if (state.searchMode == SearchMode.spotifyImport) {
+      // In import mode, we do not auto-search as they type. They must press an explicit import button
+      // since the process is heavy and requires parsing a whole playlist.
+      state = state.copyWith(query: query.trim());
+      return;
+    }
+
     if (_debounce?.isActive ?? false) _debounce?.cancel();
 
     final trimmedQuery = query.trim();
@@ -53,7 +79,6 @@ class DiscoverySearchNotifier extends StateNotifier<DiscoverySearchState> {
 
     state = state.copyWith(query: trimmedQuery, isLoading: true, error: null);
 
-    // Apply 500ms debounce
     _debounce = Timer(const Duration(milliseconds: 500), () {
       _performSearch(trimmedQuery);
     });
@@ -62,15 +87,15 @@ class DiscoverySearchNotifier extends StateNotifier<DiscoverySearchState> {
   Future<void> _performSearch(String query) async {
     try {
       final results = await _repository.searchSongs(query);
-      
-      // Ensure we don't update state if the user typed something else while waiting
-      if (state.query == query && mounted) {
-        state = state.copyWith(isLoading: false, results: results, error: null);
-      }
+      if (!mounted) return;
+      state = state.copyWith(isLoading: false, results: results);
     } catch (e) {
-      if (state.query == query && mounted) {
-        state = state.copyWith(isLoading: false, error: e.toString(), results: []);
-      }
+      if (!mounted) return;
+      state = state.copyWith(
+        isLoading: false,
+        results: [],
+        error: 'Failed to search: \${e.toString()}',
+      );
     }
   }
 
@@ -81,7 +106,6 @@ class DiscoverySearchNotifier extends StateNotifier<DiscoverySearchState> {
   }
 }
 
-// Provider exposure
 final discoverySearchProvider =
     StateNotifierProvider<DiscoverySearchNotifier, DiscoverySearchState>((ref) {
   final repository = ref.watch(songRepositoryProvider);

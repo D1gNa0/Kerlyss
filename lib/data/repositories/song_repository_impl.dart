@@ -1,3 +1,4 @@
+import '../models/spotify_playlist_model.dart';
 import '../../domain/entities/song_entity.dart';
 import '../../domain/repositories/song_repository.dart';
 import '../datasources/local/isar_database_service.dart';
@@ -119,5 +120,26 @@ class SongRepositoryImpl implements SongRepository {
     final model = await _localDataSource.getSongById(id);
     return model?.toEntity();
   }
+
+  @override
+  Future<SpotifyPlaylistModel> getPlaylistFromSpotifyUrl(String url) async {
+    return await _spotifyPublicService.extractPlaylistData(url);
+  }
+
+  @override
+  Future<SongEntity?> resolveQueryToSong(String query) async {
+    final results = await searchSongs(query);
+    if (results.isEmpty) return null;
+
+    // Pick the best match (prioritize YouTube streams for raw queries)
+    return results.firstWhere(
+      (song) => song.sourceType == AudioSourceType.youtube,
+      orElse: () => results.firstWhere(
+        (song) => song.sourceUrl.isNotEmpty,
+        orElse: () => results.first,
+      ),
+    );
+  }
+
 }
 

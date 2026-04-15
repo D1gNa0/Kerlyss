@@ -1,3 +1,4 @@
+import '../../data/models/spotify_playlist_model.dart';
 import '../entities/song_entity.dart';
 
 abstract class SongRepository {
@@ -31,5 +32,12 @@ abstract class SongRepository {
 
   /// Fetches a song by its unique ID.
   Future<SongEntity?> getSongById(String id);
+
+  /// Scrapes a Spotify playlist link for tracks.
+  Future<SpotifyPlaylistModel> getPlaylistFromSpotifyUrl(String url);
+
+  /// Resolves a single text query into a best-match SongEntity.
+  Future<SongEntity?> resolveQueryToSong(String query);
+
 }
 
