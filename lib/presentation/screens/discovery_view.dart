@@ -41,6 +41,7 @@ class DiscoveryView extends ConsumerStatefulWidget {
 class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
   bool _hasShownMissingKeyWarning = false;
   final FocusNode _searchFocusNode = FocusNode();
+  final TextEditingController _searchController = TextEditingController();
 
 
   void _showEnvSetupInstructions() {
@@ -96,6 +97,7 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
   void dispose() {
     _searchFocusNode.removeListener(_syncShortcutSuppression);
     _searchFocusNode.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -331,6 +333,7 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
                           children: [
                             Expanded(
                               child: TextField(
+                                controller: _searchController,
                                 focusNode: _searchFocusNode,
                                 onChanged: (value) {
                                   ref.read(discoverySearchProvider.notifier).onSearchQueryChanged(value);
@@ -361,7 +364,10 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
                                     padding: EdgeInsets.zero,
                                     constraints: const BoxConstraints(),
                                     onPressed: () {
+                                      _searchController.clear();
                                       ref.read(discoverySearchProvider.notifier).toggleSearchMode();
+                                      // Force UI rebuild for the hint text
+                                      setState(() {});
                                     },
                                     tooltip: 'Toggle Spotify Import Mode',
                                   ),
