@@ -1,3 +1,4 @@
+import '../../core/services/logger_service.dart';
 import '../../core/constants/app_constants.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/repositories/song_repository.dart';
@@ -56,17 +57,19 @@ class ImportStateNotifier extends StateNotifier<ImportState> {
   void reset() {
     state = const ImportState();
   }
-
   Future<void> importSpotifyPlaylist(String url, bool download) async {
     if (url.isEmpty || !url.startsWith('http')) {
+      Log.w('Spotify Import: Invalid URL provided: $url');
       setStatus(ImportStatus.error, errorMessage: 'Invalid URL.');
       return;
     }
 
     try {
+      Log.i('Spotify Import: Starting import for URL: $url');
       setStatus(ImportStatus.analyzing);
 
       final playlistData = await _repository.getPlaylistFromSpotifyUrl(url);
+      Log.i('Spotify Import: Playlist analyzed. Name: "${playlistData.name}", Tracks: ${playlistData.trackQueries.length}');
 
       final total = playlistData.trackQueries.length;
       if (total == 0) {
@@ -90,16 +93,19 @@ class ImportStateNotifier extends StateNotifier<ImportState> {
         final chunk = playlistData.trackQueries.skip(i).take(AppConstants.spotifyImportBatchSize).toList();
 
         final futures = chunk.map((query) async {
-
           try {
+            Log.d('Spotify Import: Resolving track: "$query"');
             final song = await _repository.resolveQueryToSong(query);
             if (song != null) {
+              Log.d('Spotify Import: Successfully resolved "$query" to ID: ${song.id}');
               await _repository.saveSong(song);
               resolvedSongIds.add(song.id);
             } else {
+              Log.w('Spotify Import: Failed to resolve "$query" (Result was null)');
               newFailed.add(query);
             }
           } catch (e) {
+            Log.e('Spotify Import: Error resolving "$query": ${e.toString()}');
             newFailed.add(query);
           }
 
@@ -116,16 +122,20 @@ class ImportStateNotifier extends StateNotifier<ImportState> {
 
         // Create the playlist in DB
         if (resolvedSongIds.isNotEmpty) {
+          Log.i('Spotify Import: Creating playlist "${playlistData.name}" with ${resolvedSongIds.length} tracks');
           await _playlistRepo.createPlaylist(playlistData.name, resolvedSongIds);
 
+          Log.i('Spotify Import: Successfully completed import of "${playlistData.name}"');
           setStatus(ImportStatus.complete);
         } else {
+          Log.w('Spotify Import: Failed to resolve any tracks for "${playlistData.name}"');
           setStatus(ImportStatus.error, errorMessage: 'Failed to resolve any tracks.');
         }
       }
     } catch (e) {
       if (mounted) {
-        setStatus(ImportStatus.error, errorMessage: 'Failed to import playlist: \${e.toString()}');
+        Log.e('Spotify Import: Fatal error during import: ${e.toString()}');
+        setStatus(ImportStatus.error, errorMessage: 'Failed to import playlist: ${e.toString()}');
       }
     }
   }

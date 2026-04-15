@@ -28,7 +28,7 @@ class AetherGlass extends StatelessWidget {
       builder: (context, constraints) {
         // Safe size fallback for unconstrained layouts (ListView/Column)
         final w = width ?? (constraints.hasBoundedWidth ? double.infinity : 340.0);
-        final h = height ?? (constraints.hasBoundedHeight ? double.infinity : 180.0);
+        final h = height ?? (constraints.hasBoundedHeight ? double.infinity : 64.0);
 
         return RepaintBoundary(
           child: GlassmorphicContainer(

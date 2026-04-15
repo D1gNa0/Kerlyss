@@ -6,6 +6,7 @@ import '../state/audio_provider.dart';
 import '../state/audio_state.dart';
 import '../../domain/entities/song_entity.dart';
 import '../common/source_badge.dart';
+import '../common/mini_player.dart';
 
 class PlaylistDetailView extends ConsumerStatefulWidget {
   final dynamic playlist;
@@ -46,22 +47,54 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text(
-          widget.playlist.name,
-          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                widget.playlist.name,
+                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.edit_rounded, color: Colors.white24, size: 18),
+              onPressed: () => _showRenameDialog(context),
+              tooltip: 'Rename Playlist',
+            ),
+          ],
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.delete_outline_rounded, color: Colors.white38, size: 20),
             onPressed: () => _confirmDeletePlaylist(context),
+            tooltip: 'Delete Playlist',
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Colors.white10))
-          : _loadedSongs!.isEmpty
-              ? _buildEmptyState()
-              : _buildSongList(),
+      body: Stack(
+        children: [
+          _isLoading
+              ? const Center(child: CircularProgressIndicator(color: Colors.white10))
+              : _loadedSongs!.isEmpty
+                  ? _buildEmptyState()
+                  : _buildSongList(),
+          
+          // MiniPlayer at the bottom
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: Consumer(
+              builder: (context, ref, child) {
+                final audioState = ref.watch(audioProvider);
+                if (audioState.currentSong.id.isNotEmpty) {
+                  return const MiniPlayer();
+                }
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -153,6 +186,48 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
           ),
         );
       },
+    );
+  }
+
+  void _showRenameDialog(BuildContext context) {
+    final controller = TextEditingController(text: widget.playlist.name);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AetherColors.ultraDarkGray,
+        title: const Text('RENAME PLAYLIST', style: TextStyle(color: Colors.white, fontSize: 14, letterSpacing: 2)),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(
+            hintText: 'New Name',
+            hintStyle: TextStyle(color: Colors.white24),
+            enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white10)),
+            focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AetherColors.primaryAccent)),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('CANCEL', style: TextStyle(color: Colors.white38)),
+          ),
+          TextButton(
+            onPressed: () async {
+              if (controller.text.isNotEmpty) {
+                await ref.read(playlistProvider.notifier).renamePlaylist(widget.playlist.id, controller.text);
+                if (mounted) {
+                  setState(() {
+                    widget.playlist.name = controller.text;
+                  });
+                  Navigator.pop(context);
+                }
+              }
+            },
+            child: const Text('RENAME', style: TextStyle(color: AetherColors.primaryAccent)),
+          ),
+        ],
+      ),
     );
   }
 

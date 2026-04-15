@@ -293,9 +293,7 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
 
     final jamendoConfigured = ref.watch(jamendoServiceProvider).isConfigured;
 
-    final jamendoResultsCount = searchState.results
-        .where((song) => song.sourceType == AudioSourceType.jamendo)
-        .length;
+    final jamendoResultsCount = 0; // Legacy placeholder
     ref.watch(libraryProvider);
 
     return Scaffold(
@@ -361,66 +359,6 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
             ),
           ),
 
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
-              child: SizedBox(
-                height: 78,
-                child: AetherGlass(
-                  borderRadius: 16,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        jamendoConfigured ? Icons.download_done_rounded : Icons.key_off_rounded,
-                        color: jamendoConfigured ? Colors.lightGreenAccent : Colors.amberAccent,
-                        size: 18,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          jamendoConfigured
-                              ? 'Jamendo downloads enabled. Search songs and tap INSTALL to save MP3 files into Downloads.'
-                              : 'Jamendo key missing. Set JAMENDO_CLIENT_ID to enable INSTALL for Jamendo tracks.',
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 11,
-                            height: 1.35,
-                          ),
-                        ),
-                      ),
-                      if (!jamendoConfigured)
-                        TextButton(
-                          onPressed: _showEnvSetupInstructions,
-                          style: TextButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            backgroundColor: Colors.white.withOpacity(0.06),
-                            minimumSize: const Size(64, 28),
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                          ),
-                          child: const Text(
-                            '.env',
-                            style: TextStyle(fontSize: 11),
-                          ),
-                        ),
-                      if (!jamendoConfigured)
-                        const SizedBox(width: 8),
-                      if (searchState.query.isNotEmpty)
-                        Text(
-                          '$jamendoResultsCount',
-                          style: const TextStyle(
-                            color: Colors.white54,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
           
           // Result Body
           if (searchState.searchMode == SearchMode.spotifyImport)
@@ -435,9 +373,6 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
           else if (searchState.results.isNotEmpty)
             DiscoveryResultsList(
               results: searchState.results,
-              isAlreadyDownloaded: _isAlreadyDownloaded,
-              isDownloading: _isDownloading,
-              getProgress: _getProgress,
               onDownloadJamendo: _downloadJamendoTrack,
               onDownloadYoutube: _downloadYoutubeTrack,
               onAddToPlaylist: _showAddToPlaylistDialog,

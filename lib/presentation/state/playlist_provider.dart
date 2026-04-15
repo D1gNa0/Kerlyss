@@ -50,6 +50,15 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
     await loadPlaylists();
   }
 
+  Future<void> renamePlaylist(int id, String newName) async {
+    final playlist = await _db.getPlaylistById(id);
+    if (playlist != null) {
+      playlist.name = newName;
+      await _db.savePlaylist(playlist);
+      await loadPlaylists();
+    }
+  }
+
   Future<void> addSongToPlaylist(int playlistId, SongEntity song) async {
     // 1. Ensure metadata is saved (even if not downloaded/favorite)
     await _songRepository.saveSong(song);

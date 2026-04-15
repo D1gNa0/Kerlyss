@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../theme/aether_colors.dart';
+import '../state/discovery_search_provider.dart';
 import 'aether_glass.dart';
 
-class AetherSourceBottomSheet extends StatelessWidget {
+class AetherSourceBottomSheet extends ConsumerWidget {
   const AetherSourceBottomSheet({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return BackdropFilter(
       filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
       child: Container(
@@ -43,17 +45,29 @@ class AetherSourceBottomSheet extends StatelessWidget {
                 _SourceOption(
                   icon: Icons.search_rounded,
                   label: 'SEARCH',
-                  onTap: () => Navigator.pop(context),
+                  onTap: () {
+                    debugPrint('DEBUG: SEARCH button tapped');
+                    ref.read(discoverySearchProvider.notifier).setSearchMode(SearchMode.songs);
+                    Navigator.pop(context);
+                  },
                 ),
                 _SourceOption(
                   icon: Icons.link_rounded,
                   label: 'SPOTIFY',
-                  onTap: () => Navigator.pop(context),
+                  onTap: () {
+                    debugPrint('DEBUG: SPOTIFY button tapped');
+                    ref.read(discoverySearchProvider.notifier).setSearchMode(SearchMode.spotifyImport);
+                    Navigator.pop(context);
+                  },
                 ),
                 _SourceOption(
                   icon: Icons.play_circle_outline_rounded,
                   label: 'YOUTUBE',
-                  onTap: () => Navigator.pop(context),
+                  onTap: () {
+                    debugPrint('DEBUG: YOUTUBE button tapped');
+                    // Future YouTube implementation
+                    Navigator.pop(context);
+                  },
                 ),
               ],
             ),

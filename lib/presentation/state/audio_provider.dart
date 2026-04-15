@@ -133,10 +133,18 @@ class AudioNotifier extends StateNotifier<AudioState> {
     await playSong(song, song.id); 
   }
 
-  void next() {
-    if (state.playlist.isEmpty) return;
+  Future<void> next() async {
+    if (state.playlist.isEmpty) {
+      Log.w('Audio: Cannot play next, playlist is empty');
+      return;
+    }
+    
     final nextIndex = (state.currentIndex + 1) % state.playlist.length;
-    playPlaylist(state.playlist, nextIndex);
+    Log.i('Audio: Auto-playing next track at index $nextIndex');
+    
+    // Small delay to let the previous session settle
+    await Future.delayed(const Duration(milliseconds: 100));
+    await playPlaylist(state.playlist, nextIndex);
   }
 
   void previous() {
@@ -259,6 +267,9 @@ class AudioNotifier extends StateNotifier<AudioState> {
   /// Normalizes file path separators for Windows.
   /// just_audio_windows passes paths directly to WMF which requires backslashes.
   String _normalizePath(String path) {
-    return p.normalize(path).replaceAll('/', '\\');
+    if (Platform.isWindows) {
+      return p.normalize(path).replaceAll('/', '\\');
+    }
+    return p.normalize(path);
   }
 }

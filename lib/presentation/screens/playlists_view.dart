@@ -5,12 +5,35 @@ import '../state/playlist_provider.dart';
 import '../common/aether_glass.dart';
 import 'playlist_detail_view.dart';
 
-class PlaylistsView extends ConsumerWidget {
+import '../state/navigation_provider.dart';
+
+class PlaylistsView extends ConsumerStatefulWidget {
   const PlaylistsView({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PlaylistsView> createState() => _PlaylistsViewState();
+}
+
+class _PlaylistsViewState extends ConsumerState<PlaylistsView> {
+  @override
+  void initState() {
+    super.initState();
+    // Initial load
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(playlistProvider.notifier).loadPlaylists();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(playlistProvider);
+
+    // Auto-refresh when switching to this tab
+    ref.listen(navigationProvider, (previous, next) {
+      if (next == 2) { // Index of Playlists tab
+        ref.read(playlistProvider.notifier).loadPlaylists();
+      }
+    });
 
     return Scaffold(
       backgroundColor: AetherColors.deepMatteBlack,
@@ -174,13 +197,17 @@ class _PlaylistTile extends ConsumerWidget {
           );
         },
       ),
-      onTap: () {
-        Navigator.push(
+      onTap: () async {
+        await Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => PlaylistDetailView(playlist: playlist),
           ),
         );
+        // Refresh when coming back (e.g. if deleted or renamed inside)
+        if (context.mounted) {
+          ref.read(playlistProvider.notifier).loadPlaylists();
+        }
       },
     );
   }

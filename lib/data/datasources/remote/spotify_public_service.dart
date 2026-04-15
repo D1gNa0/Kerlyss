@@ -12,11 +12,21 @@ class SpotifyPublicService {
 
   SpotifyPublicService(this._dio);
 
-  /// Scrapes public Spotify playlist page to extract title and tracklist
   Future<SpotifyPlaylistModel> extractPlaylistData(String playlistUrl) async {
     try {
+      // 1. Transform to Embed URL to bypass login wall
+      String? playlistId;
+      final idMatch = RegExp(r'playlist/([a-zA-Z0-9]+)').firstMatch(playlistUrl);
+      if (idMatch != null) {
+        playlistId = idMatch.group(1);
+      } else {
+        throw ServerException('Could not extract playlist ID from URL: $playlistUrl');
+      }
+
+      final String embedUrl = 'https://open.spotify.com/embed/playlist/$playlistId';
+
       final response = await _dio.get(
-        playlistUrl,
+        embedUrl,
         options: Options(
           headers: {
             'User-Agent':
@@ -26,57 +36,49 @@ class SpotifyPublicService {
       );
 
       if (response.statusCode != 200) {
-        throw ServerException('Failed to fetch Spotify playlist');
+        throw ServerException('Failed to fetch Spotify embed page');
       }
 
       final String html = response.data.toString();
 
-      // Extract Playlist Name
-      String playlistName = 'Imported Spotify Playlist';
-      final titleMatch = RegExp(r'<title>(.*?) - playlist by (.*?) | Spotify</title>').firstMatch(html)
-                      ?? RegExp(r'<title>(.*?) | Spotify</title>').firstMatch(html)
-                      ?? RegExp(r'<meta property="og:title" content="(.*?)"').firstMatch(html);
-
-      if (titleMatch != null) {
-        playlistName = titleMatch.group(1)?.trim() ?? playlistName;
-      }
-
-      // Extract tracks from initial state JSON block
-      final regExp = RegExp(r'<script id="initial-state" type="text/plain">([sS]*?)</script>');
+      // 2. Extract Data from __NEXT_DATA__ block (more robust than scraping HTML text)
+      final regExp = RegExp(r'<script id="__NEXT_DATA__" type="application/json">([\s\S]*?)</script>');
       final match = regExp.firstMatch(html);
 
       if (match == null) {
-        throw ServerException('Could not find initial-state JSON block in Spotify HTML');
+        throw ServerException('Could not find __NEXT_DATA__ JSON block in Spotify Embed HTML');
       }
 
-      final decoded = utf8.decode(base64.decode(match.group(1)!));
-      final json = jsonDecode(decoded);
+      final json = jsonDecode(match.group(1)!);
+      
+      // Navigate the complex Next.js state tree
+      final entity = json['props']?['pageProps']?['state']?['data']?['entity'];
+      if (entity == null) {
+        throw ServerException('Could not find entity data in Spotify JSON block');
+      }
+
+      final String playlistName = entity['title'] ?? 'Imported Spotify Playlist';
+      final trackList = entity['trackList'] as List<dynamic>?;
+
+      if (trackList == null || trackList.isEmpty) {
+        throw ServerException('Could not extract any tracks from the Spotify JSON block.');
+      }
 
       final tracks = <String>[];
-      final entities = json['entities']['items'];
-
-      if (entities != null) {
-        for (final entry in entities.values) {
-          if (entry['type'] == 'track') {
-            final name = entry['name'] ?? '';
-            final artist = entry['firstArtist'] ?? '';
-            if (name.isNotEmpty && artist.isNotEmpty) {
-              tracks.add('$name - $artist');
-            } else if (name.isNotEmpty) {
-              tracks.add(name);
-            }
-          }
+      for (final item in trackList) {
+        final title = item['title'] ?? '';
+        final artist = item['subtitle'] ?? ''; // In embed JSON, artist is often in 'subtitle'
+        if (title.isNotEmpty && artist.isNotEmpty) {
+          tracks.add('$title - $artist');
+        } else if (title.isNotEmpty) {
+          tracks.add(title);
         }
-      }
-
-      if (tracks.isEmpty) {
-        throw ServerException('Could not extract any tracks from the playlist');
       }
 
       return SpotifyPlaylistModel(name: playlistName, trackQueries: tracks);
     } catch (e) {
-      if (e is ServerException || e is ServerException) rethrow;
-      throw ServerException('Error scraping Spotify playlist: ${e.toString()}');
+      if (e is ServerException) rethrow;
+      throw ServerException('Error scraping Spotify playlist (Embed Route): ${e.toString()}');
     }
   }
 
@@ -101,9 +103,13 @@ class SpotifyPublicService {
 
   /// Extracts the Spotify ID from a standard URL.
   String? extractId(String url) {
-    final regExp = RegExp(r'track/([a-zA-Z0-9]+)');
-    final match = regExp.firstMatch(url);
-    return match?.group(1);
+    final trackMatch = RegExp(r'track/([a-zA-Z0-9]+)').firstMatch(url);
+    if (trackMatch != null) return trackMatch.group(1);
+    
+    final playlistMatch = RegExp(r'playlist/([a-zA-Z0-9]+)').firstMatch(url);
+    if (playlistMatch != null) return playlistMatch.group(1);
+
+    return null;
   }
 
   /// Searches for tracks on Spotify using the public search page (No-API).

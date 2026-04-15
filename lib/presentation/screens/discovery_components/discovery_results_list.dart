@@ -8,13 +8,11 @@ import '../../common/source_badge.dart';
 import '../../state/audio_provider.dart';
 import '../../state/audio_state.dart';
 import '../../state/library_provider.dart';
+import '../../state/download_state_provider.dart';
 import '../../theme/aether_colors.dart';
 
 class DiscoveryResultsList extends ConsumerWidget {
   final List<SongEntity> results;
-  final bool Function(String) isAlreadyDownloaded;
-  final bool Function(String) isDownloading;
-  final double Function(String) getProgress;
   final void Function(SongEntity) onDownloadJamendo;
   final void Function(SongEntity) onDownloadYoutube;
   final void Function(BuildContext, WidgetRef, SongEntity) onAddToPlaylist;
@@ -22,9 +20,6 @@ class DiscoveryResultsList extends ConsumerWidget {
   const DiscoveryResultsList({
     super.key,
     required this.results,
-    required this.isAlreadyDownloaded,
-    required this.isDownloading,
-    required this.getProgress,
     required this.onDownloadJamendo,
     required this.onDownloadYoutube,
     required this.onAddToPlaylist,
@@ -32,33 +27,42 @@ class DiscoveryResultsList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final downloadState = ref.watch(downloadStateProvider);
+    final libraryState = ref.watch(libraryProvider);
+
     return SliverPadding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       sliver: SliverList(
         delegate: SliverChildBuilderDelegate(
           (context, index) {
             final song = results[index];
+            final isDownloading = downloadState.downloadingTrackIds.contains(song.id);
+            final isAlreadyDownloaded = downloadState.alreadyDownloadedIds.contains(song.id);
+            final progress = downloadState.downloadProgress[song.id] ?? 0.0;
+            final isFavorite = libraryState.favoriteSongs.any((s) => s.id == song.id);
 
             return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.only(bottom: 6),
               child: AetherGlass(
-                borderRadius: 16,
-                padding: const EdgeInsets.all(4),
+                height: 60,
+                borderRadius: 12,
+                padding: const EdgeInsets.all(2),
                 child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                  dense: true,
                   leading: Stack(
                     children: [
                       ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(8),
                         child: song.albumArtUrl != null && song.albumArtUrl!.isNotEmpty
                             ? Image.network(
                                 song.albumArtUrl!,
-                                width: 56,
-                                height: 56,
+                                width: 44,
+                                height: 44,
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => _buildFallbackArt(),
+                                errorBuilder: (_, __, ___) => _buildFallbackArt(44),
                               )
-                            : _buildFallbackArt(),
+                            : _buildFallbackArt(44),
                       ),
                       Positioned(
                         bottom: 0,
@@ -74,52 +78,50 @@ class DiscoveryResultsList extends ConsumerWidget {
                           song.title,
                           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.bold,
-                                fontSize: 15,
+                                fontSize: 13,
                               ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      if (isDownloading(song.id))
+                      if (isDownloading)
                         Padding(
-                          padding: const EdgeInsets.only(left: 8.0),
+                          padding: const EdgeInsets.only(left: 6.0),
                           child: SizedBox(
-                            width: 14,
-                            height: 14,
+                            width: 12,
+                            height: 2,
                             child: LinearProgressIndicator(
-                              value: getProgress(song.id),
+                              value: progress,
                               backgroundColor: Colors.white.withOpacity(0.05),
                               valueColor: const AlwaysStoppedAnimation<Color>(Colors.white30),
-                              minHeight: 2,
                             ),
                           ),
                         ),
                     ],
                   ),
                   subtitle: Text(
-                    song.sourceType == AudioSourceType.jamendo
-                        ? '${song.artist}  •  Tap INSTALL to save'
-                        : song.artist,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 12),
+                    song.artist,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 11),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (song.sourceType == AudioSourceType.jamendo ||
-                          song.sourceType == AudioSourceType.youtube)
+                      if (song.sourceType == AudioSourceType.youtube)
                         Padding(
-                          padding: const EdgeInsets.only(right: 4.0),
-                          child: isAlreadyDownloaded(song.id)
+                          padding: const EdgeInsets.only(right: 2.0),
+                          child: isAlreadyDownloaded
                               ? const SizedBox(
-                                  width: 40,
-                                  height: 40,
+                                  width: 32,
+                                  height: 32,
                                   child: Center(
                                     child: Icon(Icons.check_circle_rounded,
-                                        color: Colors.lightGreenAccent, size: 20),
+                                        color: Colors.lightGreenAccent, size: 18),
                                   ),
                                 )
                               : IconButton(
-                                  onPressed: isDownloading(song.id)
+                                  onPressed: isDownloading
                                       ? null
                                       : () {
                                           if (song.sourceType == AudioSourceType.jamendo) {
@@ -128,36 +130,38 @@ class DiscoveryResultsList extends ConsumerWidget {
                                             onDownloadYoutube(song);
                                           }
                                         },
-                                  icon: isDownloading(song.id)
+                                  icon: isDownloading
                                       ? const SizedBox(
-                                          width: 14,
-                                          height: 14,
+                                          width: 12,
+                                          height: 12,
                                           child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white38),
                                         )
-                                      : const Icon(Icons.download_rounded, color: Colors.white30, size: 20),
+                                      : const Icon(Icons.download_rounded, color: Colors.white30, size: 18),
                                   tooltip: 'Install to local library',
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
                                 ),
                         ),
                       IconButton(
                         icon: Icon(
-                          ref.read(libraryProvider.notifier).isSongFavorite(song.id)
-                              ? Icons.favorite_rounded
-                              : Icons.favorite_border_rounded,
-                          color: ref.read(libraryProvider.notifier).isSongFavorite(song.id)
-                              ? Colors.redAccent
-                              : Colors.white24,
-                          size: 18,
+                          isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                          color: isFavorite ? Colors.redAccent : Colors.white24,
+                          size: 16,
                         ),
                         onPressed: () {
                           ref.read(libraryProvider.notifier).toggleFavorite(song);
                         },
-                      ),
-                      PopupMenuButton<String>(
-                        icon: const Icon(Icons.more_vert_rounded, color: Colors.white24, size: 20),
                         padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                      const SizedBox(width: 8),
+                      PopupMenuButton<String>(
+                        icon: const Icon(Icons.more_vert_rounded, color: Colors.white24, size: 18),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
                         color: AetherColors.ultraDarkGray,
-                        offset: const Offset(0, 40),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        offset: const Offset(0, 32),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         onSelected: (value) {
                           if (value == 'add_to_playlist') {
                             onAddToPlaylist(context, ref, song);
@@ -166,11 +170,12 @@ class DiscoveryResultsList extends ConsumerWidget {
                         itemBuilder: (context) => [
                           const PopupMenuItem(
                             value: 'add_to_playlist',
+                            height: 32,
                             child: Row(
                               children: [
-                                Icon(Icons.playlist_add_rounded, color: Colors.white70, size: 18),
+                                Icon(Icons.playlist_add_rounded, color: Colors.white70, size: 16),
                                 SizedBox(width: 8),
-                                Text('Add to Playlist', style: TextStyle(color: Colors.white, fontSize: 13)),
+                                Text('Add to Playlist', style: TextStyle(color: Colors.white, fontSize: 12)),
                               ],
                             ),
                           ),
@@ -201,12 +206,12 @@ class DiscoveryResultsList extends ConsumerWidget {
     );
   }
 
-  Widget _buildFallbackArt() {
+  Widget _buildFallbackArt(double size) {
     return Container(
-      width: 56,
-      height: 56,
+      width: size,
+      height: size,
       color: Colors.white.withOpacity(0.05),
-      child: const Icon(Icons.music_note_rounded, color: Colors.white24, size: 24),
+      child: Icon(Icons.music_note_rounded, color: Colors.white24, size: size / 2),
     );
   }
 }

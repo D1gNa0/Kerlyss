@@ -26,7 +26,8 @@ class SearchAggregator {
 
       final spotifyResults = await spotifyFuture;
       final youtubeResults = await youtubeFuture;
-      final jamendoResults = await jamendoFuture;
+      // final jamendoResults = await jamendoFuture;
+      const jamendoResults = <SongEntity>[];
 
       return _mergeResults(spotifyResults, youtubeResults, jamendoResults);
     } catch (e) {

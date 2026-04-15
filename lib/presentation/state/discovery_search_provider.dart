@@ -53,7 +53,13 @@ class DiscoverySearchNotifier extends StateNotifier<DiscoverySearchState> {
 
   void toggleSearchMode() {
     final nextMode = state.searchMode == SearchMode.songs ? SearchMode.spotifyImport : SearchMode.songs;
-    state = state.copyWith(searchMode: nextMode, query: '', results: [], error: null);
+    setSearchMode(nextMode);
+  }
+
+  void setSearchMode(SearchMode mode) {
+    if (state.searchMode != mode) {
+      state = state.copyWith(searchMode: mode, query: '', results: [], error: null);
+    }
   }
 
   void toggleDownloadOnImport(bool value) {
