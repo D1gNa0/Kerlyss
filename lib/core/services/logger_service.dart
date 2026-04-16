@@ -67,7 +67,7 @@ class _FileSysLogOutput extends LogOutput {
       // Strip ANSI color codes for file logging
       final ansiRegex = RegExp(r'\x1B\[[0-9;]*m');
       final text = event.lines.map((l) => l.replaceAll(ansiRegex, '')).join('\n') + '\n';
-      file!.writeAsStringSync(text, mode: FileMode.append);
+      file!.writeAsString(text, mode: FileMode.append);
     } catch (_) {}
   }
 }

@@ -156,7 +156,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
 
   Future<void> playSong(SongMetadata song, String sourceUrl) async {
     state = state.copyWith(currentSong: song, status: PlaybackStatus.loading);
-    Log.i('playSong triggered. Initial sourceUrl: $sourceUrl');
+    Log.d('playSong triggered. Initial sourceUrl: $sourceUrl');
 
     try {
       // 1. Check for local download first
@@ -177,12 +177,12 @@ class AudioNotifier extends StateNotifier<AudioState> {
           ? lookupId.replaceFirst('jamendo_', '') 
           : lookupId;
 
-      Log.i('playSong -> Looking for local file with ID: $actualId');
+      Log.d('playSong -> Looking for local file with ID: $actualId');
       final localSong = await _localDownloadLibrary.findDownloadedSongById(actualId);
       
       if (localSong != null) {
         final normalizedPath = _normalizePath(localSong.path);
-        Log.i('playSong -> FOUND local file! Playing: $normalizedPath');
+        Log.d('playSong -> FOUND local file! Playing: $normalizedPath');
         
         // Brief delay to ensure file handle is released by OS after download
         await Future.delayed(const Duration(milliseconds: 200));
@@ -198,7 +198,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
             : sourceUrl;
 
         final finalPath = _normalizePath(localPath);
-        Log.i('playSong -> Opening direct local file (fallback): $finalPath');
+        Log.d('playSong -> Opening direct local file (fallback): $finalPath');
 
         // Brief delay to ensure file handle is released by OS after download
         await Future.delayed(const Duration(milliseconds: 200));
@@ -207,7 +207,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
         return;
       }
 
-      Log.i('playSong -> No local file found. Proceeding with stream for ID: "$videoId"');
+      Log.d('playSong -> No local file found. Proceeding with stream for ID: "$videoId"');
 
       final headers = {
         'User-Agent':
@@ -218,15 +218,15 @@ class AudioNotifier extends StateNotifier<AudioState> {
         final port = await YoutubeProxyServer.start(_youtubeService.client);
         final proxyUrl = 'http://127.0.0.1:$port/?id=$videoId';
 
-        Log.i('playSong -> Opening PROXY stream: $proxyUrl');
+        Log.d('playSong -> Opening PROXY stream: $proxyUrl');
         await _audioService.setUrl(proxyUrl, headers: headers);
       } else {
-        Log.i('playSong -> Opening direct stream: $sourceUrl');
+        Log.d('playSong -> Opening direct stream: $sourceUrl');
         await _audioService.setUrl(sourceUrl, headers: headers);
       }
 
       await _audioService.play();
-      Log.i('playSong -> just_audio started successfully');
+      Log.d('playSong -> just_audio started successfully');
     } catch (e, stacktrace) {
 
       Log.e('playSong -> FATAL ERROR: $e');

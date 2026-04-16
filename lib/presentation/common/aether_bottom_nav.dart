@@ -11,12 +11,20 @@ class AetherBottomNav extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final currentIndex = ref.watch(navigationProvider);
 
+    final isMobile = Theme.of(context).platform == TargetPlatform.android || 
+                    Theme.of(context).platform == TargetPlatform.iOS;
+
     return Container(
       height: 64,
-      margin: const EdgeInsets.fromLTRB(40, 0, 40, 32),
+      margin: EdgeInsets.fromLTRB(
+        isMobile ? 12 : 40, 
+        0, 
+        isMobile ? 12 : 40, 
+        isMobile ? 12 : 32
+      ),
       child: AetherGlass(
         borderRadius: 32,
-        padding: const EdgeInsets.symmetric(horizontal: 24),
+        padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 24),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [

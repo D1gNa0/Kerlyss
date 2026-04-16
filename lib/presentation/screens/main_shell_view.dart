@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -83,17 +85,18 @@ class _MainShellViewState extends ConsumerState<MainShellView> {
         children: [
           // Content Stack
           Padding(
-            padding: const EdgeInsets.only(top: 40),
-            child: IndexedStack(
-              index: currentIndex,
-              children: [
-                HomeView(),
-                DiscoveryView(),
-                PlaylistsView(),
-              ],
-
-
-
+            padding: EdgeInsets.only(top: !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS) ? 40 : 0),
+            child: SafeArea(
+              top: true,
+              bottom: false,
+              child: IndexedStack(
+                index: currentIndex,
+                children: const [
+                  HomeView(),
+                  DiscoveryView(),
+                  PlaylistsView(),
+                ],
+              ),
             ),
           ),
 
@@ -103,16 +106,20 @@ class _MainShellViewState extends ConsumerState<MainShellView> {
           // Global Player & Navigation
           Align(
             alignment: Alignment.bottomCenter,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // MiniPlayer (Only if a song is loaded)
-                if (audioState.currentSong.id.isNotEmpty)
-                  const MiniPlayer(),
-                
-                // Navigation Bar
-                const AetherBottomNav(),
-              ],
+            child: SafeArea(
+              top: false,
+              bottom: true,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // MiniPlayer (Only if a song is loaded)
+                  if (audioState.currentSong.id.isNotEmpty)
+                    const MiniPlayer(),
+                  
+                  // Navigation Bar
+                  const AetherBottomNav(),
+                ],
+              ),
             ),
           ),
         ],

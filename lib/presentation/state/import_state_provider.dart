@@ -94,18 +94,14 @@ class ImportStateNotifier extends StateNotifier<ImportState> {
 
         final futures = chunk.map((query) async {
           try {
-            Log.d('Spotify Import: Resolving track: "$query"');
             final song = await _repository.resolveQueryToSong(query);
             if (song != null) {
-              Log.d('Spotify Import: Successfully resolved "$query" to ID: ${song.id}');
               await _repository.saveSong(song);
               resolvedSongIds.add(song.id);
             } else {
-              Log.w('Spotify Import: Failed to resolve "$query" (Result was null)');
               newFailed.add(query);
             }
           } catch (e) {
-            Log.e('Spotify Import: Error resolving "$query": ${e.toString()}');
             newFailed.add(query);
           }
 
