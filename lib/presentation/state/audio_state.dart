@@ -49,6 +49,8 @@ class AudioState {
   final List<SongMetadata> playlist;
   final int currentIndex;
 
+  final double volume;
+
   const AudioState({
     required this.currentSong,
     required this.status,
@@ -58,6 +60,7 @@ class AudioState {
     this.isRepeatEnabled = false,
     this.playlist = const [],
     this.currentIndex = -1,
+    this.volume = 1.0,
   });
 
   AudioState copyWith({
@@ -69,6 +72,7 @@ class AudioState {
     bool? isRepeatEnabled,
     List<SongMetadata>? playlist,
     int? currentIndex,
+    double? volume,
   }) {
     return AudioState(
       currentSong: currentSong ?? this.currentSong,
@@ -79,6 +83,7 @@ class AudioState {
       isRepeatEnabled: isRepeatEnabled ?? this.isRepeatEnabled,
       playlist: playlist ?? this.playlist,
       currentIndex: currentIndex ?? this.currentIndex,
+      volume: volume ?? this.volume,
     );
   }
 }

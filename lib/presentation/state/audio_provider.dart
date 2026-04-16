@@ -126,10 +126,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
     );
     
     final song = playlist[index];
-    // We need to resolve the source URL. 
-    // If it's a local song, we use its ID as source.
-    // If it's a remote song, we'd ideally have its stream URL, 
-    // but here we rely on playSong to handle resolution.
+    globalAudioHandler.updateMediaItem(song);
     await playSong(song, song.id); 
   }
 
@@ -156,7 +153,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
 
   Future<void> playSong(SongMetadata song, String sourceUrl) async {
     state = state.copyWith(currentSong: song, status: PlaybackStatus.loading);
-    Log.d('playSong triggered. Initial sourceUrl: $sourceUrl');
+    globalAudioHandler.updateMediaItem(song);
 
     try {
       // 1. Check for local download first
@@ -247,6 +244,11 @@ class AudioNotifier extends StateNotifier<AudioState> {
 
   void seek(Duration position) {
     _audioService.seek(position);
+  }
+
+  void setVolume(double volume) {
+    _audioService.setVolume(volume);
+    state = state.copyWith(volume: volume);
   }
 
   void seekRelative(int seconds) {

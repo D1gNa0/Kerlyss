@@ -189,6 +189,7 @@ class FullPlayerView extends ConsumerWidget {
                           child: Container(
                             width: 68,
                             height: 68,
+                            alignment: Alignment.center, // CRITICAL: Centers icon to prevent layout jump
                             decoration: BoxDecoration(
                               color: Colors.white,
                               shape: BoxShape.circle,
@@ -199,12 +200,18 @@ class FullPlayerView extends ConsumerWidget {
                                 ),
                               ],
                             ),
-                            child: Icon(
-                              audioState.status == PlaybackStatus.playing
-                                  ? Icons.pause_rounded
-                                  : Icons.play_arrow_rounded,
-                              color: Colors.black,
-                              size: 40,
+                            child: Padding(
+                              // Offset the play arrow slightly for optical centering
+                              padding: EdgeInsets.only(
+                                left: audioState.status == PlaybackStatus.playing ? 0 : 4,
+                              ),
+                              child: Icon(
+                                audioState.status == PlaybackStatus.playing
+                                    ? Icons.pause_rounded
+                                    : Icons.play_arrow_rounded,
+                                color: Colors.black,
+                                size: 40,
+                              ),
                             ),
                           ),
                         ),
@@ -278,6 +285,35 @@ class FullPlayerView extends ConsumerWidget {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 20),
+
+                  // Windows Volume Control
+                  if (!kIsWeb && Platform.isWindows)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.volume_up_rounded, color: AetherColors.textSecondary, size: 16),
+                          Expanded(
+                            child: SliderTheme(
+                              data: SliderTheme.of(context).copyWith(
+                                trackHeight: 2,
+                                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 4),
+                                overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
+                                activeTrackColor: Colors.white54,
+                                inactiveTrackColor: Colors.white.withOpacity(0.05),
+                                thumbColor: Colors.white70,
+                              ),
+                              child: Slider(
+                                value: audioState.volume,
+                                onChanged: (v) => ref.read(audioProvider.notifier).setVolume(v),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
                   const SizedBox(height: 24),
                 ],
               ),

@@ -10,9 +10,25 @@ import 'presentation/theme/aether_theme.dart';
 import 'data/datasources/local/isar_database_service.dart';
 import 'data/repositories/repository_providers.dart';
 import 'presentation/screens/main_shell_view.dart';
+import 'package:audio_service/audio_service.dart';
+import 'core/services/kerlyss_audio_handler.dart';
+
+late final KerlyssAudioHandler globalAudioHandler;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize AudioService for background playback
+  globalAudioHandler = await AudioService.init<KerlyssAudioHandler>(
+    builder: () => KerlyssAudioHandler(),
+    config: const AudioServiceConfig(
+      androidNotificationChannelId: 'com.example.kerlyss.channel.audio',
+      androidNotificationChannelName: 'Music Playback',
+      androidNotificationOngoing: true,
+      androidShowNotificationBadge: true,
+      androidStopForegroundOnPause: false,
+    ),
+  );
 
   // Android: Enable edge-to-edge transparent UI
   if (!kIsWeb && Platform.isAndroid) {

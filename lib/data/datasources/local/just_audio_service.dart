@@ -3,10 +3,12 @@ import 'package:just_audio/just_audio.dart';
 import '../../../domain/repositories/audio_service_interface.dart';
 import '../../../presentation/state/audio_state.dart';
 
+import '../../../main.dart';
+
 class JustAudioService implements AudioServiceInterface {
   final AudioPlayer _player;
 
-  JustAudioService({AudioPlayer? player}) : _player = player ?? AudioPlayer();
+  JustAudioService() : _player = globalAudioHandler.player;
 
   @override
   Stream<PlaybackStatus> get playbackStatusStream {
