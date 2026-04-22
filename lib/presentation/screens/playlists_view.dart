@@ -4,8 +4,10 @@ import '../theme/aether_colors.dart';
 import '../state/playlist_provider.dart';
 import '../common/aether_glass.dart';
 import 'playlist_detail_view.dart';
-
 import '../state/navigation_provider.dart';
+import '../state/track_download_provider.dart';
+import '../state/library_provider.dart';
+import '../state/download_state_provider.dart';
 
 class PlaylistsView extends ConsumerStatefulWidget {
   const PlaylistsView({super.key});
@@ -15,10 +17,11 @@ class PlaylistsView extends ConsumerStatefulWidget {
 }
 
 class _PlaylistsViewState extends ConsumerState<PlaylistsView> {
+  dynamic _selectedPlaylist;
+
   @override
   void initState() {
     super.initState();
-    // Initial load
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(playlistProvider.notifier).loadPlaylists();
     });
@@ -28,12 +31,22 @@ class _PlaylistsViewState extends ConsumerState<PlaylistsView> {
   Widget build(BuildContext context) {
     final state = ref.watch(playlistProvider);
 
-    // Auto-refresh when switching to this tab
     ref.listen(navigationProvider, (previous, next) {
-      if (next == 2) { // Index of Playlists tab
+      if (next == 2) { 
         ref.read(playlistProvider.notifier).loadPlaylists();
+        if (_selectedPlaylist != null) setState(() => _selectedPlaylist = null);
       }
     });
+
+    if (_selectedPlaylist != null) {
+      return PlaylistDetailView(
+        playlist: _selectedPlaylist,
+        onBack: () {
+          setState(() => _selectedPlaylist = null);
+          ref.read(playlistProvider.notifier).loadPlaylists();
+        },
+      );
+    }
 
     return Scaffold(
       backgroundColor: AetherColors.deepMatteBlack,
@@ -49,7 +62,6 @@ class _PlaylistsViewState extends ConsumerState<PlaylistsView> {
           ),
         ),
         child: CustomScrollView(
-
         slivers: [
           SliverAppBar(
             backgroundColor: Colors.transparent,
@@ -71,7 +83,6 @@ class _PlaylistsViewState extends ConsumerState<PlaylistsView> {
               ),
               const SizedBox(width: 8),
             ],
-
           ),
           if (state.isLoading)
             const SliverFillRemaining(
@@ -85,7 +96,7 @@ class _PlaylistsViewState extends ConsumerState<PlaylistsView> {
                   children: [
                     Icon(Icons.playlist_add_rounded, color: Colors.white12, size: 64),
                     const SizedBox(height: 16),
-                    Text(
+                    const Text(
                       'NO PLAYLISTS YET',
                       style: TextStyle(color: Colors.white24, letterSpacing: 2, fontSize: 10),
                     ),
@@ -102,26 +113,26 @@ class _PlaylistsViewState extends ConsumerState<PlaylistsView> {
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               sliver: SliverList(
-
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
                     final playlist = state.playlists[index];
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12),
-                      child: _PlaylistTile(playlist: playlist),
+                      child: _PlaylistTile(
+                        playlist: playlist,
+                        onSelect: () => setState(() => _selectedPlaylist = playlist),
+                      ),
                     );
                   },
                   childCount: state.playlists.length,
                 ),
               ),
             ),
-
         ],
       ),
       ),
     );
   }
-
 
   void _showCreatePlaylistDialog(BuildContext context, WidgetRef ref) {
     final controller = TextEditingController();
@@ -163,10 +174,30 @@ class _PlaylistsViewState extends ConsumerState<PlaylistsView> {
 
 class _PlaylistTile extends ConsumerWidget {
   final dynamic playlist;
-  const _PlaylistTile({required this.playlist});
+  final VoidCallback onSelect;
+  const _PlaylistTile({required this.playlist, required this.onSelect});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final downloadState = ref.watch(downloadStateProvider);
+    final libraryState = ref.watch(libraryProvider);
+    
+    // Check if fully downloaded
+    bool allDownloaded = playlist.songIds.isNotEmpty;
+    for (final id in playlist.songIds) {
+      bool isDownloaded = downloadState.alreadyDownloadedIds.contains(id);
+      if (!isDownloaded) {
+        final songInLib = libraryState.allSongs.where((s) => s.id == id).firstOrNull;
+        if (songInLib != null && songInLib.localPath != null) {
+          isDownloaded = true;
+        }
+      }
+      if (!isDownloaded) {
+        allDownloaded = false;
+        break;
+      }
+    }
+
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -178,38 +209,81 @@ class _PlaylistTile extends ConsumerWidget {
           color: Colors.white.withOpacity(0.05),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: const Icon(Icons.playlist_play_rounded, color: Colors.white24),
+        child: Icon(
+          allDownloaded ? Icons.offline_pin_rounded : Icons.playlist_play_rounded, 
+          color: allDownloaded ? AetherColors.primaryAccent : Colors.white24
+        ),
       ),
-      title: Text(
-        playlist.name,
-        style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+      title: Row(
+        children: [
+          Expanded(
+            child: Text(
+              playlist.name,
+              style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+            ),
+          ),
+          if (allDownloaded)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AetherColors.primaryAccent.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Text('DOWNLOADED', style: TextStyle(color: AetherColors.primaryAccent, fontSize: 8, fontWeight: FontWeight.bold)),
+            ),
+        ],
       ),
       subtitle: Text(
         '${playlist.songIds.length} TRACKS',
         style: const TextStyle(color: AetherColors.textSecondary, fontSize: 11, letterSpacing: 1),
       ),
-      trailing: IconButton(
-        icon: const Icon(Icons.delete_outline_rounded, color: Colors.white24, size: 20),
-        onPressed: () {
-          ref.read(playlistProvider.notifier).deletePlaylist(playlist.id);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Deleted ${playlist.name}'), backgroundColor: Colors.white12),
-          );
-        },
-      ),
-      onTap: () async {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => PlaylistDetailView(playlist: playlist),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (!allDownloaded && playlist.songIds.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.download_for_offline_rounded, color: Colors.white24, size: 20),
+              onPressed: () async {
+                final songs = await ref.read(playlistProvider.notifier).getPlaylistSongs(playlist.id);
+                ref.read(trackDownloadServiceProvider).downloadMultiple(songs);
+              },
+              tooltip: 'Download All',
+            ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline_rounded, color: Colors.white24, size: 20),
+            onPressed: () => _confirmDelete(context, ref),
           ),
-        );
-        // Refresh when coming back (e.g. if deleted or renamed inside)
-        if (context.mounted) {
-          ref.read(playlistProvider.notifier).loadPlaylists();
-        }
-      },
+        ],
+      ),
+      onTap: onSelect,
+    );
+  }
+
+  void _confirmDelete(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AetherColors.ultraDarkGray,
+        title: const Text('DELETE PLAYLIST', style: TextStyle(color: Colors.white, fontSize: 13, letterSpacing: 2)),
+        content: Text('Are you sure you want to delete "${playlist.name}"? This action cannot be undone.', 
+          style: const TextStyle(color: Colors.white70, fontSize: 13)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('CANCEL', style: TextStyle(color: Colors.white38)),
+          ),
+          TextButton(
+            onPressed: () {
+              ref.read(playlistProvider.notifier).deletePlaylist(playlist.id);
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Deleted ${playlist.name}'), backgroundColor: Colors.white12),
+              );
+            },
+            child: const Text('DELETE', style: TextStyle(color: Colors.redAccent)),
+          ),
+        ],
+      ),
     );
   }
 }
-

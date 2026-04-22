@@ -35,7 +35,14 @@ class SongRepositoryImpl implements SongRepository {
 
   @override
   Future<void> addToFavorites(SongEntity song) async {
+    final existing = await _localDataSource.getSongById(song.id);
     final model = SongModel.fromEntity(song)..isFavorite = true;
+    
+    if (existing != null) {
+      model.dateAdded = existing.dateAdded; // Preserve original add date
+      model.localPath = existing.localPath; // Preserve download path
+    }
+    
     await _localDataSource.saveSong(model);
   }
 
@@ -100,6 +107,7 @@ class SongRepositoryImpl implements SongRepository {
       duration: topMatch.duration,
       sourceUrl: topMatch.sourceUrl, // YouTube Stream ID
       sourceType: AudioSourceType.spotify,
+      dateAdded: DateTime.now(),
     );
   }
 
@@ -111,6 +119,7 @@ class SongRepositoryImpl implements SongRepository {
     if (existing != null) {
       model.isFavorite = existing.isFavorite;
       model.localPath = existing.localPath;
+      model.dateAdded = existing.dateAdded; // Preserve original add date
     }
     await _localDataSource.saveSong(model);
   }

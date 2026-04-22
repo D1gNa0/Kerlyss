@@ -101,6 +101,7 @@ class JamendoService {
       duration: Duration(seconds: model.duration),
       sourceUrl: model.audioDownloadUrl,
       sourceType: AudioSourceType.jamendo,
+      dateAdded: DateTime.now(),
     );
   }
 

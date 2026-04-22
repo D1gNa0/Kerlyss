@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../common/aether_glass.dart';
 import '../../state/discovery_search_provider.dart';
+import 'package:kerlyss/l10n/app_localizations.dart';
 
 class DiscoverySearchBar extends ConsumerWidget {
   final FocusNode focusNode;
@@ -18,6 +19,7 @@ class DiscoverySearchBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final searchState = ref.watch(discoverySearchProvider);
+    final l10n = AppLocalizations.of(context)!;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -40,8 +42,8 @@ class DiscoverySearchBar extends ConsumerWidget {
                   decoration: InputDecoration(
                     border: InputBorder.none,
                     hintText: searchState.searchMode == SearchMode.spotifyImport
-                        ? 'PASTE SPOTIFY PLAYLIST LINK...'
-                        : 'SEARCH SONGS, ARTISTS...',
+                        ? l10n.pasteSpotifyLink
+                        : l10n.searchPlaceholder,
                     hintStyle: TextStyle(
                       color: Colors.white.withOpacity(0.2),
                       fontSize: 12,
@@ -63,7 +65,7 @@ class DiscoverySearchBar extends ConsumerWidget {
                         controller.clear();
                         ref.read(discoverySearchProvider.notifier).toggleSearchMode();
                       },
-                      tooltip: 'Toggle Spotify Import Mode',
+                        tooltip: l10n.toggleSpotifyMode,
                     ),
                   ),
                 ),
@@ -82,7 +84,7 @@ class DiscoverySearchBar extends ConsumerWidget {
                         }
                       },
                     ),
-                    const Text('Download', style: TextStyle(color: Colors.white70, fontSize: 10)),
+                    Text(l10n.download, style: const TextStyle(color: Colors.white70, fontSize: 10)),
                   ],
                 ),
             ],

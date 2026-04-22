@@ -31,14 +31,16 @@ class KerlyssAudioHandler extends BaseAudioHandler with SeekHandler {
   AudioPlayer get player => _player;
 
   /// Updates the current media item shown in the system notification.
-  void updateMediaItem(SongMetadata song) {
+  void setMediaFromSong(SongMetadata song) {
     mediaItem.add(MediaItem(
       id: song.id,
       album: song.album ?? 'Kerlyss',
       title: song.title,
       artist: song.artist,
       duration: song.duration,
-      artUri: song.artworkUrl != null ? Uri.parse(song.artworkUrl!) : null,
+      // Windows SMTC blocks to download remote thumbnails, causing 1-2s delay before playback continues.
+      // We purposefully set this to null for now on Windows.
+      artUri: null,
     ));
   }
 

@@ -1,4 +1,5 @@
 import '../../domain/entities/audio_source_type.dart';
+import '../../domain/entities/song_entity.dart';
 
 enum PlaybackStatus {
   idle,
@@ -37,7 +38,20 @@ class SongMetadata {
         artist: 'Unknown Artist',
         duration: Duration.zero,
       );
+
+  /// Centralized conversion from SongEntity to SongMetadata.
+  /// Use this everywhere instead of manually mapping fields.
+  factory SongMetadata.fromEntity(SongEntity entity) => SongMetadata(
+        id: entity.id,
+        title: entity.title,
+        artist: entity.artist,
+        album: entity.album,
+        artworkUrl: entity.albumArtUrl,
+        duration: entity.duration,
+        source: entity.sourceType,
+      );
 }
+
 
 class AudioState {
   final SongMetadata currentSong;

@@ -108,6 +108,7 @@ class SearchAggregator {
             duration: bestMatch.duration ?? Duration.zero,
             sourceUrl: 'https://www.youtube.com/watch?v=${bestMatch.id.value}',
             sourceType: AudioSourceType.spotify,
+            dateAdded: DateTime.now(),
           ),
         );
       } else {
@@ -122,6 +123,7 @@ class SearchAggregator {
             duration: Duration.zero,
             sourceUrl: '',
             sourceType: AudioSourceType.spotify,
+            dateAdded: DateTime.now(),
           ),
         );
       }
@@ -140,6 +142,7 @@ class SearchAggregator {
             duration: yVideo.duration ?? Duration.zero,
             sourceUrl: 'https://www.youtube.com/watch?v=${yVideo.id.value}',
             sourceType: AudioSourceType.youtube,
+            dateAdded: DateTime.now(),
           ),
         );
       }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../theme/aether_colors.dart';
+import '../../core/services/logger_service.dart';
 import '../state/audio_provider.dart';
 import '../state/audio_state.dart';
 import '../state/link_resolver_provider.dart';
@@ -14,15 +15,20 @@ import 'playlists_view.dart';
 import '../state/playlist_provider.dart';
 import '../state/library_provider.dart';
 import '../state/navigation_provider.dart';
+import '../common/aether_song_tile.dart';
+import '../state/audio_state.dart';
 import '../../domain/entities/song_entity.dart';
 import '../../domain/entities/audio_source_type.dart';
 import 'package:desktop_drop/desktop_drop.dart';
+import 'package:kerlyss/l10n/app_localizations.dart';
+import '../common/aether_network_image.dart';
 import '../state/downloaded_songs_provider.dart';
+import '../state/track_download_provider.dart';
 
 
 
 // ─── Category filter state ──────────────────────────────────────────────────
-enum _LibraryCategory { allTracks, favorites, downloaded, folders }
+enum _LibraryCategory { allTracks, favorites, downloaded }
 
 final _libraryCategoryProvider = StateProvider<_LibraryCategory>(
   (ref) => _LibraryCategory.allTracks,
@@ -33,51 +39,38 @@ final _isDraggingProvider = StateProvider<bool>((ref) => false);
 
 
 // ─── Stub marker — red background with label for unimplemented items ─────────
-class _Stub extends StatelessWidget {
+class _ComingSoon extends StatelessWidget {
   final String label;
   final Widget child;
-  final VoidCallback? onTap;
-  const _Stub({required this.label, required this.child, this.onTap});
+  const _ComingSoon({required this.label, required this.child});
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Stack(
-        children: [
-          child,
-          Positioned.fill(
-            child: IgnorePointer(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.25),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            top: 4,
-            right: 4,
+    return Stack(
+      children: [
+        Opacity(opacity: 0.5, child: child),
+        Positioned.fill(
+          child: Center(
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.red.shade700,
-                borderRadius: BorderRadius.circular(4),
+                color: Colors.white.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white10),
               ),
               child: Text(
-                'STUB',
+                'COMING SOON',
                 style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 8,
+                  color: Colors.white38,
+                  fontSize: 7,
                   fontWeight: FontWeight.bold,
-                  letterSpacing: 1,
+                  letterSpacing: 1.5,
                 ),
               ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -90,6 +83,7 @@ class HomeView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final libraryState = ref.watch(libraryProvider);
     final selectedCategory = ref.watch(_libraryCategoryProvider);
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -124,7 +118,7 @@ class HomeView extends ConsumerWidget {
               ),
               flexibleSpace: FlexibleSpaceBar(
                 centerTitle: true,
-                title: Text('KERLYSS', style: Theme.of(context).textTheme.displayMedium),
+                title: Text(l10n.appTitle, style: Theme.of(context).textTheme.displayMedium),
               ),
               actions: [
                 Padding(
@@ -150,32 +144,23 @@ class HomeView extends ConsumerWidget {
                 child: Row(
                   children: [
                     _CategoryChip(
-                      label: 'ALL TRACKS',
+                      label: l10n.allTracks,
                       isActive: selectedCategory == _LibraryCategory.allTracks,
                       onTap: () => ref.read(_libraryCategoryProvider.notifier).state = _LibraryCategory.allTracks,
                     ),
                     const SizedBox(width: 24),
                     _CategoryChip(
-                      label: 'DOWNLOADED',
+                      label: l10n.downloaded,
                       isActive: selectedCategory == _LibraryCategory.downloaded,
                       onTap: () => ref.read(_libraryCategoryProvider.notifier).state = _LibraryCategory.downloaded,
                     ),
                     const SizedBox(width: 24),
                     _CategoryChip(
-                      label: 'FAVORITES',
+                      label: l10n.favorites,
                       isActive: selectedCategory == _LibraryCategory.favorites,
                       onTap: () => ref.read(_libraryCategoryProvider.notifier).state = _LibraryCategory.favorites,
                     ),
                     const SizedBox(width: 24),
-                    // STUB: Folders — not yet implemented
-                    _Stub(
-                      label: 'FOLDERS',
-                      child: _CategoryChip(
-                        label: 'FOLDERS',
-                        isActive: selectedCategory == _LibraryCategory.folders,
-                        onTap: () => ref.read(_libraryCategoryProvider.notifier).state = _LibraryCategory.folders,
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -218,6 +203,7 @@ class HomeView extends ConsumerWidget {
     LibraryState libraryState,
     _LibraryCategory category,
   ) {
+    final l10n = AppLocalizations.of(context)!;
     if (libraryState.isLoading) {
       return const SliverToBoxAdapter(
         child: Center(
@@ -238,10 +224,10 @@ class HomeView extends ConsumerWidget {
     if (songs.isEmpty) {
 
       final message = category == _LibraryCategory.favorites
-          ? 'NO FAVORITES YET'
+          ? l10n.noFavorites
           : category == _LibraryCategory.downloaded
-              ? 'NO DOWNLOADED TRACKS'
-              : 'LIBRARY EMPTY';
+              ? l10n.noDownloaded
+              : l10n.libraryEmpty;
 
       return SliverFillRemaining(
         hasScrollBody: false,
@@ -255,133 +241,21 @@ class HomeView extends ConsumerWidget {
     }
 
 
+
     return SliverPadding(
       padding: const EdgeInsets.symmetric(horizontal: 20.0),
       sliver: SliverList(
         delegate: SliverChildBuilderDelegate(
           (context, index) {
             final song = songs[index];
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12.0),
-              child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                tileColor: Colors.white.withOpacity(0.02),
-                leading: Stack(
-                  alignment: Alignment.bottomRight,
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: Image.network(
-                        song.albumArtUrl ?? 'https://picsum.photos/seed/placeholder/200/200',
-                        width: 44,
-                        height: 44,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => Container(
-                          width: 44,
-                          height: 44,
-                          color: Colors.white.withOpacity(0.05),
-                          child: const Icon(Icons.music_note_rounded, color: Colors.white24, size: 20),
-                        ),
-                      ),
-
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(2),
-                      child: SourceBadge(source: song.sourceType),
-                    ),
-                  ],
-                ),
-                title: Text(
-                  song.title,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 15),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                subtitle: Text(
-                  song.artist,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 12),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (song.localPath != null)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 12),
-                        child: Icon(Icons.check_circle_outline_rounded, color: Colors.greenAccent, size: 16),
-                      )
-                    else if (song.sourceType == AudioSourceType.jamendo || song.sourceType == AudioSourceType.youtube)
-                       IconButton(
-                        icon: const Icon(Icons.download_rounded, color: Colors.white24, size: 18),
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Download from Library coming soon! Use Search to download for now.')),
-                          );
-                        },
-                        tooltip: 'Download track',
-                      ),
-
-                    Builder(
-                      builder: (context) {
-                        final isFav = ref.watch(libraryProvider.notifier).isSongFavorite(song.id);
-                        return IconButton(
-                          icon: Icon(
-                            isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded, 
-                            color: isFav ? Colors.redAccent : Colors.white24, 
-                            size: 18,
-                          ),
-                          onPressed: () {
-                            ref.read(libraryProvider.notifier).toggleFavorite(song);
-                          },
-                        );
-                      }
-                    ),
-
-                    PopupMenuButton<String>(
-
-                      icon: const Icon(Icons.more_vert_rounded, color: Colors.white24, size: 20),
-                      padding: EdgeInsets.zero,
-                      color: AetherColors.ultraDarkGray,
-                      offset: const Offset(0, 40),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      onSelected: (value) {
-                        if (value == 'add_to_playlist') {
-                          _showAddToPlaylistDialog(context, ref, song);
-                        }
-                      },
-                      itemBuilder: (context) => [
-                        const PopupMenuItem(
-                          value: 'add_to_playlist',
-                          child: Row(
-                            children: [
-                              Icon(Icons.playlist_add_rounded, color: Colors.white70, size: 18),
-                              SizedBox(width: 8),
-                              Text('Add to Playlist', style: TextStyle(color: Colors.white, fontSize: 13)),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-
-                onTap: () {
-                  final playlist = songs.map((s) => SongMetadata(
-                    id: s.id,
-                    title: s.title,
-                    artist: s.artist,
-                    album: s.album,
-                    artworkUrl: s.albumArtUrl,
-                    duration: s.duration,
-                    source: s.sourceType,
-                  )).toList();
-                  
-                  ref.read(audioProvider.notifier).playPlaylist(playlist, index);
-                },
-
-              ),
+            return AetherSongTile(
+              song: song,
+              onDownload: () => ref.read(trackDownloadServiceProvider).downloadTrack(song),
+              onTap: () {
+                final playlist = songs.map((s) => SongMetadata.fromEntity(s)).toList();
+                
+                ref.read(audioProvider.notifier).playPlaylist(playlist, index);
+              },
             );
           },
           childCount: songs.length,
@@ -392,12 +266,13 @@ class HomeView extends ConsumerWidget {
 
   void _showAddToPlaylistDialog(BuildContext context, WidgetRef ref, SongEntity song) {
     final playlistState = ref.read(playlistProvider);
+    final l10n = AppLocalizations.of(context)!;
     
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AetherColors.ultraDarkGray,
-        title: const Text('ADD TO PLAYLIST', style: TextStyle(color: Colors.white, fontSize: 13, letterSpacing: 2)),
+        title: Text(l10n.addToPlaylist.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 13, letterSpacing: 2)),
         content: playlistState.playlists.isEmpty
             ? const Text('No playlists found. Create one first!', style: TextStyle(color: Colors.white38, fontSize: 12))
             : SizedBox(
@@ -409,13 +284,13 @@ class HomeView extends ConsumerWidget {
                     final playlist = playlistState.playlists[index];
                     return ListTile(
                       title: Text(playlist.name, style: const TextStyle(color: Colors.white, fontSize: 14)),
-                      onTap: () {
-                        ref.read(playlistProvider.notifier).addSongToPlaylist(playlist.id, song);
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Added to ${playlist.name}'), backgroundColor: Colors.white10),
-                        );
-                      },
+                        onTap: () {
+                          ref.read(playlistProvider.notifier).addSongToPlaylist(playlist.id, song);
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(l10n.addedTo(playlist.name)), backgroundColor: Colors.white10),
+                          );
+                        },
                     );
                   },
                 ),
@@ -439,7 +314,7 @@ class HomeView extends ConsumerWidget {
         await localDownloadLibrary.importFile(file.path);
         importedCount++;
       } catch (e) {
-        // Silently fail for individual files
+        Log.e('Failed to import file ${file.path}: $e');
       }
     }
 

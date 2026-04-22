@@ -1,7 +1,7 @@
 import 'discovery_components/discovery_results_list.dart';
 import 'discovery_components/spotify_import_panel.dart';
 import 'discovery_components/discovery_search_bar.dart';
-import 'discovery_components/discovery_empty_state.dart';
+import 'discovery_components/discovery_recommendations.dart';
 import 'discovery_components/discovery_error_state.dart';
 
 
@@ -30,10 +30,9 @@ import '../../domain/entities/song_entity.dart';
 
 
 import '../state/playlist_provider.dart';
+import '../state/track_download_provider.dart';
 
 import '../theme/aether_colors.dart';
-
-
 
 class DiscoveryView extends ConsumerStatefulWidget {
   const DiscoveryView({super.key});
@@ -46,6 +45,24 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
   bool _hasShownMissingKeyWarning = false;
   final FocusNode _searchFocusNode = FocusNode();
   final TextEditingController _searchController = TextEditingController();
+
+  Future<void> _downloadTrack(SongEntity song) async {
+    try {
+      await ref.read(trackDownloadServiceProvider).downloadTrack(song);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Downloaded ${song.title} to local library.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to download ${song.title}.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  }
 
 
   void _showEnvSetupInstructions() {
@@ -156,129 +173,6 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
   bool _isAlreadyDownloaded(String songId) => ref.read(downloadStateProvider).alreadyDownloadedIds.contains(songId);
   double _getProgress(String songId) => ref.read(downloadStateProvider).downloadProgress[songId] ?? 0.0;
 
-
-  Future<void> _downloadJamendoTrack(SongEntity song) async {
-    if (song.sourceType != AudioSourceType.jamendo) {
-      return;
-    }
-
-    ref.read(downloadStateProvider.notifier).setDownloading(song.id);
-
-    try {
-      final jamendoService = ref.read(jamendoServiceProvider);
-      final downloadedSong = await jamendoService.downloadTrack(song);
-
-      if (!mounted) {
-        return;
-      }
-
-      // Persist in Isar
-      final isarService = ref.read(isarDatabaseServiceProvider);
-      await isarService.updateLocalPath(
-        SongModel.fromEntity(song), 
-        downloadedSong.path,
-      );
-
-
-      ref.invalidate(downloadedSongsProvider);
-      await _updateExistingDownloads();
-      
-      Log.i('Jamendo download completed for ${song.id}: Saved to ${downloadedSong.path}');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Downloaded ${downloadedSong.title} to Downloads.')),
-      );
-    } catch (e) {
-
-      Log.e('Jamendo download failed for ${song.id}: $e');
-
-      if (!mounted) {
-        return;
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to download ${song.title}.'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
-    } finally {
-      if (mounted) {
-        ref.read(downloadStateProvider.notifier).completeDownload(song.id);
-      }
-    }
-  }
-
-  Future<void> _downloadYoutubeTrack(SongEntity song) async {
-    if (song.sourceType != AudioSourceType.youtube) {
-      return;
-    }
-
-    ref.read(downloadStateProvider.notifier).setDownloading(song.id);
-
-    try {
-      final youtubeService = ref.read(youtubeServiceProvider);
-      final downloadsDirectory = await AppStoragePaths.downloadsDirectory();
-
-      // Building a meaningful filename for the download
-      final destinationPath = YoutubeService.buildDestinationPath(
-        downloadsDirectory.path,
-        song.id,
-        song.title,
-      );
-
-
-      await youtubeService.downloadTrack(
-        song.id,
-        destinationPath,
-        onProgress: (progress) {
-          if (mounted) {
-            ref.read(downloadStateProvider.notifier).updateProgress(song.id, progress);
-          }
-        },
-      );
-
-
-      if (!mounted) {
-        return;
-      }
-
-      // Persist in Isar
-      final isarService = ref.read(isarDatabaseServiceProvider);
-      await isarService.updateLocalPath(
-        SongModel.fromEntity(song), 
-        destinationPath,
-      );
-
-
-      ref.invalidate(downloadedSongsProvider);
-      await _updateExistingDownloads();
-
-      Log.i('YouTube download completed for ${song.id}: Saved to $destinationPath');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Downloaded ${song.title} to local storage.')),
-      );
-    } catch (e) {
-
-      Log.e('YouTube download failed for ${song.id}: $e');
-
-      if (!mounted) {
-        return;
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to download ${song.title} from YouTube.'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
-    } finally {
-      if (mounted) {
-        ref.read(downloadStateProvider.notifier).completeDownload(song.id);
-      }
-    }
-  }
-
-
   @override
   Widget build(BuildContext context) {
     final ref = this.ref;
@@ -373,8 +267,7 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
           else if (searchState.results.isNotEmpty)
             DiscoveryResultsList(
               results: searchState.results,
-              onDownloadJamendo: _downloadJamendoTrack,
-              onDownloadYoutube: _downloadYoutubeTrack,
+              onDownload: _downloadTrack,
               onAddToPlaylist: _showAddToPlaylistDialog,
             )
           else if (searchState.error != null)
@@ -383,9 +276,18 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
               child: DiscoveryErrorState(error: searchState.error!),
             )
           else
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: DiscoveryEmptyState(hasQuery: searchState.query.isNotEmpty),
+            SliverToBoxAdapter(
+              child: searchState.query.isNotEmpty 
+                  ? const SizedBox(
+                      height: 400,
+                      child: Center(
+                        child: Text('NO RESULTS FOUND', style: TextStyle(color: Colors.white12, letterSpacing: 2, fontSize: 10))
+                      ),
+                    )
+                  : DiscoveryRecommendationsView(
+                      onDownload: _downloadTrack,
+                      onAddToPlaylist: _showAddToPlaylistDialog,
+                    ),
             ),
           
           const SliverToBoxAdapter(child: SizedBox(height: 100)),

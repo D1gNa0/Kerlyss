@@ -6,7 +6,12 @@ import '../common/aether_glass.dart';
 import '../common/aether_title_bar.dart';
 import '../theme/aether_colors.dart';
 import '../common/aether_pulse_visualizer.dart';
+import '../common/aether_network_image.dart';
+import 'package:kerlyss/l10n/app_localizations.dart';
+import 'queue_view.dart';
 import 'dart:ui';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 
 class FullPlayerView extends ConsumerWidget {
   const FullPlayerView({super.key});
@@ -15,6 +20,7 @@ class FullPlayerView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final audioState = ref.watch(audioProvider);
     final currentSong = audioState.currentSong;
+    final l10n = AppLocalizations.of(context)!;
     final screenWidth = MediaQuery.of(context).size.width;
     final durationMs = currentSong.duration.inMilliseconds.toDouble();
     final sliderMax = durationMs > 0 ? durationMs : 1000.0;
@@ -32,12 +38,10 @@ class FullPlayerView extends ConsumerWidget {
               child: Opacity(
                 opacity: 0.5,
                 child: currentSong.artworkUrl != null
-                    ? Image.network(
-                        currentSong.artworkUrl!, 
+                    ? AetherNetworkImage(
+                        url: currentSong.artworkUrl!,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
                       )
-
                     : const SizedBox.shrink(),
               ),
             ),
@@ -67,12 +71,40 @@ class FullPlayerView extends ConsumerWidget {
                         icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 30),
                       ),
                       Text(
-                        'KERLYSS',
+                        l10n.appTitle,
                         style: Theme.of(context).textTheme.displayMedium?.copyWith(fontSize: 12),
                       ),
-                      IconButton(
-                        onPressed: () {},
-                        icon: const Icon(Icons.more_horiz_rounded, size: 24),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            onPressed: () {
+                              showGeneralDialog(
+                                context: context,
+                                barrierDismissible: true,
+                                barrierLabel: 'Queue',
+                                barrierColor: Colors.black54,
+                                pageBuilder: (context, anim, secondAnim) {
+                                  return Align(
+                                    alignment: Alignment.centerRight,
+                                    child: Material(
+                                      color: Colors.transparent,
+                                      child: SlideTransition(
+                                        position: Tween(begin: const Offset(1, 0), end: Offset.zero).animate(anim),
+                                        child: QueueView(onClose: () => Navigator.pop(context)),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              );
+                            },
+                            icon: const Icon(Icons.queue_music_rounded, size: 24),
+                          ),
+                          IconButton(
+                            onPressed: () {},
+                            icon: const Icon(Icons.more_horiz_rounded, size: 24),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -107,20 +139,13 @@ class FullPlayerView extends ConsumerWidget {
                             ),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(24),
-                              child: currentSong.artworkUrl != null
-                                  ? Image.network(
-                                      currentSong.artworkUrl!, 
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) => Container(
-                                        color: Colors.white.withOpacity(0.03),
-                                        child: const Icon(Icons.music_note_rounded, color: Colors.white24, size: 64),
-                                      ),
-                                    )
-
-                                  : Container(
-                                      color: AetherColors.ultraDarkGray,
-                                      child: const Icon(Icons.music_note, size: 60),
-                                    ),
+                              child: AetherNetworkImage(
+                                url: currentSong.artworkUrl ?? '',
+                                width: double.infinity,
+                                height: double.infinity,
+                                borderRadius: 24,
+                                fit: BoxFit.cover,
+                              ),
                             ),
                           ),
                         ),
@@ -161,7 +186,7 @@ class FullPlayerView extends ConsumerWidget {
                     children: [
                       // STUB: shuffle not implemented
                       Tooltip(
-                        message: 'STUB — Not Implemented',
+                        message: l10n.stubNotImplemented,
                         child: Stack(children: [
                           const Icon(Icons.shuffle_rounded, color: AetherColors.textSecondary, size: 20),
                           Positioned(top: 0, right: 0, child: Container(width: 6, height: 6, decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle))),
@@ -170,12 +195,12 @@ class FullPlayerView extends ConsumerWidget {
                       IconButton(
                         icon: const Icon(Icons.skip_previous_rounded, size: 32, color: Colors.white),
                         onPressed: () => ref.read(audioProvider.notifier).previous(),
-                        tooltip: 'Previous (Ctrl + Left)',
+                        tooltip: l10n.previousShortcut,
                       ),
                       const SizedBox(width: 8),
                       // Skip Back 5s
                       Tooltip(
-                        message: 'Back 5s (Left Arrow)',
+                        message: l10n.back5s,
                         child: IconButton(
                           icon: const Icon(Icons.replay_5_rounded, size: 28, color: Colors.white70),
                           onPressed: () => ref.read(audioProvider.notifier).seekRelative(-5),
@@ -183,7 +208,7 @@ class FullPlayerView extends ConsumerWidget {
                       ),
                       const SizedBox(width: 8),
                       Tooltip(
-                        message: 'Play/Pause (Space)',
+                        message: l10n.playPause,
                         child: GestureDetector(
                           onTap: () => ref.read(audioProvider.notifier).togglePlay(),
                           child: Container(
@@ -205,13 +230,19 @@ class FullPlayerView extends ConsumerWidget {
                               padding: EdgeInsets.only(
                                 left: audioState.status == PlaybackStatus.playing ? 0 : 4,
                               ),
-                              child: Icon(
-                                audioState.status == PlaybackStatus.playing
-                                    ? Icons.pause_rounded
-                                    : Icons.play_arrow_rounded,
-                                color: Colors.black,
-                                size: 40,
-                              ),
+                              child: audioState.status == PlaybackStatus.loading || audioState.status == PlaybackStatus.buffering
+                                  ? const SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: CircularProgressIndicator(color: Colors.black, strokeWidth: 3),
+                                    )
+                                  : Icon(
+                                      audioState.status == PlaybackStatus.playing
+                                          ? Icons.pause_rounded
+                                          : Icons.play_arrow_rounded,
+                                      color: Colors.black,
+                                      size: 40,
+                                    ),
                             ),
                           ),
                         ),
@@ -219,7 +250,7 @@ class FullPlayerView extends ConsumerWidget {
                       const SizedBox(width: 8),
                       // Skip Forward 5s
                       Tooltip(
-                        message: 'Forward 5s (Right Arrow)',
+                        message: l10n.forward5s,
                         child: IconButton(
                           icon: const Icon(Icons.forward_5_rounded, size: 28, color: Colors.white70),
                           onPressed: () => ref.read(audioProvider.notifier).seekRelative(5),
@@ -229,11 +260,11 @@ class FullPlayerView extends ConsumerWidget {
                       IconButton(
                         icon: const Icon(Icons.skip_next_rounded, size: 32, color: Colors.white),
                         onPressed: () => ref.read(audioProvider.notifier).next(),
-                        tooltip: 'Next (Ctrl + Right)',
+                        tooltip: l10n.nextShortcut,
                       ),
                       // STUB: repeat not implemented
                       Tooltip(
-                        message: 'STUB — Not Implemented',
+                        message: l10n.stubNotImplemented,
                         child: Stack(children: [
                           const Icon(Icons.repeat_rounded, color: AetherColors.textSecondary, size: 20),
                           Positioned(top: 0, right: 0, child: Container(width: 6, height: 6, decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle))),
@@ -264,11 +295,11 @@ class FullPlayerView extends ConsumerWidget {
                       ),
                       SliderTheme(
                         data: SliderTheme.of(context).copyWith(
-                          trackHeight: 2,
-                          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                          overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+                          trackHeight: 1.5, // Ultra-thin Spotify style
+                          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 4),
+                          overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
                           activeTrackColor: Colors.white,
-                          inactiveTrackColor: Colors.white.withOpacity(0.1),
+                          inactiveTrackColor: Colors.white.withOpacity(0.05),
                           thumbColor: Colors.white,
                         ),
                         child: Slider(
@@ -280,7 +311,6 @@ class FullPlayerView extends ConsumerWidget {
                             }
                             ref.read(audioProvider.notifier).seek(Duration(milliseconds: value.toInt()));
                           },
-
                         ),
                       ),
                     ],
@@ -297,7 +327,7 @@ class FullPlayerView extends ConsumerWidget {
                           Expanded(
                             child: SliderTheme(
                               data: SliderTheme.of(context).copyWith(
-                                trackHeight: 2,
+                                trackHeight: 1.5,
                                 thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 4),
                                 overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
                                 activeTrackColor: Colors.white54,

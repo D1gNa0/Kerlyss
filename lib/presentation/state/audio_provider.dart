@@ -2,10 +2,12 @@ import '../../domain/repositories/audio_service_interface.dart';
 import '../../data/datasources/local/just_audio_service.dart';
 import 'dart:async';
 import 'dart:io';
+import '../../main.dart';
 import 'package:path/path.dart' as p;
 
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:just_audio/just_audio.dart' show AudioSource;
 // Using custom AudioServiceInterface
 
 import 'package:kerlyss/core/services/logger_service.dart';
@@ -14,7 +16,7 @@ import 'package:kerlyss/core/services/youtube_proxy_server.dart';
 import 'package:kerlyss/data/datasources/remote/youtube_service.dart';
 import 'package:kerlyss/data/repositories/repository_providers.dart';
 import 'package:kerlyss/presentation/state/downloaded_songs_provider.dart';
-
+import '../../domain/entities/downloaded_song.dart';
 
 import 'audio_state.dart';
 
@@ -22,7 +24,8 @@ final audioProvider = StateNotifierProvider<AudioNotifier, AudioState>((ref) {
   final localDownloadLibrary = ref.watch(localDownloadLibraryProvider);
   final audioService = JustAudioService();
   final youtubeService = ref.watch(youtubeServiceProvider);
-  return AudioNotifier(localDownloadLibrary, youtubeService, audioService);
+  final isarService = ref.read(isarDatabaseServiceProvider);
+  return AudioNotifier(localDownloadLibrary, youtubeService, audioService, isarService);
 });
 
 
@@ -33,7 +36,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
   final AudioServiceInterface _audioService;
   final LocalDownloadLibrary _localDownloadLibrary;
   final YoutubeService _youtubeService;
-
+  final dynamic _isarService;
 
   final _frequencyController = StreamController<List<double>>.broadcast();
   Stream<List<double>> get frequencyStream => _frequencyController.stream;
@@ -41,7 +44,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
 
   final List<StreamSubscription<dynamic>> _subs = [];
 
-  AudioNotifier(this._localDownloadLibrary, this._youtubeService, this._audioService)
+  AudioNotifier(this._localDownloadLibrary, this._youtubeService, this._audioService, this._isarService)
 
       : super(
           AudioState(
@@ -60,11 +63,28 @@ class AudioNotifier extends StateNotifier<AudioState> {
         _subs.add(_audioService.playbackStatusStream.listen((status) {
       if (!mounted) return;
       
-      Log.i('Audio status changed: $status');
-      state = state.copyWith(status: status);
+      Log.i('Audio status changed: $status (Current state: ${state.status})');
 
-      if (status == PlaybackStatus.completed) {
-        next();
+      // Ignore idle/buffering status if we are in a loading state to prevent flickering
+      // This ensures the spinner stays until the engine is truly Ready or Playing.
+      if (state.status == PlaybackStatus.loading && 
+          (status == PlaybackStatus.idle || status == PlaybackStatus.buffering)) {
+        return;
+      }
+
+      state = state.copyWith(status: status);
+    }));
+
+    _subs.add(_audioService.currentIndexStream.listen((index) {
+      if (!mounted || index == null) return;
+      if (index != state.currentIndex && index >= 0 && index < state.playlist.length) {
+        Log.i('AudioNotifier: Gapless transition to index $index');
+        final nextSong = state.playlist[index];
+        state = state.copyWith(
+          currentIndex: index,
+          currentSong: nextSong,
+        );
+        globalAudioHandler.setMediaFromSong(nextSong);
       }
     }));
 
@@ -116,121 +136,188 @@ class AudioNotifier extends StateNotifier<AudioState> {
     });
   }
 
-  /// Plays a specific song from a playlist and loads the rest of the list into the queue.
+  /// Plays a playlist starting at [index].
+  /// Reorders queue so clicked song is at position 0 — bypasses broken
+  /// initialIndex on just_audio_windows which always plays index 0.
   Future<void> playPlaylist(List<SongMetadata> playlist, int index) async {
     if (index < 0 || index >= playlist.length) return;
-    
+
+    // Reorder: [clicked, ...after clicked, ...before clicked]
+    final reordered = [
+      ...playlist.sublist(index),
+      ...playlist.sublist(0, index),
+    ];
+
     state = state.copyWith(
-      playlist: playlist,
-      currentIndex: index,
+      playlist: reordered,
+      currentIndex: 0,
+      currentSong: reordered[0],
+      status: PlaybackStatus.loading,
     );
+    globalAudioHandler.setMediaFromSong(reordered[0]);
+
+    final sources = await Future.wait(
+      reordered.map((song) => _buildAudioSource(song)),
+    );
+    if (!mounted) return;
+
+    await _audioService.setAudioQueue(sources, initialIndex: 0, play: true);
+  }
+
+
+
+
+
+
+
+
+  Future<void> addNext(SongMetadata song) async {
+    if (state.playlist.isEmpty) {
+      playPlaylist([song], 0);
+      return;
+    }
+    final newPlaylist = List<SongMetadata>.from(state.playlist);
+    newPlaylist.insert(state.currentIndex + 1, song);
+    state = state.copyWith(playlist: newPlaylist);
+
+    final source = await _buildAudioSource(song);
+    await _audioService.insertIntoQueue(state.currentIndex + 1, source);
+  }
+
+  Future<void> addLast(SongMetadata song) async {
+    if (state.playlist.isEmpty) {
+      playPlaylist([song], 0);
+      return;
+    }
+    final newPlaylist = List<SongMetadata>.from(state.playlist);
+    newPlaylist.add(song);
+    state = state.copyWith(playlist: newPlaylist);
+
+    final source = await _buildAudioSource(song);
+    await _audioService.insertIntoQueue(newPlaylist.length - 1, source);
+  }
+
+  Future<void> reorderQueue(int oldIndex, int newIndex) async {
+    if (oldIndex < 0 || oldIndex >= state.playlist.length) return;
+    if (newIndex < 0 || newIndex > state.playlist.length) return;
     
-    final song = playlist[index];
-    globalAudioHandler.updateMediaItem(song);
-    await playSong(song, song.id); 
+    if (oldIndex < newIndex) newIndex -= 1;
+
+    final newPlaylist = List<SongMetadata>.from(state.playlist);
+    final item = newPlaylist.removeAt(oldIndex);
+    newPlaylist.insert(newIndex, item);
+
+    int newCurrentIndex = state.currentIndex;
+    if (state.currentIndex == oldIndex) {
+      newCurrentIndex = newIndex;
+    } else if (oldIndex < state.currentIndex && newIndex >= state.currentIndex) {
+      newCurrentIndex--;
+    } else if (oldIndex > state.currentIndex && newIndex <= state.currentIndex) {
+      newCurrentIndex++;
+    }
+
+    state = state.copyWith(playlist: newPlaylist, currentIndex: newCurrentIndex);
+    await _audioService.moveInQueue(oldIndex, newIndex);
+  }
+
+  Future<void> removeFromQueue(int index) async {
+    if (index < 0 || index >= state.playlist.length) return;
+    final newPlaylist = List<SongMetadata>.from(state.playlist);
+    newPlaylist.removeAt(index);
+    
+    int newCurrentIndex = state.currentIndex;
+    if (index < state.currentIndex) {
+      newCurrentIndex--;
+    } else if (index == state.currentIndex) {
+      if (newPlaylist.isEmpty) {
+        _audioService.pause();
+        newCurrentIndex = -1;
+      }
+    }
+    
+    state = state.copyWith(playlist: newPlaylist, currentIndex: newCurrentIndex);
+    await _audioService.removeFromQueue(index);
   }
 
   Future<void> next() async {
-    if (state.playlist.isEmpty) {
-      Log.w('Audio: Cannot play next, playlist is empty');
+    if (state.playlist.isEmpty) return;
+    final nextIndex = (state.currentIndex + 1) % state.playlist.length;
+    Log.i('Audio: Seeking next track at index $nextIndex');
+    await _audioService.seek(Duration.zero, index: nextIndex);
+  }
+
+  Future<void> previous() async {
+    if (state.playlist.isEmpty) return;
+    if (_audioService.position > const Duration(seconds: 4)) {
+      await _audioService.seek(Duration.zero);
       return;
     }
-    
-    final nextIndex = (state.currentIndex + 1) % state.playlist.length;
-    Log.i('Audio: Auto-playing next track at index $nextIndex');
-    
-    // Small delay to let the previous session settle
-    await Future.delayed(const Duration(milliseconds: 100));
-    await playPlaylist(state.playlist, nextIndex);
-  }
-
-  void previous() {
-    if (state.playlist.isEmpty) return;
     var prevIndex = state.currentIndex - 1;
     if (prevIndex < 0) prevIndex = state.playlist.length - 1;
-    playPlaylist(state.playlist, prevIndex);
+    await _audioService.seek(Duration.zero, index: prevIndex);
   }
 
-  Future<void> playSong(SongMetadata song, String sourceUrl) async {
-    state = state.copyWith(currentSong: song, status: PlaybackStatus.loading);
-    globalAudioHandler.updateMediaItem(song);
-
+  Future<AudioSource> _buildAudioSource(SongMetadata song) async {
+    // 1. Check Isar Database for local path
+    String? localPath;
     try {
-      // 1. Check for local download first
-      String? videoId;
-      final uri = Uri.tryParse(sourceUrl);
-
-      if (uri != null &&
-          (uri.host.contains('youtube') || uri.host.contains('youtu.be'))) {
-        videoId = uri.queryParameters['v'];
-        videoId ??= uri.pathSegments.isNotEmpty ? uri.pathSegments.last : null;
-      } else if (!sourceUrl.startsWith('http')) {
-        videoId = sourceUrl;
+      final dbSong = await _isarService.getSongById(song.id);
+      if (dbSong != null && dbSong.localPath != null) {
+        localPath = dbSong.localPath;
       }
+    } catch (_) {}
 
-      // Special case: Jamendo IDs are jamendo_ID
-      final lookupId = videoId ?? song.id;
-      final actualId = lookupId.startsWith('jamendo_') 
-          ? lookupId.replaceFirst('jamendo_', '') 
-          : lookupId;
+    // Fallback: Check local downloads library directly
+    if (localPath == null) {
+      String lookupId = song.id.startsWith('jamendo_') 
+          ? song.id.replaceFirst('jamendo_', '') 
+          : song.id;
 
-      Log.d('playSong -> Looking for local file with ID: $actualId');
-      final localSong = await _localDownloadLibrary.findDownloadedSongById(actualId);
-      
-      if (localSong != null) {
-        final normalizedPath = _normalizePath(localSong.path);
-        Log.d('playSong -> FOUND local file! Playing: $normalizedPath');
-        
-        // Brief delay to ensure file handle is released by OS after download
-        await Future.delayed(const Duration(milliseconds: 200));
-        await _audioService.setFilePath(normalizedPath);
-        await _audioService.play();
-        return;
+      DownloadedSong? localSong;
+      if (!lookupId.startsWith('file://') && !lookupId.contains(Platform.pathSeparator) && !lookupId.contains('/')) {
+        localSong = await _localDownloadLibrary.findDownloadedSongById(lookupId);
+        if (localSong != null) localPath = localSong.path;
       }
+    }
+    
+    if (localPath != null) {
+      final normalizedPath = _normalizePath(localPath);
+      return AudioSource.uri(Uri.file(normalizedPath), tag: song);
+    }
 
-      // 2. If not local, proceed with streaming
-      if (sourceUrl.startsWith('file://') || File(sourceUrl).existsSync()) {
-        final localPath = sourceUrl.startsWith('file://')
-            ? Uri.parse(sourceUrl).toFilePath()
-            : sourceUrl;
+    final sourceUrl = song.id;
 
-        final finalPath = _normalizePath(localPath);
-        Log.d('playSong -> Opening direct local file (fallback): $finalPath');
+    // 2. If it is already a direct file path (fallback)
+    if (sourceUrl.startsWith('file://') || (sourceUrl.length > 3 && !sourceUrl.startsWith('http') && File(sourceUrl).existsSync())) {
+      final finalPath = _normalizePath(sourceUrl.replaceFirst('file://', ''));
+      return AudioSource.uri(Uri.file(finalPath), tag: song);
+    }
 
-        // Brief delay to ensure file handle is released by OS after download
-        await Future.delayed(const Duration(milliseconds: 200));
-        await _audioService.setFilePath(finalPath);
-        await _audioService.play();
-        return;
-      }
+    // 3. Streaming (Remote Source)
+    final headers = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    };
 
-      Log.d('playSong -> No local file found. Proceeding with stream for ID: "$videoId"');
+    // Priority: check if the provided sourceUrl is a direct stream URL (not youtube)
+    if (sourceUrl.startsWith('http') && !sourceUrl.contains('youtube.com') && !sourceUrl.contains('youtu.be')) {
+      return AudioSource.uri(Uri.parse(sourceUrl), headers: headers, tag: song);
+    }
 
-      final headers = {
-        'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      };
+    // Resolve YouTube if needed
+    final uri = Uri.tryParse(sourceUrl);
+    String? videoId;
+    if (uri != null && (uri.host.contains('youtube') || uri.host.contains('youtu.be'))) {
+      videoId = uri.queryParameters['v'] ?? (uri.pathSegments.isNotEmpty ? uri.pathSegments.last : null);
+    } else if (!sourceUrl.startsWith('http')) {
+      videoId = sourceUrl;
+    }
 
-      if (videoId != null && videoId.isNotEmpty) {
-        final port = await YoutubeProxyServer.start(_youtubeService.client);
-        final proxyUrl = 'http://127.0.0.1:$port/?id=$videoId';
-
-        Log.d('playSong -> Opening PROXY stream: $proxyUrl');
-        await _audioService.setUrl(proxyUrl, headers: headers);
-      } else {
-        Log.d('playSong -> Opening direct stream: $sourceUrl');
-        await _audioService.setUrl(sourceUrl, headers: headers);
-      }
-
-      await _audioService.play();
-      Log.d('playSong -> just_audio started successfully');
-    } catch (e, stacktrace) {
-
-      Log.e('playSong -> FATAL ERROR: $e');
-      Log.e('Stacktrace: $stacktrace');
-      if (mounted) {
-        state = state.copyWith(status: PlaybackStatus.error);
-      }
+    if (videoId != null && videoId.isNotEmpty) {
+      final port = await YoutubeProxyServer.start(_youtubeService.client);
+      final proxyUrl = 'http://127.0.0.1:$port/?id=$videoId';
+      return AudioSource.uri(Uri.parse(proxyUrl), headers: headers, tag: song);
+    } else {
+      return AudioSource.uri(Uri.parse(sourceUrl), headers: headers, tag: song);
     }
   }
 

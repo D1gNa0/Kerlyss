@@ -63,7 +63,7 @@ class IsarDatabaseService {
     return await isar.songModels.filter().songIdEqualTo(songId).findFirst();
   }
 
-  Future<void> updateLocalPath(SongModel songData, String localPath) async {
+  Future<void> updateLocalPath(SongModel songData, String? localPath) async {
     await isar.writeTxn(() async {
       final existing = await isar.songModels.filter().songIdEqualTo(songData.songId).findFirst();
       if (existing != null) {

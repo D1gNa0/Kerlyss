@@ -9,6 +9,8 @@ import 'core/services/logger_service.dart';
 import 'presentation/theme/aether_theme.dart';
 import 'data/datasources/local/isar_database_service.dart';
 import 'data/repositories/repository_providers.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:kerlyss/l10n/app_localizations.dart';
 import 'presentation/screens/main_shell_view.dart';
 import 'package:audio_service/audio_service.dart';
 import 'core/services/kerlyss_audio_handler.dart';
@@ -26,7 +28,7 @@ void main() async {
       androidNotificationChannelName: 'Music Playback',
       androidNotificationOngoing: true,
       androidShowNotificationBadge: true,
-      androidStopForegroundOnPause: false,
+      androidStopForegroundOnPause: true,
     ),
   );
 
@@ -89,6 +91,15 @@ class KerlyssApp extends StatelessWidget {
       title: 'Kerlyss',
       debugShowCheckedModeBanner: false,
       theme: AetherTheme.darkTheme,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('en', ''),
+      ],
       home: const MainShellView(),
     );
   }

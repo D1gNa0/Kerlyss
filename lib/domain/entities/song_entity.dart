@@ -10,6 +10,7 @@ class SongEntity {
   final String sourceUrl; // YouTube Stream URI or Local File Path
   final AudioSourceType sourceType;
   final String? localPath;
+  final DateTime dateAdded;
 
   const SongEntity({
     required this.id,
@@ -21,6 +22,7 @@ class SongEntity {
     required this.sourceUrl,
     required this.sourceType,
     this.localPath,
+    required this.dateAdded,
   });
 
 

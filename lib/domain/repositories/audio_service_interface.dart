@@ -1,3 +1,4 @@
+import 'package:just_audio/just_audio.dart' show AudioSource;
 import '../../presentation/state/audio_state.dart';
 
 abstract class AudioServiceInterface {
@@ -13,9 +14,17 @@ abstract class AudioServiceInterface {
   Future<void> play();
   Future<void> pause();
   Future<void> stop();
-  Future<void> seek(Duration position);
-  Future<void> setUrl(String url, {Map<String, String>? headers});
-  Future<void> setFilePath(String path);
+  Future<void> seek(Duration position, {int? index});
+  Future<void> setUrl(String url, {Map<String, String>? headers, bool play = false});
+  Future<void> setFilePath(String path, {bool play = false});
+  
+  // Audio Queueing support
+  Future<void> setAudioQueue(List<AudioSource> queue, {int initialIndex = 0, bool play = false});
+  Future<void> insertIntoQueue(int index, AudioSource source);
+  Future<void> removeFromQueue(int index);
+  Future<void> moveInQueue(int oldIndex, int newIndex);
+  Stream<int?> get currentIndexStream;
+
   Future<void> setVolume(double volume);
   Future<void> load(String url, {required SongMetadata metadata});
   Future<void> dispose();

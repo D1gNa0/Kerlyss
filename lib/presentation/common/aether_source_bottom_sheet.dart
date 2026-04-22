@@ -60,15 +60,6 @@ class AetherSourceBottomSheet extends ConsumerWidget {
                     Navigator.pop(context);
                   },
                 ),
-                _SourceOption(
-                  icon: Icons.play_circle_outline_rounded,
-                  label: 'YOUTUBE',
-                  onTap: () {
-                    debugPrint('DEBUG: YOUTUBE button tapped');
-                    // Future YouTube implementation
-                    Navigator.pop(context);
-                  },
-                ),
               ],
             ),
           ],

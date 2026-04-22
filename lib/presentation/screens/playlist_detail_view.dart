@@ -1,16 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../common/aether_song_tile.dart';
+import '../state/audio_state.dart';
 import '../theme/aether_colors.dart';
 import '../state/playlist_provider.dart';
-import '../state/audio_provider.dart';
 import '../state/audio_state.dart';
+import '../state/audio_provider.dart';
+import '../state/library_provider.dart';
+import '../state/track_download_provider.dart';
+import '../state/download_state_provider.dart';
+import '../../domain/entities/audio_source_type.dart';
 import '../../domain/entities/song_entity.dart';
 import '../common/source_badge.dart';
 import '../common/mini_player.dart';
 
 class PlaylistDetailView extends ConsumerStatefulWidget {
   final dynamic playlist;
-  const PlaylistDetailView({super.key, required this.playlist});
+  final VoidCallback? onBack;
+  const PlaylistDetailView({super.key, required this.playlist, this.onBack});
 
   @override
   ConsumerState<PlaylistDetailView> createState() => _PlaylistDetailViewState();
@@ -29,6 +36,8 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
   Future<void> _loadSongs() async {
     final songs = await ref.read(playlistProvider.notifier).getPlaylistSongs(widget.playlist.id);
     if (mounted) {
+      // Sort: Newest First to match library sorting
+      songs.sort((a, b) => b.dateAdded.compareTo(a.dateAdded));
       setState(() {
         _loadedSongs = songs;
         _isLoading = false;
@@ -38,33 +47,62 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
 
   @override
   Widget build(BuildContext context) {
+    final downloadState = ref.watch(downloadStateProvider);
+    final libraryState = ref.watch(libraryProvider);
+    
+    int notDownloadedCount = 0;
+    if (_loadedSongs != null) {
+      for (final song in _loadedSongs!) {
+        final songInLib = libraryState.allSongs.where((s) => s.id == song.id).firstOrNull;
+        final hasLocalPath = songInLib != null ? songInLib.localPath != null : song.localPath != null;
+        final isDownloaded = hasLocalPath || downloadState.alreadyDownloadedIds.contains(song.id);
+        if (!isDownloaded) notDownloadedCount++;
+      }
+    }
+    
+    final allDownloaded = _loadedSongs != null && _loadedSongs!.isNotEmpty && notDownloadedCount == 0;
+
     return Scaffold(
       backgroundColor: AetherColors.deepMatteBlack,
+      extendBody: true, // Allow body to flow under translucent elements
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
+        centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            if (widget.onBack != null) widget.onBack!();
+            else Navigator.pop(context);
+          },
         ),
-        title: Row(
-          children: [
-            Expanded(
-              child: Text(
-                widget.playlist.name,
-                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.edit_rounded, color: Colors.white24, size: 18),
-              onPressed: () => _showRenameDialog(context),
-              tooltip: 'Rename Playlist',
-            ),
-          ],
+        title: Text(
+          widget.playlist.name.toUpperCase(),
+          style: Theme.of(context).textTheme.displayMedium?.copyWith(
+            fontSize: 14,
+            letterSpacing: 4,
+            color: Colors.white70,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         actions: [
+          if (allDownloaded)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 14.0, vertical: 16.0),
+              child: Icon(Icons.check_circle_outline_rounded, color: Colors.greenAccent, size: 20),
+            )
+          else if (_loadedSongs != null && _loadedSongs!.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.download_for_offline_rounded, color: AetherColors.primaryAccent, size: 20),
+              onPressed: () => ref.read(trackDownloadServiceProvider).downloadMultiple(_loadedSongs!),
+              tooltip: 'Download All',
+            ),
+          IconButton(
+            icon: const Icon(Icons.edit_rounded, color: Colors.white24, size: 18),
+            onPressed: () => _showRenameDialog(context),
+            tooltip: 'Rename Playlist',
+          ),
           IconButton(
             icon: const Icon(Icons.delete_outline_rounded, color: Colors.white38, size: 20),
             onPressed: () => _confirmDeletePlaylist(context),
@@ -80,19 +118,15 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
                   ? _buildEmptyState()
                   : _buildSongList(),
           
-          // MiniPlayer at the bottom
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: Consumer(
-              builder: (context, ref, child) {
-                final audioState = ref.watch(audioProvider);
-                if (audioState.currentSong.id.isNotEmpty) {
-                  return const MiniPlayer();
-                }
-                return const SizedBox.shrink();
-              },
+          // Global Persistent Player (Bottom Anchored)
+          if (widget.onBack == null)
+            const Align(
+              alignment: Alignment.bottomCenter,
+              child: SafeArea(
+                top: false,
+                child: MiniPlayer(),
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -116,74 +150,22 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
 
   Widget _buildSongList() {
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: const EdgeInsets.only(left: 20, right: 20, top: 12, bottom: 140),
       itemCount: _loadedSongs!.length,
       itemBuilder: (context, index) {
         final song = _loadedSongs![index];
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            tileColor: Colors.white.withOpacity(0.02),
-            leading: Stack(
-              alignment: Alignment.bottomRight,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: Image.network(
-                    song.albumArtUrl ?? 'https://picsum.photos/seed/placeholder/200/200',
-                    width: 44,
-                    height: 44,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      width: 44,
-                      height: 44,
-                      color: Colors.white.withOpacity(0.05),
-                      child: const Icon(Icons.music_note_rounded, color: Colors.white24, size: 20),
-                    ),
-                  ),
-
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(2),
-                  child: SourceBadge(source: song.sourceType),
-                ),
-              ],
-            ),
-            title: Text(
-              song.title,
-              style: const TextStyle(color: Colors.white, fontSize: 14),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Text(
-              song.artist,
-              style: const TextStyle(color: AetherColors.textSecondary, fontSize: 11),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            trailing: IconButton(
-              icon: const Icon(Icons.remove_circle_outline_rounded, color: Colors.white12, size: 18),
-              onPressed: () async {
-                await ref.read(playlistProvider.notifier).removeSongFromPlaylist(widget.playlist.id, song.id);
-                _loadSongs();
-              },
-            ),
-            onTap: () {
-              final playlist = _loadedSongs!.map((s) => SongMetadata(
-                id: s.id,
-                title: s.title,
-                artist: s.artist,
-                album: s.album,
-                artworkUrl: s.albumArtUrl,
-                duration: s.duration,
-                source: s.sourceType,
-              )).toList();
-              
-              ref.read(audioProvider.notifier).playPlaylist(playlist, index);
-            },
-          ),
+        return AetherSongTile(
+          song: song,
+          onDownload: () => ref.read(trackDownloadServiceProvider).downloadTrack(song),
+          onRemove: () async {
+            await ref.read(playlistProvider.notifier).removeSongFromPlaylist(widget.playlist.id, song.id);
+            _loadSongs();
+          },
+          onTap: () {
+            final playlist = _loadedSongs!.map((s) => SongMetadata.fromEntity(s)).toList();
+            
+            ref.read(audioProvider.notifier).playPlaylist(playlist, index);
+          },
         );
       },
     );
@@ -236,8 +218,9 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AetherColors.ultraDarkGray,
-        title: const Text('DELETE PLAYLIST?', style: TextStyle(color: Colors.white, fontSize: 14, letterSpacing: 2)),
-        content: const Text('This will not delete the audio files.', style: TextStyle(color: Colors.white60)),
+        title: const Text('DELETE PLAYLIST', style: TextStyle(color: Colors.white, fontSize: 13, letterSpacing: 2)),
+        content: Text('Are you sure you want to delete "${widget.playlist.name}"? This action cannot be undone.', 
+          style: const TextStyle(color: Colors.white70, fontSize: 13)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -247,7 +230,8 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
             onPressed: () {
               ref.read(playlistProvider.notifier).deletePlaylist(widget.playlist.id);
               Navigator.pop(context); // Close dialog
-              Navigator.pop(context); // Close detail view
+              if (widget.onBack != null) widget.onBack!();
+              else Navigator.pop(context); // Close detail view
             },
             child: const Text('DELETE', style: TextStyle(color: Colors.redAccent)),
           ),

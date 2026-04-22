@@ -16,7 +16,30 @@ class YoutubeService {
   /// Searches for YouTube videos based on a query.
   Future<List<Video>> searchVideos(String query) async {
     final searchList = await _yt.search.search(query);
-    return searchList.take(10).toList();
+    return searchList.where((v) => (v.duration?.inMinutes ?? 0) < 10).take(10).toList();
+  }
+
+  /// Fetches related videos for a given video ID (Recommendations).
+  Future<List<Video>> getRelatedVideos(String videoId) async {
+    try {
+      final video = await _yt.videos.get(VideoId(videoId));
+      final related = await _yt.videos.getRelatedVideos(video);
+      return related?.where((v) => (v.duration?.inMinutes ?? 0) < 10).take(10).toList() ?? [];
+    } catch (e) {
+      Log.e('YoutubeService: Failed to fetch related videos for $videoId: $e');
+      return [];
+    }
+  }
+
+  /// Fetches trendy music by querying trending global keywords.
+  Future<List<Video>> getTrendingMusic() async {
+    try {
+      final searchList = await _yt.search.search('popular hit songs official audio');
+      return searchList.where((v) => (v.duration?.inMinutes ?? 0) < 10).take(15).toList();
+    } catch (e) {
+      Log.e('YoutubeService: Failed to fetch trending music: $e');
+      return [];
+    }
   }
 
   /// Extracts the direct audio stream URI for a given video ID.

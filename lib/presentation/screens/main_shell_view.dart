@@ -15,6 +15,7 @@ import '../common/aether_bottom_nav.dart';
 import '../common/mini_player.dart';
 import '../common/aether_title_bar.dart';
 import '../theme/aether_colors.dart';
+import '../state/download_state_provider.dart';
 
 class MainShellView extends ConsumerStatefulWidget {
   const MainShellView({super.key});
@@ -85,7 +86,10 @@ class _MainShellViewState extends ConsumerState<MainShellView> {
         children: [
           // Content Stack
           Padding(
-            padding: EdgeInsets.only(top: !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS) ? 40 : 0),
+            padding: EdgeInsets.only(
+              top: !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS) ? 40 : 0,
+              bottom: 140, // Ensure room for persistent MiniPlayer + Nav
+            ),
             child: SafeArea(
               top: true,
               bottom: false,
@@ -112,14 +116,75 @@ class _MainShellViewState extends ConsumerState<MainShellView> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // MiniPlayer (Only if a song is loaded)
-                  if (audioState.currentSong.id.isNotEmpty)
-                    const MiniPlayer(),
+                  // Bulk Progress Indicator
+                  const _BulkDownloadOverlay(),
+
+                  // Global Persistent Player
+                  const MiniPlayer(),
                   
                   // Navigation Bar
                   const AetherBottomNav(),
                 ],
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BulkDownloadOverlay extends ConsumerWidget {
+  const _BulkDownloadOverlay();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(downloadStateProvider);
+    if (!state.isBulkActive) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: AetherColors.ultraDarkGray.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.downloading_rounded, color: AetherColors.primaryAccent, size: 16),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'SAVING PLAYLIST: ${state.bulkCompleted} OF ${state.bulkTotal} TRACKS',
+                  style: const TextStyle(color: Colors.white, fontSize: 9, letterSpacing: 1.5, fontWeight: FontWeight.bold),
+                ),
+              ),
+              Text(
+                '${((state.bulkCompleted / (state.bulkTotal > 0 ? state.bulkTotal : 1)) * 100).toInt()}%',
+                style: const TextStyle(color: AetherColors.primaryAccent, fontSize: 10, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(2),
+            child: LinearProgressIndicator(
+              value: state.bulkTotal > 0 ? state.bulkCompleted / state.bulkTotal : 0,
+              backgroundColor: Colors.white10,
+              valueColor: const AlwaysStoppedAnimation<Color>(AetherColors.primaryAccent),
+              minHeight: 2,
             ),
           ),
         ],

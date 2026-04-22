@@ -32,39 +32,44 @@ const SongModelSchema = CollectionSchema(
       name: r'artist',
       type: IsarType.string,
     ),
-    r'durationMs': PropertySchema(
+    r'dateAdded': PropertySchema(
       id: 3,
+      name: r'dateAdded',
+      type: IsarType.dateTime,
+    ),
+    r'durationMs': PropertySchema(
+      id: 4,
       name: r'durationMs',
       type: IsarType.long,
     ),
     r'isFavorite': PropertySchema(
-      id: 4,
+      id: 5,
       name: r'isFavorite',
       type: IsarType.bool,
     ),
     r'localPath': PropertySchema(
-      id: 5,
+      id: 6,
       name: r'localPath',
       type: IsarType.string,
     ),
     r'songId': PropertySchema(
-      id: 6,
+      id: 7,
       name: r'songId',
       type: IsarType.string,
     ),
     r'sourceType': PropertySchema(
-      id: 7,
+      id: 8,
       name: r'sourceType',
       type: IsarType.byte,
       enumMap: _SongModelsourceTypeEnumValueMap,
     ),
     r'sourceUrl': PropertySchema(
-      id: 8,
+      id: 9,
       name: r'sourceUrl',
       type: IsarType.string,
     ),
     r'title': PropertySchema(
-      id: 9,
+      id: 10,
       name: r'title',
       type: IsarType.string,
     )
@@ -132,13 +137,14 @@ void _songModelSerialize(
   writer.writeString(offsets[0], object.album);
   writer.writeString(offsets[1], object.albumArtUrl);
   writer.writeString(offsets[2], object.artist);
-  writer.writeLong(offsets[3], object.durationMs);
-  writer.writeBool(offsets[4], object.isFavorite);
-  writer.writeString(offsets[5], object.localPath);
-  writer.writeString(offsets[6], object.songId);
-  writer.writeByte(offsets[7], object.sourceType.index);
-  writer.writeString(offsets[8], object.sourceUrl);
-  writer.writeString(offsets[9], object.title);
+  writer.writeDateTime(offsets[3], object.dateAdded);
+  writer.writeLong(offsets[4], object.durationMs);
+  writer.writeBool(offsets[5], object.isFavorite);
+  writer.writeString(offsets[6], object.localPath);
+  writer.writeString(offsets[7], object.songId);
+  writer.writeByte(offsets[8], object.sourceType.index);
+  writer.writeString(offsets[9], object.sourceUrl);
+  writer.writeString(offsets[10], object.title);
 }
 
 SongModel _songModelDeserialize(
@@ -151,16 +157,17 @@ SongModel _songModelDeserialize(
   object.album = reader.readString(offsets[0]);
   object.albumArtUrl = reader.readStringOrNull(offsets[1]);
   object.artist = reader.readString(offsets[2]);
-  object.durationMs = reader.readLong(offsets[3]);
+  object.dateAdded = reader.readDateTime(offsets[3]);
+  object.durationMs = reader.readLong(offsets[4]);
   object.id = id;
-  object.isFavorite = reader.readBool(offsets[4]);
-  object.localPath = reader.readStringOrNull(offsets[5]);
-  object.songId = reader.readString(offsets[6]);
+  object.isFavorite = reader.readBool(offsets[5]);
+  object.localPath = reader.readStringOrNull(offsets[6]);
+  object.songId = reader.readString(offsets[7]);
   object.sourceType =
-      _SongModelsourceTypeValueEnumMap[reader.readByteOrNull(offsets[7])] ??
+      _SongModelsourceTypeValueEnumMap[reader.readByteOrNull(offsets[8])] ??
           AudioSourceType.local;
-  object.sourceUrl = reader.readString(offsets[8]);
-  object.title = reader.readString(offsets[9]);
+  object.sourceUrl = reader.readString(offsets[9]);
+  object.title = reader.readString(offsets[10]);
   return object;
 }
 
@@ -178,19 +185,21 @@ P _songModelDeserializeProp<P>(
     case 2:
       return (reader.readString(offset)) as P;
     case 3:
-      return (reader.readLong(offset)) as P;
+      return (reader.readDateTime(offset)) as P;
     case 4:
-      return (reader.readBool(offset)) as P;
+      return (reader.readLong(offset)) as P;
     case 5:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 6:
-      return (reader.readString(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 7:
+      return (reader.readString(offset)) as P;
+    case 8:
       return (_SongModelsourceTypeValueEnumMap[reader.readByteOrNull(offset)] ??
           AudioSourceType.local) as P;
-    case 8:
-      return (reader.readString(offset)) as P;
     case 9:
+      return (reader.readString(offset)) as P;
+    case 10:
       return (reader.readString(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -809,6 +818,60 @@ extension SongModelQueryFilter
       return query.addFilterCondition(FilterCondition.greaterThan(
         property: r'artist',
         value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<SongModel, SongModel, QAfterFilterCondition> dateAddedEqualTo(
+      DateTime value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'dateAdded',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<SongModel, SongModel, QAfterFilterCondition>
+      dateAddedGreaterThan(
+    DateTime value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'dateAdded',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<SongModel, SongModel, QAfterFilterCondition> dateAddedLessThan(
+    DateTime value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'dateAdded',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<SongModel, SongModel, QAfterFilterCondition> dateAddedBetween(
+    DateTime lower,
+    DateTime upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'dateAdded',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
       ));
     });
   }
@@ -1569,6 +1632,18 @@ extension SongModelQuerySortBy on QueryBuilder<SongModel, SongModel, QSortBy> {
     });
   }
 
+  QueryBuilder<SongModel, SongModel, QAfterSortBy> sortByDateAdded() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'dateAdded', Sort.asc);
+    });
+  }
+
+  QueryBuilder<SongModel, SongModel, QAfterSortBy> sortByDateAddedDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'dateAdded', Sort.desc);
+    });
+  }
+
   QueryBuilder<SongModel, SongModel, QAfterSortBy> sortByDurationMs() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'durationMs', Sort.asc);
@@ -1692,6 +1767,18 @@ extension SongModelQuerySortThenBy
     });
   }
 
+  QueryBuilder<SongModel, SongModel, QAfterSortBy> thenByDateAdded() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'dateAdded', Sort.asc);
+    });
+  }
+
+  QueryBuilder<SongModel, SongModel, QAfterSortBy> thenByDateAddedDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'dateAdded', Sort.desc);
+    });
+  }
+
   QueryBuilder<SongModel, SongModel, QAfterSortBy> thenByDurationMs() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'durationMs', Sort.asc);
@@ -1812,6 +1899,12 @@ extension SongModelQueryWhereDistinct
     });
   }
 
+  QueryBuilder<SongModel, SongModel, QDistinct> distinctByDateAdded() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'dateAdded');
+    });
+  }
+
   QueryBuilder<SongModel, SongModel, QDistinct> distinctByDurationMs() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'durationMs');
@@ -1882,6 +1975,12 @@ extension SongModelQueryProperty
   QueryBuilder<SongModel, String, QQueryOperations> artistProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'artist');
+    });
+  }
+
+  QueryBuilder<SongModel, DateTime, QQueryOperations> dateAddedProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'dateAdded');
     });
   }
 

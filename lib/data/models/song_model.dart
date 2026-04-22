@@ -24,9 +24,15 @@ class SongModel {
   bool isFavorite = false;
   
   String? localPath;
+  
+  late DateTime dateAdded;
 
 
   SongEntity toEntity() {
+    // Safety check: if dateAdded is uninitialized (e.g. from an old migration),
+    // default to current time instead of letting it sink to 1970 in the sort.
+    final safeDate = (dateAdded.year < 2000) ? DateTime.now() : dateAdded;
+
     return SongEntity(
       id: songId,
       title: title,
@@ -37,6 +43,7 @@ class SongModel {
       sourceUrl: sourceUrl,
       sourceType: sourceType,
       localPath: localPath,
+      dateAdded: safeDate,
     );
   }
 
@@ -50,7 +57,8 @@ class SongModel {
       ..durationMs = entity.duration.inMilliseconds
       ..sourceUrl = entity.sourceUrl
       ..sourceType = entity.sourceType
-      ..localPath = entity.localPath;
+      ..localPath = entity.localPath
+      ..dateAdded = entity.dateAdded;
   }
 
 }

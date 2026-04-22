@@ -1,0 +1,31 @@
+{
+  "@@locale": "en",
+  "appTitle": "KERLYSS",
+  "allTracks": "ALL TRACKS",
+  "downloaded": "DOWNLOADED",
+  "favorites": "FAVORITES",
+  "folders": "FOLDERS",
+  "noFavorites": "NO FAVORITES YET",
+  "noDownloaded": "NO DOWNLOADED TRACKS",
+  "libraryEmpty": "LIBRARY EMPTY",
+  "addToPlaylist": "Add to Playlist",
+  "downloadFromLibrarySoon": "Download from Library coming soon! Use Search to download for now.",
+  "addedTo": "Added to {name}",
+  "@addedTo": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "stubNotImplemented": "STUB — Not Implemented",
+  "previousShortcut": "Previous (Ctrl + Left)",
+  "nextShortcut": "Next (Ctrl + Right)",
+  "back5s": "Back 5s (Left Arrow)",
+  "forward5s": "Forward 5s (Right Arrow)",
+  "playPause": "Play/Pause (Space)",
+  "pasteSpotifyLink": "PASTE SPOTIFY PLAYLIST LINK...",
+  "searchPlaceholder": "SEARCH SONGS, ARTISTS...",
+  "toggleSpotifyMode": "Toggle Spotify Import Mode",
+  "download": "Download"
+}

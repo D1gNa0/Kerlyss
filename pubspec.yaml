@@ -8,6 +8,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  intl: any
   flutter_riverpod: ^2.5.1
   isar: ^3.1.0+1
   isar_flutter_libs: ^3.1.0+1
@@ -29,6 +32,7 @@ dependencies:
   logger: ^2.7.0
   desktop_drop: ^0.4.4
   flutter_dotenv: ^5.2.1
+  cached_network_image: ^3.3.1
 
 dev_dependencies:
   flutter_test:
@@ -37,9 +41,23 @@ dev_dependencies:
   isar_generator: ^3.1.0+1
   build_runner: ^2.4.8
   mocktail: ^1.0.3
+  flutter_launcher_icons: ^0.14.1
+
+flutter_launcher_icons:
+  android: true
+  windows:
+    generate: true
+    image_path: "assets/icon/app_icon_windows.png"
+    icon_size: 256
+  image_path: "assets/icon/app_icon_android.png"
+  adaptive_icon_background: "#0F0F14"
+  adaptive_icon_foreground: "assets/icon/app_icon_android.png"
+  adaptive_icon_foreground_inset: 0
 
 flutter:
+  generate: true
   uses-material-design: true
   assets:
     - .env
     - assets/
+    - assets/icon/

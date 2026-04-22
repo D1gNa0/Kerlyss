@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:desktop_drop/desktop_drop.dart';
-
-import '../common/aether_glass.dart';
+import '../common/aether_song_tile.dart';
 import '../state/audio_provider.dart';
 import '../state/audio_state.dart';
+import '../common/aether_glass.dart';
 import '../state/downloaded_songs_provider.dart';
 import '../../domain/entities/audio_source_type.dart';
 import '../../core/services/logger_service.dart';
@@ -172,86 +172,41 @@ class _DownloadedSongsViewState extends ConsumerState<DownloadedSongsView> {
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
                       final song = songs[index];
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          tileColor: Colors.white.withOpacity(0.02),
-                          leading: const Icon(Icons.music_note_rounded, color: Colors.white54),
-                          title: Text(
-                            song.title,
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 14),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          subtitle: Text(
-                            '${(song.sizeBytes / (1024 * 1024)).toStringAsFixed(2)} MB  •  ${song.modifiedAt}',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 11),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Consumer(
-                                builder: (context, ref, _) {
-                                  final libraryState = ref.watch(libraryProvider);
-                                  // Find the song in the library that matches this local path
-                                  final libSong = libraryState.allSongs.firstWhere(
-                                    (s) => s.localPath == song.path,
-                                    orElse: () => SongEntity(
-                                      id: song.path,
-                                      title: song.title,
-                                      artist: 'Local File',
-                                      album: 'Downloads',
-                                      duration: Duration.zero,
-                                      sourceUrl: song.path,
-                                      sourceType: AudioSourceType.local,
-                                    ),
-                                  );
-                                  
-                                  final isFavorite = libraryState.favoriteSongs.any((s) => s.id == libSong.id);
-
-                                  return IconButton(
-                                    icon: Icon(
-                                      isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                                      color: isFavorite ? Colors.redAccent : Colors.white24,
-                                      size: 18,
-                                    ),
-                                    onPressed: () {
-                                      ref.read(libraryProvider.notifier).toggleFavorite(libSong);
-                                    },
-                                  );
-                                },
-                              ),
-                              IconButton(
-                                onPressed: () async {
-                                  await localDownloadLibrary.deleteDownloadedSong(song.path);
-                                  ref.invalidate(downloadedSongsProvider);
-                                },
-                                icon: const Icon(Icons.delete_outline_rounded, color: Colors.white38, size: 18),
-                                tooltip: 'Delete downloaded file',
-                              ),
-                            ],
-                          ),
-
-                          onTap: () {
-
-                            // Load all downloaded songs into the playlist
-                            final playlist = songs.map((s) => SongMetadata(
-                              id: s.path,
-                              title: s.title,
-                              artist: 'Local File',
-                              album: 'Downloaded Songs',
-                              duration: Duration.zero, // Resolved during playback
-                              source: AudioSourceType.local,
-                            )).toList();
-                            
-                            ref.read(audioProvider.notifier).playPlaylist(playlist, index);
-                          },
-
+                      final libraryState = ref.watch(libraryProvider);
+                      // Find the song in the library that matches this local path
+                      final libSong = libraryState.allSongs.firstWhere(
+                        (s) => s.localPath == song.path,
+                        orElse: () => SongEntity(
+                          id: song.path,
+                          title: song.title,
+                          artist: 'Local File',
+                          album: 'Downloads',
+                          duration: Duration.zero,
+                          sourceUrl: song.path,
+                          sourceType: AudioSourceType.local,
+                          dateAdded: song.modifiedAt,
                         ),
+                      );
+
+                      return AetherSongTile(
+                        song: libSong,
+                        onRemove: () async {
+                          await localDownloadLibrary.deleteDownloadedSong(song.path);
+                          ref.invalidate(downloadedSongsProvider);
+                        },
+                        onTap: () {
+                          // Load all downloaded songs into the playlist
+                          final playlist = songs.map((s) => SongMetadata(
+                            id: s.path,
+                            title: s.title,
+                            artist: 'Local File',
+                            album: 'Downloaded Songs',
+                            duration: Duration.zero, // Resolved during playback
+                            source: AudioSourceType.local,
+                          )).toList();
+                          
+                          ref.read(audioProvider.notifier).playPlaylist(playlist, index);
+                        },
                       );
                     },
                     childCount: songs.length,
