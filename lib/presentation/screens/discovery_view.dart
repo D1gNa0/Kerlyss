@@ -234,17 +234,19 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
                     child: AetherGlass(
                       borderRadius: 16,
                       padding: EdgeInsets.zero,
-                      child: IconButton(
-                        onPressed: () {
-                          showModalBottomSheet(
-                            context: context,
-                            backgroundColor: Colors.transparent,
-                            isScrollControlled: true,
-                            builder: (context) => const AetherSourceBottomSheet(),
-                          );
-                        },
-                        icon: const Icon(Icons.add_link_rounded, color: Colors.white70, size: 22),
-                        tooltip: 'Import from YouTube / Spotify link',
+                      child: ExcludeFocus(
+                        child: IconButton(
+                          onPressed: () {
+                            showModalBottomSheet(
+                              context: context,
+                              backgroundColor: Colors.transparent,
+                              isScrollControlled: true,
+                              builder: (context) => const AetherSourceBottomSheet(),
+                            );
+                          },
+                          icon: const Icon(Icons.add_link_rounded, color: Colors.white70, size: 22),
+                          tooltip: 'Import from YouTube / Spotify link',
+                        ),
                       ),
                     ),
                   ),

@@ -102,17 +102,19 @@ class HomeView extends ConsumerWidget {
               pinned: true,
               leading: Padding(
                 padding: const EdgeInsets.only(left: 16.0),
-                child: IconButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const ProfileView()),
-                    );
-                  },
-                  icon: CircleAvatar(
-                    radius: 14,
-                    backgroundColor: AetherColors.glassWhite,
-                    child: const Icon(Icons.person_outline_rounded, size: 18, color: Colors.white),
+                child: ExcludeFocus(
+                  child: IconButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const ProfileView()),
+                      );
+                    },
+                    icon: CircleAvatar(
+                      radius: 14,
+                      backgroundColor: AetherColors.glassWhite,
+                      child: const Icon(Icons.person_outline_rounded, size: 18, color: Colors.white),
+                    ),
                   ),
                 ),
               ),
@@ -123,14 +125,16 @@ class HomeView extends ConsumerWidget {
               actions: [
                 Padding(
                   padding: const EdgeInsets.only(right: 16.0),
-                  child: IconButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const SettingsView()),
-                      );
-                    },
-                    icon: const Icon(Icons.settings_outlined, size: 22, color: AetherColors.textSecondary),
+                  child: ExcludeFocus(
+                    child: IconButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const SettingsView()),
+                        );
+                      },
+                      icon: const Icon(Icons.settings_outlined, size: 22, color: AetherColors.textSecondary),
+                    ),
                   ),
                 ),
               ],
@@ -344,18 +348,20 @@ class _CategoryChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
-        child: Text(
-          label,
-          style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                fontSize: 11,
-                color: isActive ? Colors.white : AetherColors.textSecondary,
-                fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-              ),
+    return ExcludeFocus(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                  fontSize: 11,
+                  color: isActive ? Colors.white : AetherColors.textSecondary,
+                  fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                ),
+          ),
         ),
       ),
     );

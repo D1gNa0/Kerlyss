@@ -41,6 +41,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
   final _frequencyController = StreamController<List<double>>.broadcast();
   Stream<List<double>> get frequencyStream => _frequencyController.stream;
   Timer? _visualizerTimer;
+  int _playRequestId = 0;
 
   final List<StreamSubscription<dynamic>> _subs = [];
 
@@ -68,7 +69,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
       // Ignore idle/buffering status if we are in a loading state to prevent flickering
       // This ensures the spinner stays until the engine is truly Ready or Playing.
       if (state.status == PlaybackStatus.loading && 
-          (status == PlaybackStatus.idle || status == PlaybackStatus.buffering)) {
+              (status == PlaybackStatus.idle || status == PlaybackStatus.buffering || status == PlaybackStatus.completed)) {
         return;
       }
 
@@ -141,6 +142,36 @@ class AudioNotifier extends StateNotifier<AudioState> {
   /// initialIndex on just_audio_windows which always plays index 0.
   Future<void> playPlaylist(List<SongMetadata> playlist, int index) async {
     if (index < 0 || index >= playlist.length) return;
+    final requestId = ++_playRequestId;
+    final clickedSong = playlist[index];
+
+    final canReuseCurrentQueue = state.playlist.length == playlist.length &&
+        state.playlist.isNotEmpty &&
+        state.playlist.every((song) => playlist.any((candidate) => candidate.id == song.id)) &&
+        playlist.every((song) => state.playlist.any((candidate) => candidate.id == song.id));
+
+    if (canReuseCurrentQueue) {
+      final existingIndex = state.playlist.indexWhere((song) => song.id == clickedSong.id);
+      if (existingIndex >= 0) {
+        state = state.copyWith(
+          status: PlaybackStatus.loading,
+        );
+
+        await _audioService.seek(Duration.zero, index: existingIndex);
+        if (!mounted || requestId != _playRequestId) return;
+        await _ensurePlaybackStarted();
+        if (!mounted || requestId != _playRequestId) return;
+        final resolvedIndex = _audioService.currentIndex ?? existingIndex;
+        if (resolvedIndex < 0 || resolvedIndex >= state.playlist.length) return;
+        final resolvedSong = state.playlist[resolvedIndex];
+        state = state.copyWith(
+          currentIndex: resolvedIndex,
+          currentSong: resolvedSong,
+        );
+        globalAudioHandler.setMediaFromSong(resolvedSong);
+        return;
+      }
+    }
 
     // Reorder: [clicked, ...after clicked, ...before clicked]
     final reordered = [
@@ -150,18 +181,37 @@ class AudioNotifier extends StateNotifier<AudioState> {
 
     state = state.copyWith(
       playlist: reordered,
-      currentIndex: 0,
-      currentSong: reordered[0],
       status: PlaybackStatus.loading,
     );
-    globalAudioHandler.setMediaFromSong(reordered[0]);
 
     final sources = await Future.wait(
       reordered.map((song) => _buildAudioSource(song)),
     );
-    if (!mounted) return;
+    if (!mounted || requestId != _playRequestId) return;
 
-    await _audioService.setAudioQueue(sources, initialIndex: 0, play: true);
+    await _audioService.setAudioQueue(sources, initialIndex: 0, play: false);
+    if (!mounted || requestId != _playRequestId) return;
+    await _ensurePlaybackStarted();
+    if (!mounted || requestId != _playRequestId) return;
+    final resolvedIndex = _audioService.currentIndex ?? 0;
+    if (resolvedIndex < 0 || resolvedIndex >= reordered.length) return;
+    final resolvedSong = reordered[resolvedIndex];
+    state = state.copyWith(
+      currentIndex: resolvedIndex,
+      currentSong: resolvedSong,
+    );
+    globalAudioHandler.setMediaFromSong(resolvedSong);
+  }
+
+  Future<void> _ensurePlaybackStarted() async {
+    await _audioService.play();
+
+    // just_audio_windows occasionally drops the first play intent right after load.
+    // Retry once to ensure user-initiated taps actually start playback.
+    if (!_audioService.playing) {
+      await Future.delayed(const Duration(milliseconds: 120));
+      await _audioService.play();
+    }
   }
 
 
@@ -173,7 +223,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
 
   Future<void> addNext(SongMetadata song) async {
     if (state.playlist.isEmpty) {
-      playPlaylist([song], 0);
+      await playPlaylist([song], 0);
       return;
     }
     final newPlaylist = List<SongMetadata>.from(state.playlist);
@@ -186,7 +236,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
 
   Future<void> addLast(SongMetadata song) async {
     if (state.playlist.isEmpty) {
-      playPlaylist([song], 0);
+      await playPlaylist([song], 0);
       return;
     }
     final newPlaylist = List<SongMetadata>.from(state.playlist);

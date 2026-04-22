@@ -19,12 +19,9 @@ class KerlyssAudioHandler extends BaseAudioHandler with SeekHandler {
       }
     });
 
-    // Handle session completion (auto-next is handled by AudioNotifier, but we can hook here too)
-    _player.processingStateStream.listen((state) {
-      if (state == ProcessingState.completed) {
-        stop();
-      }
-    });
+    // Note: With ConcatenatingAudioSource, just_audio handles gapless
+    // track transitions natively. Do NOT call stop() on completion —
+    // it kills the player and resets the queue index.
   }
 
   // --- Exposed just_audio access for JustAudioService ---

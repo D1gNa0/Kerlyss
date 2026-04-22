@@ -76,10 +76,13 @@ class _PlaylistsViewState extends ConsumerState<PlaylistsView> {
             ),
             centerTitle: true,
             actions: [
-              TextButton.icon(
-                onPressed: () => _showCreatePlaylistDialog(context, ref),
-                icon: const Icon(Icons.add_rounded, color: AetherColors.primaryAccent, size: 20),
-                label: const Text('CREATE', style: TextStyle(color: AetherColors.primaryAccent, fontSize: 11, letterSpacing: 1)),
+              ExcludeFocus(
+                child: TextButton.icon(
+                  autofocus: false,
+                  onPressed: () => _showCreatePlaylistDialog(context, ref),
+                  icon: const Icon(Icons.add_rounded, color: AetherColors.primaryAccent, size: 20),
+                  label: const Text('CREATE', style: TextStyle(color: AetherColors.primaryAccent, fontSize: 11, letterSpacing: 1)),
+                ),
               ),
               const SizedBox(width: 8),
             ],
@@ -101,9 +104,12 @@ class _PlaylistsViewState extends ConsumerState<PlaylistsView> {
                       style: TextStyle(color: Colors.white24, letterSpacing: 2, fontSize: 10),
                     ),
                     const SizedBox(height: 24),
-                    TextButton(
-                      onPressed: () => _showCreatePlaylistDialog(context, ref),
-                      child: const Text('CREATE YOUR FIRST', style: TextStyle(color: AetherColors.primaryAccent)),
+                    ExcludeFocus(
+                      child: TextButton(
+                        autofocus: false,
+                        onPressed: () => _showCreatePlaylistDialog(context, ref),
+                        child: const Text('CREATE YOUR FIRST', style: TextStyle(color: AetherColors.primaryAccent)),
+                      ),
                     ),
                   ],
                 ),
@@ -198,64 +204,70 @@ class _PlaylistTile extends ConsumerWidget {
       }
     }
 
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      tileColor: Colors.white.withOpacity(0.03),
-      leading: Container(
-        width: 48,
-        height: 48,
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(
-          allDownloaded ? Icons.offline_pin_rounded : Icons.playlist_play_rounded, 
-          color: allDownloaded ? AetherColors.primaryAccent : Colors.white24
-        ),
-      ),
-      title: Row(
-        children: [
-          Expanded(
-            child: Text(
-              playlist.name,
-              style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
-            ),
+    return ExcludeFocus(
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        tileColor: Colors.white.withOpacity(0.03),
+        leading: Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(10),
           ),
-          if (allDownloaded)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: AetherColors.primaryAccent.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(4),
+          child: Icon(
+            allDownloaded ? Icons.offline_pin_rounded : Icons.playlist_play_rounded, 
+            color: allDownloaded ? AetherColors.primaryAccent : Colors.white24
+          ),
+        ),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                playlist.name,
+                style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
               ),
-              child: const Text('DOWNLOADED', style: TextStyle(color: AetherColors.primaryAccent, fontSize: 8, fontWeight: FontWeight.bold)),
             ),
-        ],
-      ),
-      subtitle: Text(
-        '${playlist.songIds.length} TRACKS',
-        style: const TextStyle(color: AetherColors.textSecondary, fontSize: 11, letterSpacing: 1),
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (!allDownloaded && playlist.songIds.isNotEmpty)
-            IconButton(
-              icon: const Icon(Icons.download_for_offline_rounded, color: Colors.white24, size: 20),
-              onPressed: () async {
-                final songs = await ref.read(playlistProvider.notifier).getPlaylistSongs(playlist.id);
-                ref.read(trackDownloadServiceProvider).downloadMultiple(songs);
-              },
-              tooltip: 'Download All',
+            if (allDownloaded)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AetherColors.primaryAccent.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text('DOWNLOADED', style: TextStyle(color: AetherColors.primaryAccent, fontSize: 8, fontWeight: FontWeight.bold)),
+              ),
+          ],
+        ),
+        subtitle: Text(
+          '${playlist.songIds.length} TRACKS',
+          style: const TextStyle(color: AetherColors.textSecondary, fontSize: 11, letterSpacing: 1),
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (!allDownloaded && playlist.songIds.isNotEmpty)
+              ExcludeFocus(
+                child: IconButton(
+                  icon: const Icon(Icons.download_for_offline_rounded, color: Colors.white24, size: 20),
+                  onPressed: () async {
+                    final songs = await ref.read(playlistProvider.notifier).getPlaylistSongs(playlist.id);
+                    ref.read(trackDownloadServiceProvider).downloadMultiple(songs);
+                  },
+                  tooltip: 'Download All',
+                ),
+              ),
+            ExcludeFocus(
+              child: IconButton(
+                icon: const Icon(Icons.delete_outline_rounded, color: Colors.white24, size: 20),
+                onPressed: () => _confirmDelete(context, ref),
+              ),
             ),
-          IconButton(
-            icon: const Icon(Icons.delete_outline_rounded, color: Colors.white24, size: 20),
-            onPressed: () => _confirmDelete(context, ref),
-          ),
-        ],
+          ],
+        ),
+        onTap: onSelect,
       ),
-      onTap: onSelect,
     );
   }
 

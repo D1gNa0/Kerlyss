@@ -50,94 +50,96 @@ class AetherSongTile extends ConsumerWidget {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        tileColor: Colors.white.withOpacity(0.02),
-        onTap: onTap,
-        leading: Stack(
-          alignment: Alignment.bottomRight,
-          children: [
-            AetherNetworkImage(
-              url: song.albumArtUrl ?? 'https://picsum.photos/seed/placeholder/200/200',
-              width: 44,
-              height: 44,
-              borderRadius: 10,
-              fit: BoxFit.cover,
-            ),
-            Padding(
-              padding: const EdgeInsets.all(2),
-              child: SourceBadge(source: song.sourceType),
-            ),
-          ],
-        ),
-        title: Row(
-          children: [
-            Expanded(
-              child: Text(
-                song.title,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 15),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+      child: ExcludeFocus(
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          tileColor: Colors.white.withOpacity(0.02),
+          onTap: onTap,
+          leading: Stack(
+            alignment: Alignment.bottomRight,
+            children: [
+              AetherNetworkImage(
+                url: song.albumArtUrl ?? 'https://picsum.photos/seed/placeholder/200/200',
+                width: 44,
+                height: 44,
+                borderRadius: 10,
+                fit: BoxFit.cover,
               ),
-            ),
-            if (isDownloading)
               Padding(
-                padding: const EdgeInsets.only(left: 6.0),
-                child: SizedBox(
-                  width: 20,
-                  height: 2,
-                  child: LinearProgressIndicator(
-                    value: downloadProgress,
-                    backgroundColor: Colors.white10,
-                    valueColor: const AlwaysStoppedAnimation<Color>(Colors.white30),
+                padding: const EdgeInsets.all(2),
+                child: SourceBadge(source: song.sourceType),
+              ),
+            ],
+          ),
+          title: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  song.title,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 15),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (isDownloading)
+                Padding(
+                  padding: const EdgeInsets.only(left: 6.0),
+                  child: SizedBox(
+                    width: 20,
+                    height: 2,
+                    child: LinearProgressIndicator(
+                      value: downloadProgress,
+                      backgroundColor: Colors.white10,
+                      valueColor: const AlwaysStoppedAnimation<Color>(Colors.white30),
+                    ),
                   ),
                 ),
-              ),
-          ],
-        ),
-        subtitle: Text(
-          showAlbum ? '${song.artist} • ${song.album}' : song.artist,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 12),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        trailing: trailing ?? Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Download Indicator / Button
-            if (showDownloadStatus) 
-              if (isDownloaded)
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 10),
-                  child: Icon(Icons.check_circle_outline_rounded, color: Colors.greenAccent, size: 16),
-                )
-              else if (onDownload != null)
-                IconButton(
-                  icon: isDownloading 
-                      ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white24))
-                      : const Icon(Icons.download_rounded, color: Colors.white24, size: 18),
-                  onPressed: isDownloading ? null : onDownload,
-                  tooltip: 'Download song',
+            ],
+          ),
+          subtitle: Text(
+            showAlbum ? '${song.artist} • ${song.album}' : song.artist,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 12),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          trailing: trailing ?? Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Download Indicator / Button
+              if (showDownloadStatus) 
+                if (isDownloaded)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 10),
+                    child: Icon(Icons.check_circle_outline_rounded, color: Colors.greenAccent, size: 16),
+                  )
+                else if (onDownload != null)
+                  IconButton(
+                    icon: isDownloading 
+                        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white24))
+                        : const Icon(Icons.download_rounded, color: Colors.white24, size: 18),
+                    onPressed: isDownloading ? null : onDownload,
+                    tooltip: 'Download song',
+                  ),
+
+              // Heart/Favorite Toggle
+              IconButton(
+                icon: Icon(
+                  isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                  color: isFav ? Colors.redAccent : Colors.white24,
+                  size: 18,
                 ),
-
-            // Heart/Favorite Toggle
-            IconButton(
-              icon: Icon(
-                isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                color: isFav ? Colors.redAccent : Colors.white24,
-                size: 18,
+                onPressed: () {
+                  ref.read(libraryProvider.notifier).toggleFavorite(song);
+                },
+                tooltip: isFav ? 'Remove from favorites' : 'Add to favorites',
               ),
-              onPressed: () {
-                ref.read(libraryProvider.notifier).toggleFavorite(song);
-              },
-              tooltip: isFav ? 'Remove from favorites' : 'Add to favorites',
-            ),
 
 
-            // More Options
-            _buildMoreMenu(context, ref, isDownloaded),
-          ],
+              // More Options
+              _buildMoreMenu(context, ref, isDownloaded),
+            ],
+          ),
         ),
       ),
     );

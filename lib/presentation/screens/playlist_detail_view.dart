@@ -69,12 +69,14 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
-          onPressed: () {
-            if (widget.onBack != null) widget.onBack!();
-            else Navigator.pop(context);
-          },
+        leading: ExcludeFocus(
+          child: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+            onPressed: () {
+              if (widget.onBack != null) widget.onBack!();
+              else Navigator.pop(context);
+            },
+          ),
         ),
         title: Text(
           widget.playlist.name.toUpperCase(),
@@ -93,20 +95,26 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
               child: Icon(Icons.check_circle_outline_rounded, color: Colors.greenAccent, size: 20),
             )
           else if (_loadedSongs != null && _loadedSongs!.isNotEmpty)
-            IconButton(
-              icon: const Icon(Icons.download_for_offline_rounded, color: AetherColors.primaryAccent, size: 20),
-              onPressed: () => ref.read(trackDownloadServiceProvider).downloadMultiple(_loadedSongs!),
-              tooltip: 'Download All',
+            ExcludeFocus(
+              child: IconButton(
+                icon: const Icon(Icons.download_for_offline_rounded, color: AetherColors.primaryAccent, size: 20),
+                onPressed: () => ref.read(trackDownloadServiceProvider).downloadMultiple(_loadedSongs!),
+                tooltip: 'Download All',
+              ),
             ),
-          IconButton(
-            icon: const Icon(Icons.edit_rounded, color: Colors.white24, size: 18),
-            onPressed: () => _showRenameDialog(context),
-            tooltip: 'Rename Playlist',
+          ExcludeFocus(
+            child: IconButton(
+              icon: const Icon(Icons.edit_rounded, color: Colors.white24, size: 18),
+              onPressed: () => _showRenameDialog(context),
+              tooltip: 'Rename Playlist',
+            ),
           ),
-          IconButton(
-            icon: const Icon(Icons.delete_outline_rounded, color: Colors.white38, size: 20),
-            onPressed: () => _confirmDeletePlaylist(context),
-            tooltip: 'Delete Playlist',
+          ExcludeFocus(
+            child: IconButton(
+              icon: const Icon(Icons.delete_outline_rounded, color: Colors.white38, size: 20),
+              onPressed: () => _confirmDeletePlaylist(context),
+              tooltip: 'Delete Playlist',
+            ),
           ),
         ],
       ),

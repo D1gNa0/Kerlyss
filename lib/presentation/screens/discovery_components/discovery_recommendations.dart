@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../domain/entities/song_entity.dart';
 import '../../state/recommendations_provider.dart';
-import 'discovery_results_list.dart'; // We can reuse AetherSongTile if we import the right part
 import '../../common/aether_song_tile.dart';
 
 import '../../state/audio_state.dart';
 import '../../state/audio_provider.dart';
+import '../../state/library_provider.dart';
+import '../../state/download_state_provider.dart';
 
 class DiscoveryRecommendationsView extends ConsumerStatefulWidget {
   final Function(SongEntity) onDownload;
@@ -34,12 +35,36 @@ class _DiscoveryRecommendationsViewState extends ConsumerState<DiscoveryRecommen
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(recommendationsProvider);
+    final library = ref.watch(libraryProvider);
+    final downloadState = ref.watch(downloadStateProvider);
+
+    final favoriteIds = library.favoriteSongs.map((s) => s.id).toSet();
+    final downloadedIds = downloadState.alreadyDownloadedIds;
+    final localDownloadedIds = library.allSongs
+      .where((s) => s.localPath != null)
+      .map((s) => s.id)
+      .toSet();
+    final excludedIds = {
+      ...favoriteIds,
+      ...downloadedIds,
+      ...localDownloadedIds,
+    };
+
+    final filteredTrending = state.trendingSongs
+      .where((song) => !excludedIds.contains(song.id))
+        .toList();
+
+    final filteredSimilar = state.similarSongs
+      .where((song) => !excludedIds.contains(song.id))
+        .toList();
+
+    final hasLibrary = library.allSongs.isNotEmpty;
 
     if (state.isLoading) {
       return const Center(child: CircularProgressIndicator(color: Colors.white24));
     }
 
-    if (state.trendingSongs.isEmpty && state.similarSongs.isEmpty) {
+    if (filteredTrending.isEmpty && filteredSimilar.isEmpty && !hasLibrary) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -60,23 +85,32 @@ class _DiscoveryRecommendationsViewState extends ConsumerState<DiscoveryRecommen
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (state.similarSongs.isNotEmpty) ...[
           _buildSectionHeader(
             title: 'FOR YOU',
-            subtitle: state.baseIdeaArtist != null ? 'Because you listen to ${state.baseIdeaArtist}' : 'Based on your library',
+            subtitle: state.baseIdeaArtist != null
+                ? 'Because you listen to ${state.baseIdeaArtist}'
+                : (hasLibrary ? 'Based on your library' : 'Like songs to unlock this section'),
           ),
           const SizedBox(height: 16),
-          _buildList(state.similarSongs),
+          if (filteredSimilar.isNotEmpty)
+            _buildList(filteredSimilar)
+          else
+            const Padding(
+              padding: EdgeInsets.only(bottom: 6),
+              child: Text(
+                'NO PERSONALIZED PICKS YET',
+                style: TextStyle(color: Colors.white24, fontSize: 10, letterSpacing: 1.2),
+              ),
+            ),
           const SizedBox(height: 32),
-        ],
         
-        if (state.trendingSongs.isNotEmpty) ...[
+        if (filteredTrending.isNotEmpty) ...[
           _buildSectionHeader(
             title: 'TRENDING WORLDWIDE',
             subtitle: 'Top hits right now',
           ),
           const SizedBox(height: 16),
-          _buildList(state.trendingSongs),
+          _buildList(filteredTrending),
         ],
           const SizedBox(height: 64),
         ],

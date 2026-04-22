@@ -4,6 +4,7 @@ import '../../domain/entities/song_entity.dart';
 import '../../domain/entities/audio_source_type.dart';
 import '../../data/repositories/repository_providers.dart';
 import 'library_provider.dart';
+import 'download_state_provider.dart';
 
 class RecommendationState {
   final List<SongEntity> similarSongs;
@@ -52,6 +53,8 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
 
     try {
       final library = _ref.read(libraryProvider).allSongs;
+      final favoriteIds = _ref.read(libraryProvider).favoriteSongs.map((s) => s.id).toSet();
+      final downloadedIds = _ref.read(downloadStateProvider).alreadyDownloadedIds;
       
       List<SongEntity> similar = [];
       List<SongEntity> trending = [];
@@ -59,7 +62,10 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
 
       // Fetch Trending
       final trendingVideos = await _youtubeService.getTrendingMusic();
-      trending = trendingVideos.map<SongEntity>((vid) => _mapVideoToEntity(vid)).toList();
+        trending = trendingVideos
+          .map<SongEntity>((vid) => _mapVideoToEntity(vid))
+          .where((song) => !favoriteIds.contains(song.id) && !downloadedIds.contains(song.id))
+          .toList();
 
       // Fetch Similar if library has songs
       if (library.isNotEmpty) {

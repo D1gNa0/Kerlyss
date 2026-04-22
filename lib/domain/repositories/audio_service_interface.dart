@@ -10,6 +10,7 @@ abstract class AudioServiceInterface {
   bool get playing;
   Duration get position;
   Duration? get duration;
+  int? get currentIndex;
 
   Future<void> play();
   Future<void> pause();

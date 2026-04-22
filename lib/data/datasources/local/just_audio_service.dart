@@ -8,6 +8,7 @@ import '../../../main.dart';
 class JustAudioService implements AudioServiceInterface {
   final AudioPlayer _player;
   ConcatenatingAudioSource? _activeQueue;
+  int _queueLoadToken = 0;
 
   JustAudioService() : _player = globalAudioHandler.player;
 
@@ -44,6 +45,9 @@ class JustAudioService implements AudioServiceInterface {
   Duration? get duration => _player.duration;
 
   @override
+  int? get currentIndex => _player.currentIndex;
+
+  @override
   Future<void> play() => _player.play();
 
   @override
@@ -58,11 +62,11 @@ class JustAudioService implements AudioServiceInterface {
   @override
   Future<void> setUrl(String url, {Map<String, String>? headers, bool play = false}) async {
     Log.d('JustAudioService: setting URL: $url (play: $play)');
-    if (play) {
-      _player.play();
-    }
     try {
       await _player.setUrl(url, headers: headers);
+      if (play) {
+        await _player.play();
+      }
     } on PlayerInterruptedException {
       Log.d('JustAudioService: setUrl interrupted (expected during rapid switching)');
     }
@@ -71,11 +75,11 @@ class JustAudioService implements AudioServiceInterface {
   @override
   Future<void> setFilePath(String path, {bool play = false}) async {
     Log.d('JustAudioService: setting FilePath: $path (play: $play)');
-    if (play) {
-      _player.play();
-    }
     try {
       await _player.setFilePath(path);
+      if (play) {
+        await _player.play();
+      }
     } on PlayerInterruptedException {
       Log.d('JustAudioService: setFilePath interrupted (expected during rapid switching)');
     }
@@ -87,12 +91,16 @@ class JustAudioService implements AudioServiceInterface {
   @override
   Future<void> setAudioQueue(List<AudioSource> queue, {int initialIndex = 0, bool play = false}) async {
     Log.d('JustAudioService: setting AudioQueue (${queue.length} items, startAt: $initialIndex)');
+    final token = ++_queueLoadToken;
     _activeQueue = ConcatenatingAudioSource(children: queue);
-    if (play) {
-      _player.play(); // Fire-and-forget play intent — plays as soon as source is ready
-    }
     try {
       await _player.setAudioSource(_activeQueue!, initialIndex: initialIndex);
+      if (token != _queueLoadToken) {
+        return;
+      }
+      if (play) {
+        await _player.play();
+      }
     } on PlayerInterruptedException {
       // Expected during rapid song switching — new call already took over
       Log.d('JustAudioService: Load interrupted (expected during rapid switching)');
