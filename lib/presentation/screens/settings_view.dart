@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../theme/aether_colors.dart';
 import '../common/aether_glass.dart';
 import '../state/app_settings_provider.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import '../../core/services/update_service.dart';
 
 class SettingsView extends ConsumerWidget {
   const SettingsView({super.key});
@@ -60,8 +62,22 @@ class SettingsView extends ConsumerWidget {
           _SettingsSection(
             title: 'ABOUT',
             children: [
-              _SettingsTile(label: 'Version', value: '0.6.2-Alpha', onTap: () {}),
-              _SettingsTile(label: 'Build', value: 'Aether-Refined', onTap: () {}),
+              FutureBuilder<PackageInfo>(
+                future: PackageInfo.fromPlatform(),
+                builder: (context, snapshot) {
+                  final version = snapshot.data?.version ?? '...';
+                  return _SettingsTile(
+                    label: 'Version', 
+                    value: version, 
+                    onTap: () {},
+                  );
+                },
+              ),
+              _SettingsTile(
+                label: 'Check for Updates', 
+                value: 'v0.2.1', 
+                onTap: () => UpdateService().checkForUpdates(context),
+              ),
             ],
           ),
         ],
