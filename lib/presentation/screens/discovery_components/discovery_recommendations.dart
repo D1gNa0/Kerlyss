@@ -23,13 +23,28 @@ class DiscoveryRecommendationsView extends ConsumerStatefulWidget {
   ConsumerState<DiscoveryRecommendationsView> createState() => _DiscoveryRecommendationsViewState();
 }
 
-class _DiscoveryRecommendationsViewState extends ConsumerState<DiscoveryRecommendationsView> {
+class _DiscoveryRecommendationsViewState extends ConsumerState<DiscoveryRecommendationsView>
+    with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(recommendationsProvider.notifier).fetchRecommendations();
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref.read(recommendationsProvider.notifier).fetchRecommendations();
+    }
   }
 
   @override
@@ -57,6 +72,12 @@ class _DiscoveryRecommendationsViewState extends ConsumerState<DiscoveryRecommen
     final filteredSimilar = state.similarSongs
       .where((song) => !excludedIds.contains(song.id))
         .toList();
+
+    final visibleReasons = <String, String>{
+      for (final song in filteredSimilar)
+        song.id: state.similarReasons[song.id] ?? 'ARTIST MATCH',
+    };
+    final hasPersonalizedReason = visibleReasons.values.any((r) => r != 'TRENDING FALLBACK');
 
     final hasLibrary = library.allSongs.isNotEmpty;
 
@@ -89,7 +110,12 @@ class _DiscoveryRecommendationsViewState extends ConsumerState<DiscoveryRecommen
             title: 'FOR YOU',
             subtitle: state.baseIdeaArtist != null
                 ? 'Because you listen to ${state.baseIdeaArtist}'
-                : (hasLibrary ? 'Based on your library' : 'Like songs to unlock this section'),
+              : (hasLibrary
+                ? (hasPersonalizedReason
+                  ? 'Based on your library'
+                  : 'Fallback picks while we learn your taste')
+                : 'Like songs to unlock this section'),
+            onRefresh: () => ref.read(recommendationsProvider.notifier).refresh(),
           ),
           const SizedBox(height: 16),
           if (filteredSimilar.isNotEmpty)
@@ -100,6 +126,14 @@ class _DiscoveryRecommendationsViewState extends ConsumerState<DiscoveryRecommen
               child: Text(
                 'NO PERSONALIZED PICKS YET',
                 style: TextStyle(color: Colors.white24, fontSize: 10, letterSpacing: 1.2),
+              ),
+            ),
+          if (filteredSimilar.isNotEmpty && filteredSimilar.length < 4)
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text(
+                'LOW CONFIDENCE RECOMMENDATIONS',
+                style: TextStyle(color: Colors.amber, fontSize: 10, letterSpacing: 1.2),
               ),
             ),
           const SizedBox(height: 32),
@@ -118,18 +152,38 @@ class _DiscoveryRecommendationsViewState extends ConsumerState<DiscoveryRecommen
     );
   }
 
-  Widget _buildSectionHeader({required String title, required String subtitle}) {
+  Widget _buildSectionHeader({
+    required String title,
+    required String subtitle,
+    VoidCallback? onRefresh,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 2,
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 2,
+                ),
+              ),
+            ),
+            if (onRefresh != null)
+              ExcludeFocus(
+                child: IconButton(
+                  iconSize: 18,
+                  visualDensity: VisualDensity.compact,
+                  tooltip: 'Refresh recommendations',
+                  onPressed: onRefresh,
+                  icon: const Icon(Icons.refresh_rounded, color: Colors.white54),
+                ),
+              ),
+          ],
         ),
         const SizedBox(height: 4),
         Text(

@@ -21,6 +21,7 @@ import '../state/downloaded_songs_provider.dart';
 import '../state/keyboard_shortcuts_provider.dart';
 import '../../core/services/logger_service.dart';
 import '../../core/services/app_storage_paths.dart';
+import '../../core/services/toast_service.dart';
 import '../../data/datasources/remote/youtube_service.dart';
 
 import '../../data/repositories/repository_providers.dart';
@@ -50,16 +51,13 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
     try {
       await ref.read(trackDownloadServiceProvider).downloadTrack(song);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Downloaded ${song.title} to local library.')),
-      );
+      ToastService.show(context, 'Downloaded ${song.title} to local library.');
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to download ${song.title}.'),
-          backgroundColor: Colors.redAccent,
-        ),
+      ToastService.show(
+        context,
+        'Failed to download ${song.title}.',
+        backgroundColor: Colors.redAccent,
       );
     }
   }
@@ -136,11 +134,11 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
     }
 
     _hasShownMissingKeyWarning = true;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('JAMENDO_CLIENT_ID is empty in .env. Add your key to enable INSTALL.'),
-        backgroundColor: Colors.amber,
-      ),
+    ToastService.show(
+      context,
+      'JAMENDO_CLIENT_ID is empty in .env. Add your key to enable INSTALL.',
+      backgroundColor: Colors.amber,
+      duration: const Duration(seconds: 4),
     );
   }
 
@@ -320,9 +318,7 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
                       onTap: () {
                         ref.read(playlistProvider.notifier).addSongToPlaylist(playlist.id, song);
                         Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Added to ${playlist.name}'), backgroundColor: Colors.white10),
-                        );
+                        ToastService.show(context, 'Added to ${playlist.name}');
                       },
                     );
                   },

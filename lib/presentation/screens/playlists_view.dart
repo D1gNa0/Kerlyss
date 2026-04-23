@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../theme/aether_colors.dart';
+import '../../core/services/toast_service.dart';
 import '../state/playlist_provider.dart';
 import '../common/aether_glass.dart';
 import 'playlist_detail_view.dart';
@@ -8,6 +9,8 @@ import '../state/navigation_provider.dart';
 import '../state/track_download_provider.dart';
 import '../state/library_provider.dart';
 import '../state/download_state_provider.dart';
+import '../../data/models/playlist_model.dart';
+import '../common/app_dialogs.dart';
 
 class PlaylistsView extends ConsumerStatefulWidget {
   const PlaylistsView({super.key});
@@ -17,7 +20,7 @@ class PlaylistsView extends ConsumerStatefulWidget {
 }
 
 class _PlaylistsViewState extends ConsumerState<PlaylistsView> {
-  dynamic _selectedPlaylist;
+  PlaylistModel? _selectedPlaylist;
 
   @override
   void initState() {
@@ -38,9 +41,10 @@ class _PlaylistsViewState extends ConsumerState<PlaylistsView> {
       }
     });
 
-    if (_selectedPlaylist != null) {
+    final selectedPlaylist = _selectedPlaylist;
+    if (selectedPlaylist != null) {
       return PlaylistDetailView(
-        playlist: _selectedPlaylist,
+        playlist: selectedPlaylist,
         onBack: () {
           setState(() => _selectedPlaylist = null);
           ref.read(playlistProvider.notifier).loadPlaylists();
@@ -141,45 +145,21 @@ class _PlaylistsViewState extends ConsumerState<PlaylistsView> {
   }
 
   void _showCreatePlaylistDialog(BuildContext context, WidgetRef ref) {
-    final controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AetherColors.ultraDarkGray,
-        title: const Text('NEW PLAYLIST', style: TextStyle(color: Colors.white, fontSize: 14, letterSpacing: 2)),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(
-            hintText: 'Playlist Name',
-            hintStyle: TextStyle(color: Colors.white24),
-            enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white10)),
-            focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AetherColors.primaryAccent)),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('CANCEL', style: TextStyle(color: Colors.white38)),
-          ),
-          TextButton(
-            onPressed: () {
-              if (controller.text.isNotEmpty) {
-                ref.read(playlistProvider.notifier).createPlaylist(controller.text);
-                Navigator.pop(context);
-              }
-            },
-            child: const Text('CREATE', style: TextStyle(color: AetherColors.primaryAccent)),
-          ),
-        ],
-      ),
-    );
+    AppDialogs.promptText(
+      context,
+      title: 'NEW PLAYLIST',
+      confirmLabel: 'CREATE',
+      hintText: 'Playlist Name',
+    ).then((value) {
+      if (value != null && value.isNotEmpty) {
+        ref.read(playlistProvider.notifier).createPlaylist(value);
+      }
+    });
   }
 }
 
 class _PlaylistTile extends ConsumerWidget {
-  final dynamic playlist;
+  final PlaylistModel playlist;
   final VoidCallback onSelect;
   const _PlaylistTile({required this.playlist, required this.onSelect});
 
@@ -272,30 +252,15 @@ class _PlaylistTile extends ConsumerWidget {
   }
 
   void _confirmDelete(BuildContext context, WidgetRef ref) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AetherColors.ultraDarkGray,
-        title: const Text('DELETE PLAYLIST', style: TextStyle(color: Colors.white, fontSize: 13, letterSpacing: 2)),
-        content: Text('Are you sure you want to delete "${playlist.name}"? This action cannot be undone.', 
-          style: const TextStyle(color: Colors.white70, fontSize: 13)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('CANCEL', style: TextStyle(color: Colors.white38)),
-          ),
-          TextButton(
-            onPressed: () {
-              ref.read(playlistProvider.notifier).deletePlaylist(playlist.id);
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Deleted ${playlist.name}'), backgroundColor: Colors.white12),
-              );
-            },
-            child: const Text('DELETE', style: TextStyle(color: Colors.redAccent)),
-          ),
-        ],
-      ),
-    );
+    AppDialogs.confirm(
+      context,
+      title: 'DELETE PLAYLIST',
+      content: 'Are you sure you want to delete "${playlist.name}"? This action cannot be undone.',
+      confirmLabel: 'DELETE',
+    ).then((confirmed) {
+      if (!confirmed) return;
+      ref.read(playlistProvider.notifier).deletePlaylist(playlist.id);
+      ToastService.show(context, 'Deleted ${playlist.name}');
+    });
   }
 }

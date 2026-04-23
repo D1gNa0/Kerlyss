@@ -16,6 +16,7 @@ import '../common/mini_player.dart';
 import '../common/aether_title_bar.dart';
 import '../theme/aether_colors.dart';
 import '../state/download_state_provider.dart';
+import '../../core/services/update_service.dart';
 
 class MainShellView extends ConsumerStatefulWidget {
   const MainShellView({super.key});
@@ -67,6 +68,10 @@ class _MainShellViewState extends ConsumerState<MainShellView> {
   void initState() {
     super.initState();
     HardwareKeyboard.instance.addHandler(_handleKeyEvent);
+    
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      UpdateService().checkForUpdates(context);
+    });
   }
 
   @override

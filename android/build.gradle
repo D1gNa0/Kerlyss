@@ -4,12 +4,13 @@ allprojects {
         mavenCentral()
     }
     
-    // Force modern androidx version across all sub-plugins to fix lStar resource error
+    // Force modern versions to resolve conflicts and fix lStar resource error
     configurations.all {
         resolutionStrategy {
             force 'androidx.core:core:1.13.1'
             force 'androidx.core:core-ktx:1.13.1'
             force 'androidx.annotation:annotation:1.8.0'
+            force 'androidx.browser:browser:1.8.0'
         }
     }
 }
@@ -21,35 +22,30 @@ subprojects {
 }
 
 subprojects {
-    def configureAndroid = { p ->
-        if (p.hasProperty('android')) {
-            p.android {
+    afterEvaluate { project ->
+        if (project.hasProperty('android')) {
+            project.android {
                 // Force modern SDK and namespace fallback for AGP 8 stability
                 compileSdk = 36
                 buildToolsVersion = "36.0.0-rc1"
                 if (namespace == null) {
-                    namespace p.group
+                    namespace project.group
+                }
+
+                // Synchronize JVM target to 17 across all plugins to prevent "Inconsistent JVM-target" errors
+                compileOptions {
+                    sourceCompatibility JavaVersion.VERSION_17
+                    targetCompatibility JavaVersion.VERSION_17
+                }
+                
+                // If it's a Kotlin project, also force jvmTarget 17
+                if (project.plugins.hasPlugin('kotlin-android')) {
+                    kotlinOptions {
+                        jvmTarget = '17'
+                    }
                 }
             }
         }
-    }
-
-    if (project.state.executed) {
-        configureAndroid(project)
-    } else {
-        project.afterEvaluate { configureAndroid(project) }
-    }
-
-    // Force JVM target 1.8 for consistency across all plugins
-    tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
-        kotlinOptions {
-            jvmTarget = "1.8"
-        }
-    }
-    
-    tasks.withType(JavaCompile).configureEach {
-        sourceCompatibility = "1.8"
-        targetCompatibility = "1.8"
     }
 }
 

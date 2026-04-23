@@ -8,6 +8,7 @@ import '../common/aether_glass.dart';
 import '../state/downloaded_songs_provider.dart';
 import '../../domain/entities/audio_source_type.dart';
 import '../../core/services/logger_service.dart';
+import '../../core/services/toast_service.dart';
 
 import '../state/library_provider.dart';
 import '../../domain/entities/song_entity.dart';
@@ -56,17 +57,14 @@ class _DownloadedSongsViewState extends ConsumerState<DownloadedSongsView> {
     ref.invalidate(downloadedSongsProvider);
 
     if (importedCount > 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Imported $importedCount file(s) to Downloads.')),
-      );
+      ToastService.show(context, 'Imported $importedCount file(s) to Downloads.');
     }
 
     if (failures.isNotEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Some files failed to import. Check log for details.'),
-          backgroundColor: Colors.redAccent,
-        ),
+      ToastService.show(
+        context,
+        'Some files failed to import. Check log for details.',
+        backgroundColor: Colors.redAccent,
       );
     }
   }

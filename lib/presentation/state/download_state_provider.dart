@@ -61,6 +61,16 @@ class DownloadStateNotifier extends StateNotifier<DownloadState> {
     );
   }
 
+  void clearDownloadAttempt(String id) {
+    final newDownloading = {...state.downloadingTrackIds}..remove(id);
+    final newProgress = {...state.downloadProgress}..remove(id);
+
+    state = state.copyWith(
+      downloadingTrackIds: newDownloading,
+      downloadProgress: newProgress,
+    );
+  }
+
   void startBulk(int total) {
     state = state.copyWith(bulkTotal: total, bulkCompleted: 0);
   }

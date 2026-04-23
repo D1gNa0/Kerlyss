@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../state/import_state_provider.dart';
 import '../../state/discovery_search_provider.dart';
+import '../../../core/services/toast_service.dart';
 
 class SpotifyImportPanel extends ConsumerWidget {
   const SpotifyImportPanel({super.key});
@@ -23,20 +24,18 @@ class SpotifyImportPanel extends ConsumerWidget {
             ? 'Imported playlist "${next.playlistName}". $failCount tracks could not be resolved.'
             : 'Successfully imported "${next.playlistName}"!';
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(successMsg),
-            backgroundColor: Colors.green.shade800,
-            duration: const Duration(seconds: 5),
-          ),
+        ToastService.show(
+          context,
+          successMsg,
+          backgroundColor: Colors.green.shade800,
+          duration: const Duration(seconds: 5),
         );
         ref.read(importStateProvider.notifier).reset();
       } else if (next.status == ImportStatus.error && previous?.status != ImportStatus.error) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(next.errorMessage ?? 'Import failed'),
-            backgroundColor: Colors.redAccent,
-          ),
+        ToastService.show(
+          context,
+          next.errorMessage ?? 'Import failed',
+          backgroundColor: Colors.redAccent,
         );
         ref.read(importStateProvider.notifier).reset();
       }

@@ -13,9 +13,11 @@ import '../../domain/entities/audio_source_type.dart';
 import '../../domain/entities/song_entity.dart';
 import '../common/source_badge.dart';
 import '../common/mini_player.dart';
+import '../../data/models/playlist_model.dart';
+import '../common/app_dialogs.dart';
 
 class PlaylistDetailView extends ConsumerStatefulWidget {
-  final dynamic playlist;
+  final PlaylistModel playlist;
   final VoidCallback? onBack;
   const PlaylistDetailView({super.key, required this.playlist, this.onBack});
 
@@ -180,71 +182,36 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
   }
 
   void _showRenameDialog(BuildContext context) {
-    final controller = TextEditingController(text: widget.playlist.name);
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AetherColors.ultraDarkGray,
-        title: const Text('RENAME PLAYLIST', style: TextStyle(color: Colors.white, fontSize: 14, letterSpacing: 2)),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(
-            hintText: 'New Name',
-            hintStyle: TextStyle(color: Colors.white24),
-            enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white10)),
-            focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AetherColors.primaryAccent)),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('CANCEL', style: TextStyle(color: Colors.white38)),
-          ),
-          TextButton(
-            onPressed: () async {
-              if (controller.text.isNotEmpty) {
-                await ref.read(playlistProvider.notifier).renamePlaylist(widget.playlist.id, controller.text);
-                if (mounted) {
-                  setState(() {
-                    widget.playlist.name = controller.text;
-                  });
-                  Navigator.pop(context);
-                }
-              }
-            },
-            child: const Text('RENAME', style: TextStyle(color: AetherColors.primaryAccent)),
-          ),
-        ],
-      ),
-    );
+    AppDialogs.promptText(
+      context,
+      title: 'RENAME PLAYLIST',
+      confirmLabel: 'RENAME',
+      hintText: 'New Name',
+      initialValue: widget.playlist.name,
+    ).then((value) async {
+      if (value == null || value.isEmpty) return;
+      await ref.read(playlistProvider.notifier).renamePlaylist(widget.playlist.id, value);
+      if (!mounted) return;
+      setState(() {
+        widget.playlist.name = value;
+      });
+    });
   }
 
   void _confirmDeletePlaylist(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AetherColors.ultraDarkGray,
-        title: const Text('DELETE PLAYLIST', style: TextStyle(color: Colors.white, fontSize: 13, letterSpacing: 2)),
-        content: Text('Are you sure you want to delete "${widget.playlist.name}"? This action cannot be undone.', 
-          style: const TextStyle(color: Colors.white70, fontSize: 13)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('CANCEL', style: TextStyle(color: Colors.white38)),
-          ),
-          TextButton(
-            onPressed: () {
-              ref.read(playlistProvider.notifier).deletePlaylist(widget.playlist.id);
-              Navigator.pop(context); // Close dialog
-              if (widget.onBack != null) widget.onBack!();
-              else Navigator.pop(context); // Close detail view
-            },
-            child: const Text('DELETE', style: TextStyle(color: Colors.redAccent)),
-          ),
-        ],
-      ),
-    );
+    AppDialogs.confirm(
+      context,
+      title: 'DELETE PLAYLIST',
+      content: 'Are you sure you want to delete "${widget.playlist.name}"? This action cannot be undone.',
+      confirmLabel: 'DELETE',
+    ).then((confirmed) {
+      if (!confirmed) return;
+      ref.read(playlistProvider.notifier).deletePlaylist(widget.playlist.id);
+      if (widget.onBack != null) {
+        widget.onBack!();
+      } else {
+        Navigator.pop(context);
+      }
+    });
   }
 }

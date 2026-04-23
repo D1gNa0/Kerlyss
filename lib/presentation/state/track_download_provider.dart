@@ -20,6 +20,7 @@ class TrackDownloadService {
 
   Future<void> downloadTrack(SongEntity song) async {
     final notifier = ref.read(downloadStateProvider.notifier);
+    var didSucceed = false;
     
     if (ref.read(downloadStateProvider).downloadingTrackIds.contains(song.id)) {
       return;
@@ -66,6 +67,7 @@ class TrackDownloadService {
            // Update global "already downloaded" list
            final current = ref.read(downloadStateProvider).alreadyDownloadedIds;
            notifier.setAlreadyDownloaded({...current, song.id});
+            didSucceed = true;
         }
 
         ref.invalidate(downloadedSongsProvider);
@@ -75,7 +77,11 @@ class TrackDownloadService {
       Log.e('Download failed for ${song.id}: $e');
       rethrow;
     } finally {
-      notifier.completeDownload(song.id);
+      if (didSucceed) {
+        notifier.completeDownload(song.id);
+      } else {
+        notifier.clearDownloadAttempt(song.id);
+      }
     }
   }
 

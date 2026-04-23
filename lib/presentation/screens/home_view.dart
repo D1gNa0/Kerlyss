@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../theme/aether_colors.dart';
 import '../../core/services/logger_service.dart';
+import '../../core/services/toast_service.dart';
 import '../state/audio_provider.dart';
 import '../state/audio_state.dart';
 import '../state/link_resolver_provider.dart';
@@ -291,9 +292,7 @@ class HomeView extends ConsumerWidget {
                         onTap: () {
                           ref.read(playlistProvider.notifier).addSongToPlaylist(playlist.id, song);
                           Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(l10n.addedTo(playlist.name)), backgroundColor: Colors.white10),
-                          );
+                          ToastService.show(context, l10n.addedTo(playlist.name));
                         },
                     );
                   },
@@ -327,12 +326,7 @@ class HomeView extends ConsumerWidget {
       ref.read(libraryProvider.notifier).loadLibrary();
       
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Imported $importedCount file(s) to library'),
-            backgroundColor: Colors.white10,
-          ),
-        );
+        ToastService.show(context, 'Imported $importedCount file(s) to library');
       }
     }
   }

@@ -1,6 +1,8 @@
 import '../../domain/repositories/audio_service_interface.dart';
 import '../../data/datasources/local/just_audio_service.dart';
+import '../../data/datasources/local/isar_database_service.dart';
 import 'dart:async';
+import 'dart:math';
 import 'dart:io';
 import '../../main.dart';
 import 'package:path/path.dart' as p;
@@ -11,6 +13,7 @@ import 'package:just_audio/just_audio.dart' show AudioSource;
 // Using custom AudioServiceInterface
 
 import 'package:kerlyss/core/services/logger_service.dart';
+import 'package:kerlyss/core/services/playback_session_store.dart';
 import 'package:kerlyss/data/datasources/local/local_download_library.dart';
 import 'package:kerlyss/core/services/youtube_proxy_server.dart';
 import 'package:kerlyss/data/datasources/remote/youtube_service.dart';
@@ -36,12 +39,18 @@ class AudioNotifier extends StateNotifier<AudioState> {
   final AudioServiceInterface _audioService;
   final LocalDownloadLibrary _localDownloadLibrary;
   final YoutubeService _youtubeService;
-  final dynamic _isarService;
+  final IsarDatabaseService _isarService;
+  final PlaybackSessionStore _sessionStore = PlaybackSessionStore();
 
   final _frequencyController = StreamController<List<double>>.broadcast();
   Stream<List<double>> get frequencyStream => _frequencyController.stream;
   Timer? _visualizerTimer;
+  Timer? _sessionPersistDebounce;
   int _playRequestId = 0;
+  bool _isRestoringSession = false;
+  bool _isNavigatingQueue = false;
+  int _lastPersistedSecondMark = -1;
+  DateTime? _forcePlayingUntil;
 
   final List<StreamSubscription<dynamic>> _subs = [];
 
@@ -58,13 +67,12 @@ class AudioNotifier extends StateNotifier<AudioState> {
         ) {
     _init();
     _startVibrancyLoop();
+      unawaited(_restorePlaybackSession());
   }
 
   void _init() {
         _subs.add(_audioService.playbackStatusStream.listen((status) {
       if (!mounted) return;
-      
-      Log.i('Audio status changed: $status (Current state: ${state.status})');
 
       // Ignore idle/buffering status if we are in a loading state to prevent flickering
       // This ensures the spinner stays until the engine is truly Ready or Playing.
@@ -73,7 +81,30 @@ class AudioNotifier extends StateNotifier<AudioState> {
         return;
       }
 
+          // During an explicit play intent, transient paused events from just_audio_windows
+          // can appear before the stream settles. Ignore this short-lived oscillation.
+          final now = DateTime.now();
+          if (status == PlaybackStatus.paused &&
+              _forcePlayingUntil != null &&
+              now.isBefore(_forcePlayingUntil!)) {
+            return;
+          }
+
+          if (status == state.status) {
+            return;
+          }
+
+          Log.i('Audio status changed: $status (Current state: ${state.status})');
+
       state = state.copyWith(status: status);
+
+          if (status == PlaybackStatus.playing) {
+            _forcePlayingUntil = null;
+          }
+
+      if (status == PlaybackStatus.paused || status == PlaybackStatus.playing || status == PlaybackStatus.completed) {
+        _schedulePersistSession();
+      }
     }));
 
     _subs.add(_audioService.currentIndexStream.listen((index) {
@@ -86,6 +117,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
           currentSong: nextSong,
         );
         globalAudioHandler.setMediaFromSong(nextSong);
+        _schedulePersistSession();
       }
     }));
 
@@ -93,6 +125,13 @@ class AudioNotifier extends StateNotifier<AudioState> {
     _subs.add(_audioService.positionStream.listen((position) {
       if (!mounted) return;
       state = state.copyWith(position: position);
+
+      // Persist at coarse position intervals to support resume without heavy disk churn.
+      final second = position.inSeconds;
+      if (_audioService.playing && second % 5 == 0 && second != _lastPersistedSecondMark) {
+        _lastPersistedSecondMark = second;
+        _schedulePersistSession();
+      }
     }));
 
     _subs.add(_audioService.durationStream.listen((duration) {
@@ -120,6 +159,124 @@ class AudioNotifier extends StateNotifier<AudioState> {
     _audioService.setVolume(1.0);
   }
 
+  Future<void> _restorePlaybackSession() async {
+    try {
+      _isRestoringSession = true;
+      final requestId = ++_playRequestId;
+
+      final snapshot = await _sessionStore.load();
+      if (!mounted || requestId != _playRequestId) {
+        _isRestoringSession = false;
+        return;
+      }
+
+      if (snapshot == null || snapshot.playlist.isEmpty) {
+        _isRestoringSession = false;
+        return;
+      }
+
+      final clampedIndex = min(max(snapshot.currentIndex, 0), snapshot.playlist.length - 1);
+      final restoredSong = snapshot.playlist[clampedIndex];
+
+      state = state.copyWith(status: PlaybackStatus.loading);
+
+      _audioService.setVolume(snapshot.volume);
+
+      final sources = await Future.wait(
+        snapshot.playlist.map((song) => _buildAudioSource(song)),
+      );
+
+      if (!mounted || requestId != _playRequestId) {
+        _isRestoringSession = false;
+        return;
+      }
+
+      await _audioService.setAudioQueue(sources, initialIndex: clampedIndex, play: false);
+
+      if (!mounted || requestId != _playRequestId) {
+        _isRestoringSession = false;
+        return;
+      }
+
+      await _audioService.seek(snapshot.position, index: clampedIndex);
+
+      if (!mounted || requestId != _playRequestId) {
+        _isRestoringSession = false;
+        return;
+      }
+
+      state = state.copyWith(
+        playlist: snapshot.playlist,
+        currentIndex: clampedIndex,
+        currentSong: restoredSong,
+        position: snapshot.position,
+        bufferedPosition: Duration.zero,
+        volume: snapshot.volume,
+        isShuffleEnabled: snapshot.isShuffleEnabled,
+        isRepeatEnabled: snapshot.isRepeatEnabled,
+      );
+
+      globalAudioHandler.setMediaFromSong(restoredSong);
+
+      if (snapshot.wasPlaying) {
+        await _ensurePlaybackStarted();
+      } else {
+        await _audioService.pause();
+        if (mounted) {
+          state = state.copyWith(status: PlaybackStatus.paused);
+        }
+      }
+
+      _isRestoringSession = false;
+      _schedulePersistSession();
+    } catch (e) {
+      _isRestoringSession = false;
+      if (mounted) {
+        state = state.copyWith(status: PlaybackStatus.idle);
+      }
+      Log.e('AudioNotifier: Failed to restore playback session: $e');
+    }
+  }
+
+  void _schedulePersistSession() {
+    _sessionPersistDebounce?.cancel();
+    _sessionPersistDebounce = Timer(const Duration(milliseconds: 350), () {
+      unawaited(_persistPlaybackSession());
+    });
+  }
+
+  Future<void> _persistPlaybackSession() async {
+    if (!mounted || state.playlist.isEmpty || state.currentIndex < 0 || state.currentIndex >= state.playlist.length) {
+      return;
+    }
+
+    final snapshot = PlaybackSessionSnapshot(
+      playlist: List<SongMetadata>.from(state.playlist),
+      currentIndex: state.currentIndex,
+      position: state.position,
+      wasPlaying: _audioService.playing,
+      volume: state.volume,
+      isShuffleEnabled: state.isShuffleEnabled,
+      isRepeatEnabled: state.isRepeatEnabled,
+    );
+
+    await _sessionStore.save(snapshot);
+  }
+
+  void _setPlaybackError(String context, Object error) {
+    Log.e('AudioNotifier: $context failed: $error');
+    if (!mounted) return;
+    state = state.copyWith(status: PlaybackStatus.error);
+  }
+
+  void _syncStatusFromEngine() {
+    if (!mounted) return;
+    final resolved = _audioService.playing ? PlaybackStatus.playing : PlaybackStatus.paused;
+    if (state.status != resolved) {
+      state = state.copyWith(status: resolved);
+    }
+  }
+
   void _startVibrancyLoop() {
     _visualizerTimer?.cancel();
     _visualizerTimer = Timer.periodic(const Duration(milliseconds: 50), (_) {
@@ -141,76 +298,125 @@ class AudioNotifier extends StateNotifier<AudioState> {
   /// Reorders queue so clicked song is at position 0 — bypasses broken
   /// initialIndex on just_audio_windows which always plays index 0.
   Future<void> playPlaylist(List<SongMetadata> playlist, int index) async {
-    if (index < 0 || index >= playlist.length) return;
-    final requestId = ++_playRequestId;
-    final clickedSong = playlist[index];
+    try {
+      if (index < 0 || index >= playlist.length) return;
+      final requestId = ++_playRequestId;
+      _isRestoringSession = false;
+      final clickedSong = playlist[index];
 
-    final canReuseCurrentQueue = state.playlist.length == playlist.length &&
-        state.playlist.isNotEmpty &&
-        state.playlist.every((song) => playlist.any((candidate) => candidate.id == song.id)) &&
-        playlist.every((song) => state.playlist.any((candidate) => candidate.id == song.id));
+      final canReuseCurrentQueue = !_isRestoringSession &&
+          state.playlist.length == playlist.length &&
+          state.playlist.isNotEmpty &&
+          state.playlist.every((song) => playlist.any((candidate) => candidate.id == song.id)) &&
+          playlist.every((song) => state.playlist.any((candidate) => candidate.id == song.id));
 
-    if (canReuseCurrentQueue) {
-      final existingIndex = state.playlist.indexWhere((song) => song.id == clickedSong.id);
-      if (existingIndex >= 0) {
-        state = state.copyWith(
-          status: PlaybackStatus.loading,
-        );
+      if (canReuseCurrentQueue) {
+        final existingIndex = state.playlist.indexWhere((song) => song.id == clickedSong.id);
+        if (existingIndex >= 0) {
+          state = state.copyWith(
+            status: PlaybackStatus.loading,
+          );
 
-        await _audioService.seek(Duration.zero, index: existingIndex);
-        if (!mounted || requestId != _playRequestId) return;
-        await _ensurePlaybackStarted();
-        if (!mounted || requestId != _playRequestId) return;
-        final resolvedIndex = _audioService.currentIndex ?? existingIndex;
-        if (resolvedIndex < 0 || resolvedIndex >= state.playlist.length) return;
-        final resolvedSong = state.playlist[resolvedIndex];
-        state = state.copyWith(
-          currentIndex: resolvedIndex,
-          currentSong: resolvedSong,
-        );
-        globalAudioHandler.setMediaFromSong(resolvedSong);
-        return;
+          final currentIdx = (state.currentIndex >= 0)
+              ? state.currentIndex
+              : (_audioService.currentIndex ?? 0);
+
+          int targetIndex = existingIndex;
+          final currentValid = currentIdx >= 0 && currentIdx < state.playlist.length;
+
+          // If clicked song is already in queue, place it right after current song
+          // to preserve queue flow and still play the clicked song immediately.
+          if (currentValid && existingIndex != currentIdx) {
+            int insertionIndex = currentIdx + 1;
+            if (insertionIndex > state.playlist.length) {
+              insertionIndex = state.playlist.length;
+            }
+
+            final reordered = List<SongMetadata>.from(state.playlist);
+            final movedSong = reordered.removeAt(existingIndex);
+            if (existingIndex < insertionIndex) {
+              insertionIndex -= 1;
+            }
+            reordered.insert(insertionIndex, movedSong);
+
+            targetIndex = insertionIndex;
+
+            state = state.copyWith(playlist: reordered);
+            await _audioService.moveInQueue(existingIndex, insertionIndex);
+            if (!mounted || requestId != _playRequestId) return;
+          }
+
+          await _audioService.seek(Duration.zero, index: targetIndex);
+          if (!mounted || requestId != _playRequestId) return;
+          await _ensurePlaybackStarted();
+          if (!mounted || requestId != _playRequestId) return;
+          final resolvedIndex = _audioService.currentIndex ?? targetIndex;
+          if (resolvedIndex < 0 || resolvedIndex >= state.playlist.length) return;
+          final resolvedSong = state.playlist[resolvedIndex];
+          state = state.copyWith(
+            currentIndex: resolvedIndex,
+            currentSong: resolvedSong,
+          );
+          globalAudioHandler.setMediaFromSong(resolvedSong);
+          _syncStatusFromEngine();
+          _schedulePersistSession();
+          return;
+        }
       }
+
+      // Reorder: [clicked, ...after clicked, ...before clicked]
+      final reordered = [
+        ...playlist.sublist(index),
+        ...playlist.sublist(0, index),
+      ];
+
+      state = state.copyWith(
+        playlist: reordered,
+        status: PlaybackStatus.loading,
+      );
+
+      final sources = await Future.wait(
+        reordered.map((song) => _buildAudioSource(song)),
+      );
+      if (!mounted || requestId != _playRequestId) return;
+
+      await _audioService.setAudioQueue(sources, initialIndex: 0, play: false);
+      if (!mounted || requestId != _playRequestId) return;
+      await _ensurePlaybackStarted();
+      if (!mounted || requestId != _playRequestId) return;
+      final resolvedIndex = _audioService.currentIndex ?? 0;
+      if (resolvedIndex < 0 || resolvedIndex >= reordered.length) return;
+      final resolvedSong = reordered[resolvedIndex];
+      state = state.copyWith(
+        currentIndex: resolvedIndex,
+        currentSong: resolvedSong,
+      );
+      globalAudioHandler.setMediaFromSong(resolvedSong);
+      _syncStatusFromEngine();
+      _schedulePersistSession();
+    } catch (e) {
+      _setPlaybackError('playPlaylist', e);
     }
-
-    // Reorder: [clicked, ...after clicked, ...before clicked]
-    final reordered = [
-      ...playlist.sublist(index),
-      ...playlist.sublist(0, index),
-    ];
-
-    state = state.copyWith(
-      playlist: reordered,
-      status: PlaybackStatus.loading,
-    );
-
-    final sources = await Future.wait(
-      reordered.map((song) => _buildAudioSource(song)),
-    );
-    if (!mounted || requestId != _playRequestId) return;
-
-    await _audioService.setAudioQueue(sources, initialIndex: 0, play: false);
-    if (!mounted || requestId != _playRequestId) return;
-    await _ensurePlaybackStarted();
-    if (!mounted || requestId != _playRequestId) return;
-    final resolvedIndex = _audioService.currentIndex ?? 0;
-    if (resolvedIndex < 0 || resolvedIndex >= reordered.length) return;
-    final resolvedSong = reordered[resolvedIndex];
-    state = state.copyWith(
-      currentIndex: resolvedIndex,
-      currentSong: resolvedSong,
-    );
-    globalAudioHandler.setMediaFromSong(resolvedSong);
   }
 
   Future<void> _ensurePlaybackStarted() async {
-    await _audioService.play();
-
-    // just_audio_windows occasionally drops the first play intent right after load.
-    // Retry once to ensure user-initiated taps actually start playback.
-    if (!_audioService.playing) {
-      await Future.delayed(const Duration(milliseconds: 120));
+    try {
+      _forcePlayingUntil = DateTime.now().add(const Duration(milliseconds: 1200));
       await _audioService.play();
+
+      // just_audio_windows occasionally drops the first play intent right after load.
+      // Retry once to ensure user-initiated taps actually start playback.
+      if (!_audioService.playing) {
+        await Future.delayed(const Duration(milliseconds: 120));
+        _forcePlayingUntil = DateTime.now().add(const Duration(milliseconds: 1200));
+        await _audioService.play();
+      }
+
+      _syncStatusFromEngine();
+    } catch (e) {
+      _forcePlayingUntil = null;
+      _setPlaybackError('ensurePlaybackStarted', e);
+      rethrow;
     }
   }
 
@@ -232,6 +438,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
 
     final source = await _buildAudioSource(song);
     await _audioService.insertIntoQueue(state.currentIndex + 1, source);
+    _schedulePersistSession();
   }
 
   Future<void> addLast(SongMetadata song) async {
@@ -245,6 +452,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
 
     final source = await _buildAudioSource(song);
     await _audioService.insertIntoQueue(newPlaylist.length - 1, source);
+    _schedulePersistSession();
   }
 
   Future<void> reorderQueue(int oldIndex, int newIndex) async {
@@ -268,6 +476,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
 
     state = state.copyWith(playlist: newPlaylist, currentIndex: newCurrentIndex);
     await _audioService.moveInQueue(oldIndex, newIndex);
+    _schedulePersistSession();
   }
 
   Future<void> removeFromQueue(int index) async {
@@ -287,24 +496,44 @@ class AudioNotifier extends StateNotifier<AudioState> {
     
     state = state.copyWith(playlist: newPlaylist, currentIndex: newCurrentIndex);
     await _audioService.removeFromQueue(index);
+    _schedulePersistSession();
   }
 
   Future<void> next() async {
-    if (state.playlist.isEmpty) return;
-    final nextIndex = (state.currentIndex + 1) % state.playlist.length;
-    Log.i('Audio: Seeking next track at index $nextIndex');
-    await _audioService.seek(Duration.zero, index: nextIndex);
+    try {
+      if (_isNavigatingQueue) return;
+      if (state.playlist.isEmpty) return;
+      _isNavigatingQueue = true;
+      final nextIndex = (state.currentIndex + 1) % state.playlist.length;
+      Log.i('Audio: Seeking next track at index $nextIndex');
+      await _audioService.seek(Duration.zero, index: nextIndex);
+      await _ensurePlaybackStarted();
+    } catch (e) {
+      _setPlaybackError('next', e);
+    } finally {
+      _isNavigatingQueue = false;
+    }
   }
 
   Future<void> previous() async {
-    if (state.playlist.isEmpty) return;
-    if (_audioService.position > const Duration(seconds: 4)) {
-      await _audioService.seek(Duration.zero);
-      return;
+    try {
+      if (_isNavigatingQueue) return;
+      if (state.playlist.isEmpty) return;
+      _isNavigatingQueue = true;
+      if (_audioService.position > const Duration(seconds: 4)) {
+        await _audioService.seek(Duration.zero);
+        await _ensurePlaybackStarted();
+        return;
+      }
+      var prevIndex = state.currentIndex - 1;
+      if (prevIndex < 0) prevIndex = state.playlist.length - 1;
+      await _audioService.seek(Duration.zero, index: prevIndex);
+      await _ensurePlaybackStarted();
+    } catch (e) {
+      _setPlaybackError('previous', e);
+    } finally {
+      _isNavigatingQueue = false;
     }
-    var prevIndex = state.currentIndex - 1;
-    if (prevIndex < 0) prevIndex = state.playlist.length - 1;
-    await _audioService.seek(Duration.zero, index: prevIndex);
   }
 
   Future<AudioSource> _buildAudioSource(SongMetadata song) async {
@@ -377,15 +606,18 @@ class AudioNotifier extends StateNotifier<AudioState> {
     } else {
       _audioService.play();
     }
+    _schedulePersistSession();
   }
 
   void seek(Duration position) {
     _audioService.seek(position);
+    _schedulePersistSession();
   }
 
   void setVolume(double volume) {
     _audioService.setVolume(volume);
     state = state.copyWith(volume: volume);
+    _schedulePersistSession();
   }
 
   void seekRelative(int seconds) {
@@ -401,6 +633,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
     } else {
       _audioService.seek(nextPosition);
     }
+    _schedulePersistSession();
   }
 
   /// Normalizes file path separators for Windows.
@@ -410,5 +643,19 @@ class AudioNotifier extends StateNotifier<AudioState> {
       return p.normalize(path).replaceAll('/', '\\');
     }
     return p.normalize(path);
+  }
+
+  @override
+  void dispose() {
+    _sessionPersistDebounce?.cancel();
+    unawaited(_persistPlaybackSession());
+
+    for (final sub in _subs) {
+      sub.cancel();
+    }
+    _visualizerTimer?.cancel();
+    _frequencyController.close();
+    _audioService.dispose();
+    super.dispose();
   }
 }

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../theme/aether_colors.dart';
 import '../state/discovery_search_provider.dart';
 import 'aether_glass.dart';
+import '../../core/services/logger_service.dart';
 
 class AetherSourceBottomSheet extends ConsumerWidget {
   const AetherSourceBottomSheet({super.key});
@@ -46,7 +47,7 @@ class AetherSourceBottomSheet extends ConsumerWidget {
                   icon: Icons.search_rounded,
                   label: 'SEARCH',
                   onTap: () {
-                    debugPrint('DEBUG: SEARCH button tapped');
+                    Log.d('Source bottom sheet: SEARCH tapped');
                     ref.read(discoverySearchProvider.notifier).setSearchMode(SearchMode.songs);
                     Navigator.pop(context);
                   },
@@ -55,7 +56,7 @@ class AetherSourceBottomSheet extends ConsumerWidget {
                   icon: Icons.link_rounded,
                   label: 'SPOTIFY',
                   onTap: () {
-                    debugPrint('DEBUG: SPOTIFY button tapped');
+                    Log.d('Source bottom sheet: SPOTIFY tapped');
                     ref.read(discoverySearchProvider.notifier).setSearchMode(SearchMode.spotifyImport);
                     Navigator.pop(context);
                   },

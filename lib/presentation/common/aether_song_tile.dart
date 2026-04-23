@@ -11,6 +11,7 @@ import '../state/track_download_provider.dart';
 import '../state/audio_state.dart';
 import '../state/audio_provider.dart';
 import 'source_badge.dart';
+import '../../core/services/toast_service.dart';
 
 class AetherSongTile extends ConsumerWidget {
   final SongEntity song;
@@ -163,10 +164,10 @@ class AetherSongTile extends ConsumerWidget {
           final metadata = SongMetadata.fromEntity(song);
           if (value == 'play_next') {
             ref.read(audioProvider.notifier).addNext(metadata);
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Will play next: ${song.title}')));
+            ToastService.show(context, 'Will play next: ${song.title}');
           } else {
             ref.read(audioProvider.notifier).addLast(metadata);
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Added to queue: ${song.title}')));
+            ToastService.show(context, 'Added to queue: ${song.title}');
           }
         }
       },
@@ -276,9 +277,7 @@ class AetherSongTile extends ConsumerWidget {
                         if (isAlreadyAdded) return;
                         ref.read(playlistProvider.notifier).addSongToPlaylist(p.id, song);
                         Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Added to ${p.name}')),
-                        );
+                        ToastService.show(context, 'Added to ${p.name}');
                       },
                     );
                   },
