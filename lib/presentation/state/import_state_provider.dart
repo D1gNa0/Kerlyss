@@ -87,12 +87,13 @@ class ImportStateNotifier extends StateNotifier<ImportState> {
 
       final resolvedSongIds = <String>[];
       final newFailed = <String>[];
+      var processedCount = 0;
 
       // Process concurrently with a throttle buffer
       for (int i = 0; i < total; i += AppConstants.spotifyImportBatchSize) {
         final chunk = playlistData.trackQueries.skip(i).take(AppConstants.spotifyImportBatchSize).toList();
 
-        final futures = chunk.map((query) async {
+        await Future.wait(chunk.map((query) async {
           try {
             final song = await _repository.resolveQueryToSong(query);
             if (song != null) {
@@ -104,13 +105,12 @@ class ImportStateNotifier extends StateNotifier<ImportState> {
           } catch (e) {
             newFailed.add(query);
           }
+        }));
 
-          if (mounted) {
-            state = state.copyWith(processedTracks: state.processedTracks + 1);
-          }
-        });
-
-        await Future.wait(futures);
+        processedCount += chunk.length;
+        if (mounted) {
+          state = state.copyWith(processedTracks: processedCount);
+        }
       }
 
       if (mounted) {

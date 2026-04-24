@@ -39,7 +39,7 @@ class MiniPlayer extends ConsumerWidget {
     final library = ref.watch(libraryProvider);
     final downloadState = ref.watch(downloadStateProvider);
 
-    final isFavorite = hasSong && library.favoriteSongs.any((s) => s.id == currentSong.id);
+    final isFavorite = hasSong && library.favoriteSongIds.contains(currentSong.id);
     final isDownloading = hasSong && downloadState.downloadingTrackIds.contains(currentSong.id);
     final downloadProgress = hasSong ? (downloadState.downloadProgress[currentSong.id] ?? 0.0) : 0.0;
     final isDownloaded = hasSong && (
@@ -153,27 +153,26 @@ class MiniPlayer extends ConsumerWidget {
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
-                                Container(
-                                  margin: const EdgeInsets.only(left: 8),
-                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(4),
-                                    border: Border.all(
-                                      color: currentSong.bpm != null 
-                                          ? AetherColors.accentCyan.withOpacity(0.3) 
-                                          : Colors.white.withOpacity(0.1)
+                                if (currentSong.bpm != null)
+                                  Container(
+                                    margin: const EdgeInsets.only(left: 8),
+                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(
+                                        color: AetherColors.accentCyan.withOpacity(0.3)
+                                      ),
+                                    ),
+                                    child: Text(
+                                      '${currentSong.bpm} BPM',
+                                      style: const TextStyle(
+                                        color: AetherColors.accentCyan,
+                                        fontSize: 8,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 0.5,
+                                      ),
                                     ),
                                   ),
-                                  child: Text(
-                                    currentSong.bpm != null ? '${currentSong.bpm} BPM' : 'TAP BPM',
-                                    style: TextStyle(
-                                      color: currentSong.bpm != null ? AetherColors.accentCyan : Colors.white24,
-                                      fontSize: 8,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                ),
                               ],
                             ),
                           ),
@@ -198,19 +197,30 @@ class MiniPlayer extends ConsumerWidget {
                         ),
                       ),
                       Tooltip(
-                        message: isDownloaded ? 'Downloaded' : 'Download',
+                        message: isDownloading ? 'Downloading...' : (isDownloaded ? 'Downloaded' : 'Download'),
                         child: ExcludeFocus(
                           child: IconButton(
-                            onPressed: (hasSong && !isDownloaded)
+                            onPressed: (hasSong && !isDownloaded && !isDownloading)
                                 ? () => ref.read(trackDownloadServiceProvider).downloadTrack(_toSongEntity(currentSong))
                                 : null,
-                            icon: Icon(
-                              isDownloaded ? Icons.check_circle_outline_rounded : Icons.download_rounded,
-                              color: hasSong
-                                  ? (isDownloaded ? Colors.greenAccent : Colors.white54)
-                                  : Colors.white12,
-                              size: 22,
-                            ),
+                            icon: isDownloading
+                                ? SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                      value: downloadProgress > 0 ? downloadProgress.clamp(0.0, 1.0) : null,
+                                      color: AetherColors.primaryAccent,
+                                      backgroundColor: Colors.white12,
+                                    ),
+                                  )
+                                : Icon(
+                                    isDownloaded ? Icons.check_circle_outline_rounded : Icons.download_rounded,
+                                    color: hasSong
+                                        ? (isDownloaded ? Colors.greenAccent : Colors.white54)
+                                        : Colors.white12,
+                                    size: 22,
+                                  ),
                           ),
                         ),
                       ),

@@ -3,4 +3,5 @@ enum AudioSourceType {
   spotify,
   youtube,
   jamendo,
+  deezer,
 }

@@ -9,8 +9,8 @@ import '../datasources/remote/youtube_service.dart';
 import '../datasources/remote/youtube_audio_engine.dart';
 import '../datasources/remote/search_aggregator.dart';
 import '../datasources/remote/bpm_scraper_service.dart';
+import '../datasources/remote/deezer_public_service.dart';
 import 'song_repository_impl.dart';
-import '../../domain/repositories/song_repository.dart';
 
 // Data Sources
 final isarDatabaseServiceProvider = Provider((ref) => IsarDatabaseService());
@@ -40,11 +40,14 @@ final youtubeAudioEngineProvider = Provider((ref) {
   return YoutubeAudioEngine(youtubeService);
 });
 
+final deezerPublicServiceProvider = Provider((ref) {
+  final dio = ref.watch(dioProvider);
+  return DeezerPublicService(dio);
+});
+
 final searchAggregatorProvider = Provider((ref) {
-  final spotifyService = ref.watch(spotifyPublicServiceProvider);
-  final youtubeService = ref.watch(youtubeServiceProvider);
-  final jamendoService = ref.watch(jamendoServiceProvider);
-  return SearchAggregator(spotifyService, youtubeService, jamendoService);
+  final deezerService = ref.watch(deezerPublicServiceProvider);
+  return SearchAggregator(deezerService);
 });
 
 // Repositories
@@ -62,6 +65,7 @@ final songRepositoryProvider = Provider<SongRepositoryImpl>((ref) {
   final localDataSource = ref.watch(isarDatabaseServiceProvider);
   final spotifyPublicService = ref.watch(spotifyPublicServiceProvider);
   final youtubeAudioEngine = ref.watch(youtubeAudioEngineProvider);
+  final youtubeService = ref.watch(youtubeServiceProvider);
   final searchAggregator = ref.watch(searchAggregatorProvider);
   final bpmScraperService = ref.watch(bpmScraperServiceProvider);
 
@@ -69,6 +73,7 @@ final songRepositoryProvider = Provider<SongRepositoryImpl>((ref) {
     localDataSource,
     spotifyPublicService,
     youtubeAudioEngine,
+    youtubeService,
     searchAggregator,
     bpmScraperService,
   );

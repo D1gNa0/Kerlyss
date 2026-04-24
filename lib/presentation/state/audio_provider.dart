@@ -19,6 +19,8 @@ import 'package:kerlyss/core/services/youtube_proxy_server.dart';
 import 'package:kerlyss/data/datasources/remote/youtube_service.dart';
 import 'package:kerlyss/data/repositories/repository_providers.dart';
 import 'package:kerlyss/data/repositories/song_repository_impl.dart';
+import 'package:kerlyss/domain/entities/audio_source_type.dart';
+import 'package:kerlyss/domain/entities/song_entity.dart';
 import 'package:kerlyss/presentation/state/downloaded_songs_provider.dart';
 import '../../domain/entities/downloaded_song.dart';
 
@@ -54,6 +56,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
   bool _isNavigatingQueue = false;
   int _lastPersistedSecondMark = -1;
   DateTime? _forcePlayingUntil;
+  final Map<String, bool> _fetchingBpm = {};
 
   final List<StreamSubscription<dynamic>> _subs = [];
 
@@ -166,10 +169,12 @@ class AudioNotifier extends StateNotifier<AudioState> {
 
   Future<void> _checkAndFetchBpm(SongMetadata song) async {
     if (song.bpm != null || song.id.isEmpty) return;
+    if (_fetchingBpm[song.id] == true) return;
 
+    _fetchingBpm[song.id] = true;
     Log.i('AudioNotifier: Background BPM fetch started for ${song.title}');
     try {
-      final bpm = await _songRepository.fetchBpmRemotely(song.artist, song.title);
+      final bpm = await _songRepository.fetchBpmRemotely(song.toEntity());
       if (bpm != null && mounted) {
         Log.i('AudioNotifier: Successfully retrieved BPM ($bpm) for ${song.title}');
         // Update the state if we are still playing the same song
@@ -202,6 +207,8 @@ class AudioNotifier extends StateNotifier<AudioState> {
       }
     } catch (e) {
       Log.e('AudioNotifier: Failed to fetch BPM in background: $e');
+    } finally {
+      _fetchingBpm.remove(song.id);
     }
   }
 
@@ -353,8 +360,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
       final canReuseCurrentQueue = !_isRestoringSession &&
           state.playlist.length == playlist.length &&
           state.playlist.isNotEmpty &&
-          state.playlist.every((song) => playlist.any((candidate) => candidate.id == song.id)) &&
-          playlist.every((song) => state.playlist.any((candidate) => candidate.id == song.id));
+          _hasSamePlaylistOrder(state.playlist, playlist);
 
       if (canReuseCurrentQueue) {
         final existingIndex = state.playlist.indexWhere((song) => song.id == clickedSong.id);
@@ -445,6 +451,18 @@ class AudioNotifier extends StateNotifier<AudioState> {
     } catch (e) {
       _setPlaybackError('playPlaylist', e);
     }
+  }
+
+  bool _hasSamePlaylistOrder(List<SongMetadata> current, List<SongMetadata> next) {
+    if (current.length != next.length) return false;
+
+    for (var i = 0; i < current.length; i++) {
+      if (current[i].id != next[i].id) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   Future<void> _ensurePlaybackStarted() async {
@@ -630,7 +648,28 @@ class AudioNotifier extends StateNotifier<AudioState> {
       return AudioSource.uri(Uri.parse(sourceUrl), headers: headers, tag: song);
     }
 
-    // Resolve YouTube if needed
+    // 4. Deezer track: resolve to YouTube via smart background search
+    if (sourceUrl.startsWith('deezer_')) {
+      Log.d('AudioNotifier: Resolving Deezer track "${song.title}" via YouTube search...');
+      final deezerEntity = SongEntity(
+        id: song.id,
+        title: song.title,
+        artist: song.artist,
+        album: song.album ?? 'Unknown Album',
+        albumArtUrl: song.artworkUrl,
+        duration: song.duration,
+        sourceUrl: sourceUrl,
+        sourceType: AudioSourceType.deezer,
+        bpm: song.bpm,
+        dateAdded: DateTime.now(),
+      );
+      final videoId = await _songRepository.resolveStreamUri(deezerEntity);
+      final port = await YoutubeProxyServer.start(_youtubeService.client);
+      final proxyUrl = 'http://127.0.0.1:$port/?id=$videoId';
+      return AudioSource.uri(Uri.parse(proxyUrl), headers: headers, tag: song);
+    }
+
+    // 5. Resolve YouTube if needed
     final uri = Uri.tryParse(sourceUrl);
     String? videoId;
     if (uri != null && (uri.host.contains('youtube') || uri.host.contains('youtu.be'))) {

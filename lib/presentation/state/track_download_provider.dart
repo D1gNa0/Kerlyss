@@ -35,18 +35,28 @@ class TrackDownloadService {
         final jamendoService = ref.read(jamendoServiceProvider);
         final downloadedSong = await jamendoService.downloadTrack(song);
         destinationPath = downloadedSong.path;
-      } else if (song.sourceType == AudioSourceType.youtube) {
+      } else if (song.sourceType == AudioSourceType.youtube || song.sourceType == AudioSourceType.deezer) {
         final youtubeService = ref.read(youtubeServiceProvider);
         final downloadsDirectory = await AppStoragePaths.downloadsDirectory();
-        
+
+        // For Deezer tracks, find the matching YouTube video first using pristine metadata
+        String videoId = song.id;
+        if (song.sourceType == AudioSourceType.deezer) {
+          Log.i('TrackDownload: Resolving Deezer track "${song.artist} - ${song.title}" to YouTube for download...');
+          final results = await youtubeService.searchVideos('${song.artist} ${song.title}');
+          if (results.isEmpty) throw Exception('No YouTube match found for Deezer track: ${song.title}');
+          videoId = results.first.id.value;
+          Log.i('TrackDownload: Found YouTube video $videoId for "${song.title}"');
+        }
+
         destinationPath = YoutubeService.buildDestinationPath(
           downloadsDirectory.path,
-          song.id,
-          song.title,
+          videoId,
+          song.title, // Always use the clean Deezer title, not the YouTube video title
         );
 
         await youtubeService.downloadTrack(
-          song.id,
+          videoId,
           destinationPath,
           onProgress: (progress) {
             notifier.updateProgress(song.id, progress);

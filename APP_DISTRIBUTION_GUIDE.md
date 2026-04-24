@@ -69,7 +69,7 @@ To ensure users stay on the latest version without an App Store, Kerlyss will in
 ### Current Logic (Pre-Play Store):
 1. On startup, the app fetches a `version.json` from the public GitHub repo.
 2. If `localVersion < remoteVersion`, show a non-intrusive update prompt.
-3. Direct the user to the GitHub Releases page.
+3. Direct the user to the GitHub Pages site.
 
 ### Future Logic (Play Store Transition):
 - **Detection:** The app will check the "Installer Store." 

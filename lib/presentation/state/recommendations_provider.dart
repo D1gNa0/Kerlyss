@@ -1,8 +1,9 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/song_entity.dart';
-import '../../domain/entities/audio_source_type.dart';
-import '../../data/datasources/remote/youtube_service.dart';
+import '../../core/services/stream_resolution_cache.dart';
+import '../../data/datasources/remote/deezer_public_service.dart';
 import '../../data/repositories/repository_providers.dart';
 import 'library_provider.dart';
 import 'download_state_provider.dart';
@@ -45,8 +46,8 @@ class RecommendationState {
 }
 
 final recommendationsProvider = StateNotifierProvider<RecommendationsNotifier, RecommendationState>((ref) {
-  final youtubeService = ref.watch(youtubeServiceProvider);
-  return RecommendationsNotifier(ref, youtubeService);
+  final deezerService = ref.watch(deezerPublicServiceProvider);
+  return RecommendationsNotifier(ref, deezerService);
 });
 
 class RecommendationsNotifier extends StateNotifier<RecommendationState> {
@@ -59,12 +60,12 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
   );
 
   final Ref _ref;
-  final YoutubeService _youtubeService;
+  final DeezerPublicService _deezerService;
   final Random _random = Random();
   DateTime? _lastInvalidatedAt;
   DateTime? _nextRetryAllowedAt;
 
-  RecommendationsNotifier(this._ref, this._youtubeService)
+  RecommendationsNotifier(this._ref, this._deezerService)
       : super(RecommendationState(similarSongs: [], trendingSongs: [], isLoading: false)) {
     _listenToSignalChanges();
   }
@@ -95,115 +96,90 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
       List<SongEntity> trending = <SongEntity>[];
       String? ideaArtist;
 
-      // Trending pool (filtered by exclusion and single-track gate)
-      final trendingVideos = await _youtubeService.getTrendingMusic();
-      trending = trendingVideos
-          .map<SongEntity>((vid) => _mapVideoToEntity(vid))
+      final trendingResultsFuture = _deezerService.searchTracks('top hits');
+      final secondPassResultsFuture = _deezerService.searchTracks('new releases');
+      Future<List<SongEntity>>? fallbackResultsFuture;
+
+      // Trending pool: use Deezer chart queries for pristine metadata
+      final trendingResults = await trendingResultsFuture;
+      trending = trendingResults
           .where((song) => !excludedIds.contains(song.id) && _isSingleTrack(song))
           .toList();
 
       // Personalized tiers (A: related, B: artist queries, C: fallback singles)
       if (library.isNotEmpty) {
+        fallbackResultsFuture = _deezerService.searchTracks('popular music');
         final seeds = _pickSeeds(libraryState.favoriteSongs, library);
         if (seeds.isNotEmpty) {
           ideaArtist = seeds.first.artist;
 
           for (final seed in seeds) {
-            // Tier A: related videos for known YouTube tracks
-            if (!seed.id.startsWith('jamendo_')) {
-              final relatedVideos = await _youtubeService.getRelatedVideos(seed.id);
-              final relatedSongs = relatedVideos
-                  .map<SongEntity>((vid) => _mapVideoToEntity(vid))
-                  .toList();
-              _mergeCandidates(
-                pool: similar,
-                incoming: relatedSongs,
-                excludedIds: excludedIds,
-                candidateIds: candidateIds,
-                scoreById: scoreById,
-                reasonById: reasonById,
-                seedArtist: seed.artist,
-                tierScore: 2,
-                reason: 'RELATED',
-              );
-            }
+            final seedResults = await Future.wait<List<SongEntity>>([
+              _deezerService.searchTracks(seed.artist),
+              _deezerService.searchTracks('${seed.artist} ${seed.title}'),
+            ]);
+
+            // Tier A: Deezer artist search using clean library artist name
+            final artistResults = seedResults[0];
+            _mergeCandidates(
+              pool: similar,
+              incoming: artistResults,
+              excludedIds: excludedIds,
+              candidateIds: candidateIds,
+              scoreById: scoreById,
+              reasonById: reasonById,
+              seedArtist: seed.artist,
+              tierScore: 2,
+              reason: 'ARTIST MATCH',
+            );
 
             if (similar.length >= _targetCount) {
               break;
             }
 
-            // Tier B: artist-focused single-track-safe queries
-            final artistQueries = <String>[
-              '${seed.artist} official audio',
-              '${seed.artist} top song',
-              '${seed.artist} single',
-            ];
-
-            for (final query in artistQueries) {
-              final artistVideos = await _youtubeService.searchVideos(query);
-              final artistSongs = artistVideos
-                  .map<SongEntity>((vid) => _mapVideoToEntity(vid))
-                  .toList();
-              _mergeCandidates(
-                pool: similar,
-                incoming: artistSongs,
-                excludedIds: excludedIds,
-                candidateIds: candidateIds,
-                scoreById: scoreById,
-                reasonById: reasonById,
-                seedArtist: seed.artist,
-                tierScore: 1,
-                reason: 'ARTIST MATCH',
-              );
-
-              if (similar.length >= _targetCount) {
-                break;
-              }
-            }
+            // Tier B: genre-adjacent Deezer search using title keywords
+            final relatedResults = seedResults[1];
+            _mergeCandidates(
+              pool: similar,
+              incoming: relatedResults,
+              excludedIds: excludedIds,
+              candidateIds: candidateIds,
+              scoreById: scoreById,
+              reasonById: reasonById,
+              seedArtist: seed.artist,
+              tierScore: 1,
+              reason: 'RELATED',
+            );
 
             if (similar.length >= _targetCount) {
               break;
             }
           }
 
-          // Tier C: global fallback singles queries
+          // Tier C: global fallback using popular Deezer queries
           if (similar.length < _targetCount) {
-            final fallbackQueries = <String>[
-              'top songs official audio',
-              'viral hit song official audio',
-              'new music single official audio',
-            ];
-
-            for (final query in fallbackQueries) {
-              final videos = await _youtubeService.searchVideos(query);
-              final songs = videos.map<SongEntity>((vid) => _mapVideoToEntity(vid)).toList();
-              _mergeCandidates(
-                pool: similar,
-                incoming: songs,
-                excludedIds: excludedIds,
-                candidateIds: candidateIds,
-                scoreById: scoreById,
-                reasonById: reasonById,
-                seedArtist: seeds.first.artist,
-                tierScore: 0,
-                reason: 'TRENDING FALLBACK',
-              );
-
-              if (similar.length >= _targetCount) {
-                break;
-              }
-            }
+            final fallbackResults = await fallbackResultsFuture!;
+            _mergeCandidates(
+              pool: similar,
+              incoming: fallbackResults,
+              excludedIds: excludedIds,
+              candidateIds: candidateIds,
+              scoreById: scoreById,
+              reasonById: reasonById,
+              seedArtist: seeds.first.artist,
+              tierScore: 0,
+              reason: 'TRENDING FALLBACK',
+            );
           }
         }
       } else {
         ideaArtist = null;
 
-        // Library empty: still populate from fallback to keep section non-empty.
-        final fallbackVideos = await _youtubeService.searchVideos('top songs official audio');
-        final fallbackSongs = fallbackVideos.map<SongEntity>((vid) => _mapVideoToEntity(vid)).toList();
+        // Library empty: populate from Deezer trending
+        final fallbackResults = await _deezerService.searchTracks('top hits');
         _mergeCandidates(
           pool: similar,
-          incoming: fallbackSongs,
+          incoming: fallbackResults,
           excludedIds: excludedIds,
           candidateIds: candidateIds,
           scoreById: scoreById,
@@ -214,32 +190,20 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
         );
       }
 
-      // Second pass with weaker yet single-track-safe query variants if under target.
+      // Second pass: supplement with more Deezer results if under target
       if (similar.length < _targetCount) {
-        final secondPassQueries = <String>[
-          'official audio single',
-          'lyric video official audio',
-        ];
-
-        for (final query in secondPassQueries) {
-          final videos = await _youtubeService.searchVideos(query);
-          final songs = videos.map<SongEntity>((vid) => _mapVideoToEntity(vid)).toList();
-          _mergeCandidates(
-            pool: similar,
-            incoming: songs,
-            excludedIds: excludedIds,
-            candidateIds: candidateIds,
-            scoreById: scoreById,
-            reasonById: reasonById,
-            seedArtist: ideaArtist ?? '',
-            tierScore: 0,
-            reason: 'TRENDING FALLBACK',
-          );
-
-          if (similar.length >= _targetCount) {
-            break;
-          }
-        }
+        final secondPassResults = await secondPassResultsFuture;
+        _mergeCandidates(
+          pool: similar,
+          incoming: secondPassResults,
+          excludedIds: excludedIds,
+          candidateIds: candidateIds,
+          scoreById: scoreById,
+          reasonById: reasonById,
+          seedArtist: ideaArtist ?? '',
+          tierScore: 0,
+          reason: 'TRENDING FALLBACK',
+        );
       }
 
       similar = _rankAndTrim(similar, scoreById, _targetCount);
@@ -270,6 +234,8 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
           isLoading: false,
           lastFetchedAt: now,
         );
+
+        _prefetchPlaybackCandidates(similar, trending);
       }
     } catch (e) {
       _nextRetryAllowedAt = DateTime.now().add(const Duration(seconds: 30));
@@ -279,6 +245,25 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
         );
       }
     }
+  }
+
+  void _prefetchPlaybackCandidates(List<SongEntity> similar, List<SongEntity> trending) {
+    final candidates = <SongEntity>[];
+    final seenIds = <String>{};
+
+    for (final song in [...similar, ...trending]) {
+      if (seenIds.add(song.id)) {
+        candidates.add(song);
+      }
+
+      if (candidates.length >= 5) {
+        break;
+      }
+    }
+
+    if (candidates.isEmpty) return;
+
+    unawaited(StreamResolutionCache.instance.prefetch(candidates, _ref.read(songRepositoryProvider)));
   }
 
   void refresh() {
@@ -465,19 +450,5 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
     }
 
     return true;
-  }
-
-  SongEntity _mapVideoToEntity(dynamic video) {
-    return SongEntity(
-      id: video.id.value,
-      title: video.title,
-      artist: video.author,
-      album: 'YouTube',
-      albumArtUrl: video.thumbnails.highResUrl,
-      duration: video.duration ?? Duration.zero,
-      sourceUrl: video.url,
-      sourceType: AudioSourceType.youtube,
-      dateAdded: DateTime.now(),
-    );
   }
 }

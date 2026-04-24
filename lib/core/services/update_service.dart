@@ -3,7 +3,6 @@ import 'package:dio/dio.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/material.dart';
-import '../../presentation/theme/aether_colors.dart';
 
 class UpdateService {
   static const String _updateUrl = 'https://raw.githubusercontent.com/UnExpectedd0/Kerlyss-Release/main/version.json';

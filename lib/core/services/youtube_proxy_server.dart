@@ -44,8 +44,18 @@ class YoutubeProxyServer {
 
         if (rangeHeader != null && rangeHeader.startsWith('bytes=')) {
           final parts = rangeHeader.substring(6).split('-');
-          if (parts[0].isNotEmpty) start = int.parse(parts[0]);
-          if (parts.length > 1 && parts[1].isNotEmpty) end = int.parse(parts[1]);
+          if (parts[0].isNotEmpty) {
+            start = int.tryParse(parts[0]) ?? 0;
+          }
+          if (parts.length > 1 && parts[1].isNotEmpty) {
+            end = int.tryParse(parts[1]) ?? (info.size.totalBytes - 1);
+          }
+
+          if (start < 0) start = 0;
+          if (end >= info.size.totalBytes) end = info.size.totalBytes - 1;
+          if (end < start) {
+            end = info.size.totalBytes - 1;
+          }
         }
 
         request.response.statusCode = start > 0 ? HttpStatus.partialContent : HttpStatus.ok;
@@ -74,7 +84,7 @@ class YoutubeProxyServer {
         }
         await request.response.close();
 
-      } catch (e, stacktrace) {
+      } catch (e) {
         Log.e('Proxy Error for videoId=$queryId: $e');
         try {
           request.response.statusCode = 500;

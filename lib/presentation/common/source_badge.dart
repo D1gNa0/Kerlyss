@@ -27,6 +27,10 @@ class SourceBadge extends StatelessWidget {
         iconData = Icons.library_music_rounded;
         color = Colors.orangeAccent.withOpacity(0.8);
         break;
+      case AudioSourceType.deezer:
+        iconData = Icons.music_note_rounded;
+        color = Colors.cyanAccent.withOpacity(0.8);
+        break;
     }
 
     return Container(

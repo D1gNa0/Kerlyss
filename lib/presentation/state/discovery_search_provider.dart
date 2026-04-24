@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/song_entity.dart';
 import '../../domain/repositories/song_repository.dart';
 import '../../data/repositories/repository_providers.dart';
+import '../../core/services/stream_resolution_cache.dart';
 
 enum SearchMode {
   songs,
@@ -95,6 +96,8 @@ class DiscoverySearchNotifier extends StateNotifier<DiscoverySearchState> {
       final results = await _repository.searchSongs(query);
       if (!mounted) return;
       state = state.copyWith(isLoading: false, results: results);
+      // Fire-and-forget: pre-resolve YouTube IDs for the top results in the background
+      StreamResolutionCache.instance.prefetch(results, _repository);
     } catch (e) {
       if (!mounted) return;
       state = state.copyWith(

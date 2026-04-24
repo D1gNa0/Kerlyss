@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/song_entity.dart';
-import '../../domain/entities/audio_source_type.dart';
 import '../state/library_provider.dart';
 import '../state/playlist_provider.dart';
 import '../theme/aether_colors.dart';
@@ -83,19 +82,6 @@ class AetherSongTile extends ConsumerWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              if (isDownloading)
-                Padding(
-                  padding: const EdgeInsets.only(left: 6.0),
-                  child: SizedBox(
-                    width: 20,
-                    height: 2,
-                    child: LinearProgressIndicator(
-                      value: downloadProgress,
-                      backgroundColor: Colors.white10,
-                      valueColor: const AlwaysStoppedAnimation<Color>(Colors.white30),
-                    ),
-                  ),
-                ),
             ],
           ),
           subtitle: Text(
@@ -117,8 +103,17 @@ class AetherSongTile extends ConsumerWidget {
                 else if (onDownload != null)
                   IconButton(
                     icon: isDownloading 
-                        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white24))
-                        : const Icon(Icons.download_rounded, color: Colors.white24, size: 18),
+                        ? SizedBox(
+                            width: 20, 
+                            height: 20, 
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              value: downloadProgress > 0 ? downloadProgress : null,
+                              color: AetherColors.primaryAccent,
+                              backgroundColor: Colors.white10,
+                            ),
+                          )
+                        : const Icon(Icons.download_rounded, color: Colors.white38, size: 20),
                     onPressed: isDownloading ? null : onDownload,
                     tooltip: 'Download song',
                   ),

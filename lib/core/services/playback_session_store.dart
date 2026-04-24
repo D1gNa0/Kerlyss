@@ -76,8 +76,11 @@ class PlaybackSessionStore {
 
       final playlist = <SongMetadata>[];
       for (final item in rawPlaylist) {
-        if (item is Map<String, dynamic>) {
-          final song = _songFromMap(item);
+        if (item is Map) {
+          final normalized = Map<String, dynamic>.from(
+            item.map((key, value) => MapEntry(key.toString(), value)),
+          );
+          final song = _songFromMap(normalized);
           if (song != null) {
             playlist.add(song);
           }
@@ -88,11 +91,11 @@ class PlaybackSessionStore {
         return null;
       }
 
-      final rawIndex = data['currentIndex'];
-      final clampedIndex = (rawIndex is int ? rawIndex : 0).clamp(0, playlist.length - 1);
+      final rawIndex = _asInt(data['currentIndex']) ?? 0;
+      final clampedIndex = rawIndex.clamp(0, playlist.length - 1);
 
-      final positionMs = data['positionMs'] is int ? data['positionMs'] as int : 0;
-      final volume = data['volume'] is num ? (data['volume'] as num).toDouble() : 1.0;
+      final positionMs = _asInt(data['positionMs']) ?? 0;
+      final volume = _asDouble(data['volume']) ?? 1.0;
 
       return PlaybackSessionSnapshot(
         playlist: playlist,
@@ -129,7 +132,7 @@ class PlaybackSessionStore {
     if (title is! String || title.isEmpty) return null;
     if (artist is! String || artist.isEmpty) return null;
 
-    final durationMs = map['durationMs'] is int ? map['durationMs'] as int : 0;
+    final durationMs = _asInt(map['durationMs']) ?? 0;
     final sourceName = map['source'] is String ? map['source'] as String : AudioSourceType.local.name;
     final source = AudioSourceType.values.where((s) => s.name == sourceName).firstOrNull ?? AudioSourceType.local;
 
@@ -142,5 +145,19 @@ class PlaybackSessionStore {
       duration: Duration(milliseconds: durationMs < 0 ? 0 : durationMs),
       source: source,
     );
+  }
+
+  int? _asInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value.trim());
+    return null;
+  }
+
+  double? _asDouble(dynamic value) {
+    if (value is double) return value;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value.trim());
+    return null;
   }
 }

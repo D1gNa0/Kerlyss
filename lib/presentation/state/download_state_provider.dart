@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class DownloadState {
@@ -37,6 +38,9 @@ class DownloadState {
 class DownloadStateNotifier extends StateNotifier<DownloadState> {
   DownloadStateNotifier() : super(DownloadState());
 
+  final Map<String, double> _pendingProgress = {};
+  Timer? _progressFlushTimer;
+
   void setDownloading(String id) {
     state = state.copyWith(
       downloadingTrackIds: {...state.downloadingTrackIds, id},
@@ -45,9 +49,22 @@ class DownloadStateNotifier extends StateNotifier<DownloadState> {
   }
 
   void updateProgress(String id, double progress) {
-    state = state.copyWith(
-      downloadProgress: {...state.downloadProgress, id: progress},
-    );
+    _pendingProgress[id] = progress;
+
+    _progressFlushTimer ??= Timer(const Duration(milliseconds: 75), _flushProgress);
+  }
+
+  void _flushProgress() {
+    if (_pendingProgress.isEmpty) {
+      _progressFlushTimer = null;
+      return;
+    }
+
+    final updatedProgress = {...state.downloadProgress, ..._pendingProgress};
+    _pendingProgress.clear();
+    _progressFlushTimer = null;
+
+    state = state.copyWith(downloadProgress: updatedProgress);
   }
 
   void completeDownload(String id) {
@@ -90,6 +107,12 @@ class DownloadStateNotifier extends StateNotifier<DownloadState> {
 
   void setAlreadyDownloaded(Set<String> ids) {
     state = state.copyWith(alreadyDownloadedIds: ids);
+  }
+
+  @override
+  void dispose() {
+    _progressFlushTimer?.cancel();
+    super.dispose();
   }
 }
 

@@ -14,19 +14,10 @@ import '../common/aether_glass.dart';
 import '../common/aether_source_bottom_sheet.dart';
 
 import '../state/discovery_search_provider.dart';
-
-
-import '../state/library_provider.dart';
-import '../state/downloaded_songs_provider.dart';
 import '../state/keyboard_shortcuts_provider.dart';
-import '../../core/services/logger_service.dart';
-import '../../core/services/app_storage_paths.dart';
 import '../../core/services/toast_service.dart';
-import '../../data/datasources/remote/youtube_service.dart';
 
 import '../../data/repositories/repository_providers.dart';
-import '../../domain/entities/audio_source_type.dart';
-import '../../data/models/song_model.dart';
 import '../../domain/entities/song_entity.dart';
 
 
@@ -60,39 +51,6 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
         backgroundColor: Colors.redAccent,
       );
     }
-  }
-
-
-  void _showEnvSetupInstructions() {
-    showDialog<void>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF171717),
-          title: const Text(
-            'Jamendo Setup',
-            style: TextStyle(color: Colors.white),
-          ),
-          content: const SingleChildScrollView(
-            child: Text(
-              '1. Open the project root file named .env\n'
-              '2. Set JAMENDO_CLIENT_ID=your_key\n'
-              '3. Save the file\n'
-              '4. Fully restart the app (not just hot reload)\n\n'
-              'Example:\n'
-              'JAMENDO_CLIENT_ID=abc123yourkey',
-              style: TextStyle(color: Colors.white70, height: 1.35),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Close'),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   @override
@@ -167,10 +125,6 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
     }
   }
 
-  bool _isDownloading(String songId) => ref.read(downloadStateProvider).downloadingTrackIds.contains(songId);
-  bool _isAlreadyDownloaded(String songId) => ref.read(downloadStateProvider).alreadyDownloadedIds.contains(songId);
-  double _getProgress(String songId) => ref.read(downloadStateProvider).downloadProgress[songId] ?? 0.0;
-
   @override
   Widget build(BuildContext context) {
     final ref = this.ref;
@@ -182,11 +136,6 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
         _updateExistingDownloads();
       }
     });
-
-    final jamendoConfigured = ref.watch(jamendoServiceProvider).isConfigured;
-
-    final jamendoResultsCount = 0; // Legacy placeholder
-    ref.watch(libraryProvider);
 
     return Scaffold(
       backgroundColor: Colors.transparent,

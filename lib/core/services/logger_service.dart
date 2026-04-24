@@ -27,7 +27,6 @@ class _FlatLogPrinter extends LogPrinter {
       _ => 'LOG',
     };
 
-    final prefix = '$color$levelStr$reset';
     final lines = <String>['$color$levelStr: ${event.message}$reset'];
 
     if (event.error != null) {
@@ -82,6 +81,7 @@ class Log {
     await _fileOutput.init();
 
     _logger = Logger(
+      level: Level.info,
       printer: _FlatLogPrinter(),
       output: MultiOutput([
         ConsoleOutput(),

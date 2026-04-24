@@ -42,12 +42,14 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
   Future<void> createPlaylist(String name) async {
     final playlist = PlaylistModel()..name = name..songIds = [];
     await _db.savePlaylist(playlist);
-    await loadPlaylists();
+    state = state.copyWith(playlists: [...state.playlists, playlist]);
   }
 
   Future<void> deletePlaylist(int id) async {
     await _db.deletePlaylist(id);
-    await loadPlaylists();
+    state = state.copyWith(
+      playlists: state.playlists.where((playlist) => playlist.id != id).toList(),
+    );
   }
 
   Future<void> renamePlaylist(int id, String newName) async {
@@ -55,7 +57,13 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
     if (playlist != null) {
       playlist.name = newName;
       await _db.savePlaylist(playlist);
-      await loadPlaylists();
+      final updatedPlaylists = state.playlists.map((existing) {
+        if (existing.id == id) {
+          existing.name = newName;
+        }
+        return existing;
+      }).toList();
+      state = state.copyWith(playlists: updatedPlaylists);
     }
   }
 
@@ -72,7 +80,13 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
       final updatedIds = List<String>.from(playlist.songIds)..add(song.id);
       playlist.songIds = updatedIds;
       await _db.savePlaylist(playlist);
-      await loadPlaylists();
+      final updatedPlaylists = state.playlists.map((existing) {
+        if (existing.id == playlistId) {
+          existing.songIds = updatedIds;
+        }
+        return existing;
+      }).toList();
+      state = state.copyWith(playlists: updatedPlaylists);
     }
   }
 
@@ -83,7 +97,13 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
     final updatedIds = List<String>.from(playlist.songIds)..remove(songId);
     playlist.songIds = updatedIds;
     await _db.savePlaylist(playlist);
-    await loadPlaylists();
+    final updatedPlaylists = state.playlists.map((existing) {
+      if (existing.id == playlistId) {
+        existing.songIds = updatedIds;
+      }
+      return existing;
+    }).toList();
+    state = state.copyWith(playlists: updatedPlaylists);
   }
 
   /// Fetches the full SongEntity objects for a playlist.
@@ -91,14 +111,10 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
     final playlist = await _db.getPlaylistById(playlistId);
     if (playlist == null) return [];
 
-    final songs = <SongEntity>[];
-    for (final id in playlist.songIds) {
-      final song = await _songRepository.getSongById(id);
-      if (song != null) {
-        songs.add(song);
-      }
-    }
-    return songs;
+    final songs = await Future.wait(
+      playlist.songIds.map(_songRepository.getSongById),
+    );
+    return songs.whereType<SongEntity>().toList();
   }
 }
 

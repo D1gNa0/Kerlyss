@@ -21,8 +21,8 @@ abstract class SongRepository {
   Future<List<SongEntity>> getAllSongs();
 
 
-  /// Resolves the direct stream URI for a song (e.g. YouTube stream).
-  Future<String> resolveStreamUri(String songId);
+  /// Resolves the direct stream URI for a song (e.g. YouTube stream) using background resolution if necessary.
+  Future<String> resolveStreamUri(SongEntity song);
 
   /// Resolves metadata from a Spotify URL and mirrors it to a YouTube stream.
   Future<SongEntity> getSongFromSpotifyUrl(String url);
@@ -39,5 +39,10 @@ abstract class SongRepository {
   /// Resolves a single text query into a best-match SongEntity.
   Future<SongEntity?> resolveQueryToSong(String query);
 
+  /// Fetches the BPM for a song remotely.
+  Future<int?> fetchBpmRemotely(SongEntity song);
+
+  /// Updates the BPM of a specific song in local storage.
+  Future<void> updateBpm(String id, int bpm);
 }
 

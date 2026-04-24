@@ -13,11 +13,13 @@ class LibraryState {
   final bool isLoading;
   final List<SongEntity> favoriteSongs;
   final List<SongEntity> allSongs;
+  final Set<String> favoriteSongIds;
 
   const LibraryState({
     this.isLoading = false,
     this.favoriteSongs = const [],
     this.allSongs = const [],
+    this.favoriteSongIds = const {},
   });
 }
 
@@ -36,7 +38,13 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
   void _listenToDownloads() {
     _ref.listen<DownloadState>(downloadStateProvider, (previous, next) {
       if (previous == null) return;
-      if (next.alreadyDownloadedIds.length > previous.alreadyDownloadedIds.length) {
+      final previousIds = previous.alreadyDownloadedIds;
+      final nextIds = next.alreadyDownloadedIds;
+      final downloadSetChanged = previousIds.length != nextIds.length ||
+          !previousIds.containsAll(nextIds) ||
+          !nextIds.containsAll(previousIds);
+
+      if (downloadSetChanged) {
         loadLibrary();
       }
     });
@@ -45,9 +53,17 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
   void _listenToPlaylists() {
     _ref.listen<PlaylistState>(playlistProvider, (previous, next) {
       if (previous == null) return;
-      // If a song was added to a playlist, we need to refresh "All Tracks"
-      // to ensure it shows up if it wasn't there before.
-      loadLibrary();
+
+      final previousSongIds = previous.playlists.expand((p) => p.songIds).toSet();
+      final nextSongIds = next.playlists.expand((p) => p.songIds).toSet();
+      final playlistSongsChanged = previousSongIds.length != nextSongIds.length ||
+          !previousSongIds.containsAll(nextSongIds) ||
+          !nextSongIds.containsAll(previousSongIds);
+
+      // Only refresh the library when playlist membership changed, not when a playlist is renamed.
+      if (playlistSongsChanged) {
+        loadLibrary();
+      }
     });
   }
 
@@ -68,9 +84,13 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
       final List<SongEntity> rawAll = List.from(all);
       
       // Sync disk files (same as before)
+      final knownLocalPaths = all
+          .where((song) => song.localPath != null)
+          .map((song) => song.localPath!)
+          .toSet();
+
       for (final diskSong in downloaded) {
-        final existsInIsar = all.any((s) => s.localPath == diskSong.path);
-        if (!existsInIsar) {
+        if (!knownLocalPaths.contains(diskSong.path)) {
           rawAll.add(SongEntity(
             id: diskSong.path,
             title: diskSong.title,
@@ -108,14 +128,24 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
       final List<SongEntity> sortedFavorites = List.from(favorites)
         ..sort(stableSort);
 
-      state = LibraryState(isLoading: false, favoriteSongs: sortedFavorites, allSongs: filteredAll);
+      state = LibraryState(
+        isLoading: false,
+        favoriteSongs: sortedFavorites,
+        allSongs: filteredAll,
+        favoriteSongIds: sortedFavorites.map((song) => song.id).toSet(),
+      );
     } catch (e) {
-      state = LibraryState(isLoading: false, favoriteSongs: state.favoriteSongs, allSongs: state.allSongs);
+      state = LibraryState(
+        isLoading: false,
+        favoriteSongs: state.favoriteSongs,
+        allSongs: state.allSongs,
+        favoriteSongIds: state.favoriteSongIds,
+      );
     }
   }
 
   Future<void> toggleFavorite(SongEntity song) async {
-    final isFavorite = state.favoriteSongs.any((s) => s.id == song.id);
+    final isFavorite = state.favoriteSongIds.contains(song.id);
     
     // ─── OPTIMISTIC UPDATE ────────────────────────────────────────────────────
     final updatedFavorites = List<SongEntity>.from(state.favoriteSongs);
@@ -124,7 +154,12 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
     } else {
       updatedFavorites.add(song);
     }
-    state = LibraryState(isLoading: false, favoriteSongs: updatedFavorites, allSongs: state.allSongs);
+    state = LibraryState(
+      isLoading: false,
+      favoriteSongs: updatedFavorites,
+      allSongs: state.allSongs,
+      favoriteSongIds: updatedFavorites.map((s) => s.id).toSet(),
+    );
     // ───────────────────────────────────────────────────────────────────────────
 
     try {
@@ -143,7 +178,7 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
   }
 
   bool isSongFavorite(String id) {
-    return state.favoriteSongs.any((s) => s.id == id);
+    return state.favoriteSongIds.contains(id);
   }
 }
 

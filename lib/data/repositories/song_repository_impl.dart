@@ -4,26 +4,28 @@ import '../../domain/repositories/song_repository.dart';
 import '../datasources/local/isar_database_service.dart';
 import '../datasources/remote/spotify_public_service.dart';
 import '../datasources/remote/youtube_audio_engine.dart';
-import '../datasources/remote/search_aggregator.dart';
-import '../models/song_model.dart';
-import '../../domain/entities/audio_source_type.dart';
-
+import '../datasources/remote/youtube_service.dart';
 import '../datasources/remote/search_aggregator.dart';
 import '../datasources/remote/bpm_scraper_service.dart';
 import '../models/song_model.dart';
 import '../../domain/entities/audio_source_type.dart';
+import '../../../core/services/logger_service.dart';
+import '../../../core/services/stream_resolution_cache.dart';
 
 class SongRepositoryImpl implements SongRepository {
   final IsarDatabaseService _localDataSource;
   final SpotifyPublicService _spotifyPublicService;
   final YoutubeAudioEngine _youtubeAudioEngine;
+  final YoutubeService _youtubeService;
   final SearchAggregator _searchAggregator;
   final BpmScraperService _bpmScraperService;
+  final Map<String, Future<String>> _inFlightStreamResolutions = {};
 
   SongRepositoryImpl(
     this._localDataSource,
     this._spotifyPublicService,
     this._youtubeAudioEngine,
+    this._youtubeService,
     this._searchAggregator,
     this._bpmScraperService,
   );
@@ -77,8 +79,55 @@ class SongRepositoryImpl implements SongRepository {
 
 
   @override
-  Future<String> resolveStreamUri(String songId) async {
-    return await _youtubeAudioEngine.getStreamUri(songId);
+  Future<String> resolveStreamUri(SongEntity song) async {
+    // For Deezer tracks: check the pre-resolution cache first (avoids live YouTube search)
+    final isDeezerTrack = song.sourceType == AudioSourceType.deezer ||
+        song.id.startsWith('deezer_') ||
+        song.sourceUrl.startsWith('deezer_');
+
+    if (isDeezerTrack) {
+      final cached = StreamResolutionCache.instance.get(song.id);
+      if (cached != null) {
+        Log.d('SongRepository: Cache HIT for "${song.title}" → $cached');
+        return cached;
+      }
+
+      final inFlight = _inFlightStreamResolutions[song.id];
+      if (inFlight != null) {
+        Log.d('SongRepository: In-flight HIT for "${song.title}" — waiting on existing resolution');
+        return inFlight;
+      }
+
+      final resolution = _resolveDeezerStreamUri(song);
+      _inFlightStreamResolutions[song.id] = resolution;
+
+      try {
+        return await resolution;
+      } finally {
+        final activeResolution = _inFlightStreamResolutions[song.id];
+        if (identical(activeResolution, resolution)) {
+          _inFlightStreamResolutions.remove(song.id);
+        }
+      }
+    }
+
+    // For YouTube/Spotify tracks, pass the raw ID directly
+    return await _youtubeAudioEngine.getStreamUri(song.sourceUrl);
+  }
+
+  Future<String> _resolveDeezerStreamUri(SongEntity song) async {
+    final query = '${song.artist} ${song.title}';
+    Log.i('SongRepository: Cache MISS — resolving "$query" to YouTube stream...');
+
+    final results = await _youtubeService.searchVideos(query);
+    if (results.isEmpty) {
+      throw Exception('Could not find a YouTube stream for Deezer track: $query');
+    }
+
+    final videoId = results.first.id.value;
+    StreamResolutionCache.instance.put(song.id, videoId);
+    Log.d('SongRepository: Resolved "${song.title}" → $videoId');
+    return videoId;
   }
 
   @override
@@ -157,10 +206,12 @@ class SongRepositoryImpl implements SongRepository {
     );
   }
 
-  Future<int?> fetchBpmRemotely(String artist, String title) async {
-    return await _bpmScraperService.fetchBpm(artist, title);
+  @override
+  Future<int?> fetchBpmRemotely(SongEntity song) async {
+    return await _bpmScraperService.fetchBpm(song);
   }
 
+  @override
   Future<void> updateBpm(String id, int bpm) async {
     final existing = await _localDataSource.getSongById(id);
     if (existing != null) {
