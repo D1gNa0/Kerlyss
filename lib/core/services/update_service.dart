@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 
 class UpdateService {
   static const String _updateUrl = 'https://raw.githubusercontent.com/UnExpectedd0/Kerlyss-Release/main/version.json';
-  static const String _releasePageUrl = 'https://github.com/UnExpectedd0/Kerlyss-Release/releases';
+  static const String _releasePageUrl = 'https://unexpectedd0.github.io/Kerlyss-Release/';
 
   Future<void> checkForUpdates(BuildContext context) async {
     try {
@@ -89,9 +89,7 @@ class UpdateService {
             ),
             onPressed: () async {
               final url = Uri.parse(_releasePageUrl);
-              if (await canLaunchUrl(url)) {
-                await launchUrl(url, mode: LaunchMode.externalApplication);
-              }
+              await launchUrl(url, mode: LaunchMode.externalApplication);
               if (context.mounted) Navigator.pop(context);
             },
             child: const Text('Download'),
