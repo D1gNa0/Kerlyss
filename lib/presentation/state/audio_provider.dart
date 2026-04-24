@@ -18,6 +18,7 @@ import 'package:kerlyss/data/datasources/local/local_download_library.dart';
 import 'package:kerlyss/core/services/youtube_proxy_server.dart';
 import 'package:kerlyss/data/datasources/remote/youtube_service.dart';
 import 'package:kerlyss/data/repositories/repository_providers.dart';
+import 'package:kerlyss/data/repositories/song_repository_impl.dart';
 import 'package:kerlyss/presentation/state/downloaded_songs_provider.dart';
 import '../../domain/entities/downloaded_song.dart';
 
@@ -28,7 +29,8 @@ final audioProvider = StateNotifierProvider<AudioNotifier, AudioState>((ref) {
   final audioService = JustAudioService();
   final youtubeService = ref.watch(youtubeServiceProvider);
   final isarService = ref.read(isarDatabaseServiceProvider);
-  return AudioNotifier(localDownloadLibrary, youtubeService, audioService, isarService);
+  final songRepo = ref.read(songRepositoryProvider);
+  return AudioNotifier(localDownloadLibrary, youtubeService, audioService, isarService, songRepo);
 });
 
 
@@ -40,6 +42,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
   final LocalDownloadLibrary _localDownloadLibrary;
   final YoutubeService _youtubeService;
   final IsarDatabaseService _isarService;
+  final SongRepositoryImpl _songRepository;
   final PlaybackSessionStore _sessionStore = PlaybackSessionStore();
 
   final _frequencyController = StreamController<List<double>>.broadcast();
@@ -54,7 +57,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
 
   final List<StreamSubscription<dynamic>> _subs = [];
 
-  AudioNotifier(this._localDownloadLibrary, this._youtubeService, this._audioService, this._isarService)
+  AudioNotifier(this._localDownloadLibrary, this._youtubeService, this._audioService, this._isarService, this._songRepository)
 
       : super(
           AudioState(
@@ -118,6 +121,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
         );
         globalAudioHandler.setMediaFromSong(nextSong);
         _schedulePersistSession();
+        _checkAndFetchBpm(nextSong);
       }
     }));
 
@@ -146,6 +150,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
             artworkUrl: state.currentSong.artworkUrl,
             duration: duration,
             source: state.currentSong.source,
+            bpm: state.currentSong.bpm,
           ),
         );
       }
@@ -157,6 +162,47 @@ class AudioNotifier extends StateNotifier<AudioState> {
     }));
 
     _audioService.setVolume(1.0);
+  }
+
+  Future<void> _checkAndFetchBpm(SongMetadata song) async {
+    if (song.bpm != null || song.id.isEmpty) return;
+
+    Log.i('AudioNotifier: Background BPM fetch started for ${song.title}');
+    try {
+      final bpm = await _songRepository.fetchBpmRemotely(song.artist, song.title);
+      if (bpm != null && mounted) {
+        Log.i('AudioNotifier: Successfully retrieved BPM ($bpm) for ${song.title}');
+        // Update the state if we are still playing the same song
+        if (state.currentSong.id == song.id) {
+          final updatedSong = SongMetadata(
+            id: song.id,
+            title: song.title,
+            artist: song.artist,
+            album: song.album,
+            artworkUrl: song.artworkUrl,
+            duration: song.duration,
+            source: song.source,
+            bpm: bpm,
+          );
+          
+          state = state.copyWith(currentSong: updatedSong);
+          
+          // Also update the playlist so it persists
+          final newPlaylist = List<SongMetadata>.from(state.playlist);
+          if (state.currentIndex >= 0 && state.currentIndex < newPlaylist.length) {
+            newPlaylist[state.currentIndex] = updatedSong;
+            state = state.copyWith(playlist: newPlaylist);
+          }
+          
+          _schedulePersistSession();
+        }
+
+        // Persist to database so we don't have to fetch it again
+        await _songRepository.updateBpm(song.id, bpm);
+      }
+    } catch (e) {
+      Log.e('AudioNotifier: Failed to fetch BPM in background: $e');
+    }
   }
 
   Future<void> _restorePlaybackSession() async {
@@ -360,6 +406,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
           globalAudioHandler.setMediaFromSong(resolvedSong);
           _syncStatusFromEngine();
           _schedulePersistSession();
+          _checkAndFetchBpm(resolvedSong);
           return;
         }
       }
@@ -394,6 +441,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
       globalAudioHandler.setMediaFromSong(resolvedSong);
       _syncStatusFromEngine();
       _schedulePersistSession();
+      _checkAndFetchBpm(resolvedSong);
     } catch (e) {
       _setPlaybackError('playPlaylist', e);
     }

@@ -151,7 +151,7 @@ abstract class AppLocalizations {
   /// No description provided for @downloadFromLibrarySoon.
   ///
   /// In en, this message translates to:
-  /// **'Download from Library coming soon! Use Search to download for now.'**
+  /// **'Library downloads will be available in a future update. Please use the Search feature to download tracks.'**
   String get downloadFromLibrarySoon;
 
   /// No description provided for @addedTo.
@@ -163,37 +163,37 @@ abstract class AppLocalizations {
   /// No description provided for @stubNotImplemented.
   ///
   /// In en, this message translates to:
-  /// **'STUB — Not Implemented'**
+  /// **'Feature coming soon'**
   String get stubNotImplemented;
 
   /// No description provided for @previousShortcut.
   ///
   /// In en, this message translates to:
-  /// **'Previous (Ctrl + Left)'**
+  /// **'Previous'**
   String get previousShortcut;
 
   /// No description provided for @nextShortcut.
   ///
   /// In en, this message translates to:
-  /// **'Next (Ctrl + Right)'**
+  /// **'Next'**
   String get nextShortcut;
 
   /// No description provided for @back5s.
   ///
   /// In en, this message translates to:
-  /// **'Back 5s (Left Arrow)'**
+  /// **'Back 5s'**
   String get back5s;
 
   /// No description provided for @forward5s.
   ///
   /// In en, this message translates to:
-  /// **'Forward 5s (Right Arrow)'**
+  /// **'Forward 5s'**
   String get forward5s;
 
   /// No description provided for @playPause.
   ///
   /// In en, this message translates to:
-  /// **'Play/Pause (Space)'**
+  /// **'Play/Pause'**
   String get playPause;
 
   /// No description provided for @pasteSpotifyLink.

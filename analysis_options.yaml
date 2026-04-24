@@ -30,6 +30,9 @@ linter:
     avoid_web_libraries_in_flutter: true
     package_api_docs: false # Optional, but good for teams
     public_member_api_docs: false
+    avoid_dynamic_calls: true
+    cancel_subscriptions: true
+    close_sinks: true
 
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options

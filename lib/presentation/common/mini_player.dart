@@ -11,6 +11,7 @@ import '../screens/queue_view.dart';
 import '../state/library_provider.dart';
 import '../state/download_state_provider.dart';
 import '../state/track_download_provider.dart';
+import 'tap_bpm_dialog.dart';
 
 class MiniPlayer extends ConsumerWidget {
   const MiniPlayer({super.key});
@@ -25,6 +26,7 @@ class MiniPlayer extends ConsumerWidget {
       duration: song.duration,
       sourceUrl: song.id,
       sourceType: song.source,
+      bpm: song.bpm,
       dateAdded: DateTime.now(),
     );
   }
@@ -105,14 +107,75 @@ class MiniPlayer extends ConsumerWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          Text(
-                            hasSong ? currentSong.artist : 'Select a song to start',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontSize: 10,
-                              color: Colors.white38,
+                          GestureDetector(
+                            onLongPress: () {
+                              if (hasSong) {
+                                showGeneralDialog(
+                                  context: context,
+                                  barrierDismissible: true,
+                                  barrierLabel: 'Tap BPM',
+                                  barrierColor: Colors.black87,
+                                  pageBuilder: (context, anim, secondAnim) {
+                                    return FadeTransition(
+                                      opacity: anim,
+                                      child: ScaleTransition(
+                                        scale: Tween(begin: 0.95, end: 1.0).animate(CurvedAnimation(parent: anim, curve: Curves.easeOutBack)),
+                                        child: TapBpmDialog(song: _toSongEntity(currentSong)),
+                                      ),
+                                    );
+                                  },
+                                ).then((newBpm) {
+                                  if (newBpm != null && newBpm is int) {
+                                    // Manually update the state current song to reflect instantly without waiting for re-fetch
+                                    final current = ref.read(audioProvider).currentSong;
+                                    if (current.id == currentSong.id) {
+                                      final updated = SongMetadata(
+                                        id: current.id, title: current.title, artist: current.artist, 
+                                        album: current.album, artworkUrl: current.artworkUrl, duration: current.duration, 
+                                        source: current.source, bpm: newBpm
+                                      );
+                                      ref.read(audioProvider.notifier).state = ref.read(audioProvider).copyWith(currentSong: updated);
+                                    }
+                                  }
+                                });
+                              }
+                            },
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    hasSong ? currentSong.artist : 'Select a song to start',
+                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                      fontSize: 10,
+                                      color: Colors.white38,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                Container(
+                                  margin: const EdgeInsets.only(left: 8),
+                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(
+                                      color: currentSong.bpm != null 
+                                          ? AetherColors.accentCyan.withOpacity(0.3) 
+                                          : Colors.white.withOpacity(0.1)
+                                    ),
+                                  ),
+                                  child: Text(
+                                    currentSong.bpm != null ? '${currentSong.bpm} BPM' : 'TAP BPM',
+                                    style: TextStyle(
+                                      color: currentSong.bpm != null ? AetherColors.accentCyan : Colors.white24,
+                                      fontSize: 8,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ),

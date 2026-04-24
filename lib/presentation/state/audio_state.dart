@@ -21,6 +21,7 @@ class SongMetadata {
   final String? artworkUrl;
   final Duration duration;
   final AudioSourceType source;
+  final int? bpm;
 
   const SongMetadata({
     required this.id,
@@ -30,6 +31,7 @@ class SongMetadata {
     this.artworkUrl,
     required this.duration,
     this.source = AudioSourceType.local,
+    this.bpm,
   });
 
   factory SongMetadata.empty() => const SongMetadata(
@@ -49,6 +51,20 @@ class SongMetadata {
         artworkUrl: entity.albumArtUrl,
         duration: entity.duration,
         source: entity.sourceType,
+        bpm: entity.bpm,
+      );
+
+  SongEntity toEntity() => SongEntity(
+        id: id,
+        title: title,
+        artist: artist,
+        album: album ?? 'Unknown Album',
+        albumArtUrl: artworkUrl,
+        duration: duration,
+        sourceUrl: id, // Mapping ID to sourceUrl for consistency
+        sourceType: source,
+        bpm: bpm,
+        dateAdded: DateTime.now(),
       );
 }
 

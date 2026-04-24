@@ -9,7 +9,7 @@
   "noDownloaded": "NO DOWNLOADED TRACKS",
   "libraryEmpty": "LIBRARY EMPTY",
   "addToPlaylist": "Add to Playlist",
-  "downloadFromLibrarySoon": "Download from Library coming soon! Use Search to download for now.",
+  "downloadFromLibrarySoon": "Library downloads will be available in a future update. Please use the Search feature to download tracks.",
   "addedTo": "Added to {name}",
   "@addedTo": {
     "placeholders": {
@@ -18,12 +18,12 @@
       }
     }
   },
-  "stubNotImplemented": "STUB — Not Implemented",
-  "previousShortcut": "Previous (Ctrl + Left)",
-  "nextShortcut": "Next (Ctrl + Right)",
-  "back5s": "Back 5s (Left Arrow)",
-  "forward5s": "Forward 5s (Right Arrow)",
-  "playPause": "Play/Pause (Space)",
+  "stubNotImplemented": "Feature coming soon",
+  "previousShortcut": "Previous",
+  "nextShortcut": "Next",
+  "back5s": "Back 5s",
+  "forward5s": "Forward 5s",
+  "playPause": "Play/Pause",
   "pasteSpotifyLink": "PASTE SPOTIFY PLAYLIST LINK...",
   "searchPlaceholder": "SEARCH SONGS, ARTISTS...",
   "toggleSpotifyMode": "Toggle Spotify Import Mode",

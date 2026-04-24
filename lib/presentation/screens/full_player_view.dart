@@ -9,6 +9,7 @@ import '../common/aether_pulse_visualizer.dart';
 import '../common/aether_network_image.dart';
 import 'package:kerlyss/l10n/app_localizations.dart';
 import 'queue_view.dart';
+import '../common/tap_bpm_dialog.dart';
 import 'dart:ui';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
@@ -174,6 +175,63 @@ class FullPlayerView extends ConsumerWidget {
                               fontSize: 11,
                               color: AetherColors.textSecondary,
                             ),
+                      ),
+                      const SizedBox(height: 12),
+                      GestureDetector(
+                        onTap: () {
+                          // Reuse the TapBpmDialog from mini_player logic
+                          showGeneralDialog(
+                            context: context,
+                            barrierDismissible: true,
+                            barrierLabel: 'Tap BPM',
+                            barrierColor: Colors.black87,
+                            pageBuilder: (context, anim, secondAnim) {
+                              // Using the same song entity conversion as mini_player
+                              // (I'll need to define _toSongEntity or just map it here)
+                              return FadeTransition(
+                                opacity: anim,
+                                child: ScaleTransition(
+                                  scale: Tween(begin: 0.95, end: 1.0).animate(CurvedAnimation(parent: anim, curve: Curves.easeOutBack)),
+                                  child: TapBpmDialog(song: currentSong.toEntity()),
+                                ),
+                              );
+                            },
+                          ).then((newBpm) {
+                            if (newBpm != null && newBpm is int) {
+                              // Update state logic same as mini_player
+                              final current = ref.read(audioProvider).currentSong;
+                              if (current.id == currentSong.id) {
+                                final updated = SongMetadata(
+                                  id: current.id, title: current.title, artist: current.artist, 
+                                  album: current.album, artworkUrl: current.artworkUrl, duration: current.duration, 
+                                  source: current.source, bpm: newBpm
+                                );
+                                ref.read(audioProvider.notifier).state = ref.read(audioProvider).copyWith(currentSong: updated);
+                              }
+                            }
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            color: Colors.white.withOpacity(0.03),
+                            border: Border.all(
+                              color: currentSong.bpm != null 
+                                  ? AetherColors.accentCyan.withOpacity(0.4) 
+                                  : Colors.white.withOpacity(0.1)
+                            ),
+                          ),
+                          child: Text(
+                            currentSong.bpm != null ? '${currentSong.bpm} BPM' : 'TAP TO SET BPM',
+                            style: TextStyle(
+                              color: currentSong.bpm != null ? AetherColors.accentCyan : Colors.white24,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),

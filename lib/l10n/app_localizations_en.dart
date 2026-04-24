@@ -37,7 +37,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get downloadFromLibrarySoon =>
-      'Download from Library coming soon! Use Search to download for now.';
+      'Library downloads will be available in a future update. Please use the Search feature to download tracks.';
 
   @override
   String addedTo(String name) {
@@ -45,22 +45,22 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get stubNotImplemented => 'STUB — Not Implemented';
+  String get stubNotImplemented => 'Feature coming soon';
 
   @override
-  String get previousShortcut => 'Previous (Ctrl + Left)';
+  String get previousShortcut => 'Previous';
 
   @override
-  String get nextShortcut => 'Next (Ctrl + Right)';
+  String get nextShortcut => 'Next';
 
   @override
-  String get back5s => 'Back 5s (Left Arrow)';
+  String get back5s => 'Back 5s';
 
   @override
-  String get forward5s => 'Forward 5s (Right Arrow)';
+  String get forward5s => 'Forward 5s';
 
   @override
-  String get playPause => 'Play/Pause (Space)';
+  String get playPause => 'Play/Pause';
 
   @override
   String get pasteSpotifyLink => 'PASTE SPOTIFY PLAYLIST LINK...';

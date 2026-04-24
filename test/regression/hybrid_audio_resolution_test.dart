@@ -5,11 +5,15 @@ import 'package:kerlyss/data/datasources/local/isar_database_service.dart';
 import 'package:kerlyss/data/datasources/remote/spotify_public_service.dart';
 import 'package:kerlyss/data/datasources/remote/search_aggregator.dart';
 import 'package:kerlyss/data/datasources/remote/youtube_audio_engine.dart';
+import 'package:kerlyss/data/datasources/remote/bpm_scraper_service.dart';
+
 
 class MockIsarDatabaseService extends Mock implements IsarDatabaseService {}
 class MockSpotifyPublicService extends Mock implements SpotifyPublicService {}
 class MockSearchAggregator extends Mock implements SearchAggregator {}
 class MockYoutubeAudioEngine extends Mock implements YoutubeAudioEngine {}
+class MockBpmScraperService extends Mock implements BpmScraperService {}
+
 
 void main() {
   late SongRepositoryImpl repository;
@@ -29,6 +33,7 @@ void main() {
       mockRemote,
       mockYtEngine,
       mockSearch,
+      MockBpmScraperService(),
     );
   });
 

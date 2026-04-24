@@ -24,6 +24,7 @@ class SongModel {
   bool isFavorite = false;
   
   String? localPath;
+  int? bpm;
   
   late DateTime dateAdded;
 
@@ -43,6 +44,7 @@ class SongModel {
       sourceUrl: sourceUrl,
       sourceType: sourceType,
       localPath: localPath,
+      bpm: bpm,
       dateAdded: safeDate,
     );
   }
@@ -58,6 +60,7 @@ class SongModel {
       ..sourceUrl = entity.sourceUrl
       ..sourceType = entity.sourceType
       ..localPath = entity.localPath
+      ..bpm = entity.bpm
       ..dateAdded = entity.dateAdded;
   }
 

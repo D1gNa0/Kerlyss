@@ -8,6 +8,7 @@ import '../datasources/remote/spotify_public_service.dart';
 import '../datasources/remote/youtube_service.dart';
 import '../datasources/remote/youtube_audio_engine.dart';
 import '../datasources/remote/search_aggregator.dart';
+import '../datasources/remote/bpm_scraper_service.dart';
 import 'song_repository_impl.dart';
 import '../../domain/repositories/song_repository.dart';
 
@@ -52,16 +53,23 @@ final playlistRepositoryProvider = Provider<PlaylistRepository>((ref) {
   return PlaylistRepositoryImpl(localDataSource);
 });
 
-final songRepositoryProvider = Provider<SongRepository>((ref) {
+final bpmScraperServiceProvider = Provider<BpmScraperService>((ref) {
+  final dio = ref.watch(dioProvider);
+  return BpmScraperService(dio);
+});
+
+final songRepositoryProvider = Provider<SongRepositoryImpl>((ref) {
   final localDataSource = ref.watch(isarDatabaseServiceProvider);
   final spotifyPublicService = ref.watch(spotifyPublicServiceProvider);
   final youtubeAudioEngine = ref.watch(youtubeAudioEngineProvider);
   final searchAggregator = ref.watch(searchAggregatorProvider);
+  final bpmScraperService = ref.watch(bpmScraperServiceProvider);
 
   return SongRepositoryImpl(
     localDataSource,
     spotifyPublicService,
     youtubeAudioEngine,
     searchAggregator,
+    bpmScraperService,
   );
 });

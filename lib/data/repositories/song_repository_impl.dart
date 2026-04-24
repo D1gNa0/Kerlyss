@@ -8,17 +8,24 @@ import '../datasources/remote/search_aggregator.dart';
 import '../models/song_model.dart';
 import '../../domain/entities/audio_source_type.dart';
 
+import '../datasources/remote/search_aggregator.dart';
+import '../datasources/remote/bpm_scraper_service.dart';
+import '../models/song_model.dart';
+import '../../domain/entities/audio_source_type.dart';
+
 class SongRepositoryImpl implements SongRepository {
   final IsarDatabaseService _localDataSource;
   final SpotifyPublicService _spotifyPublicService;
   final YoutubeAudioEngine _youtubeAudioEngine;
   final SearchAggregator _searchAggregator;
+  final BpmScraperService _bpmScraperService;
 
   SongRepositoryImpl(
     this._localDataSource,
     this._spotifyPublicService,
     this._youtubeAudioEngine,
     this._searchAggregator,
+    this._bpmScraperService,
   );
 
   @override
@@ -150,5 +157,16 @@ class SongRepositoryImpl implements SongRepository {
     );
   }
 
+  Future<int?> fetchBpmRemotely(String artist, String title) async {
+    return await _bpmScraperService.fetchBpm(artist, title);
+  }
+
+  Future<void> updateBpm(String id, int bpm) async {
+    final existing = await _localDataSource.getSongById(id);
+    if (existing != null) {
+      existing.bpm = bpm;
+      await _localDataSource.saveSong(existing);
+    }
+  }
 }
 
