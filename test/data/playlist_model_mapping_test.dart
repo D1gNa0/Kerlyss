@@ -133,5 +133,29 @@ void main() {
       expect(mappedEntity.coverArtUrl, isNull);
       expect(mappedEntity.lastSyncedAt, isNull);
     });
+
+    test('PlaylistEntity.copyWith preserves and updates real-time sync fields', () {
+      final now = DateTime.now();
+      final entity = PlaylistEntity(
+        id: 1,
+        name: 'Sync Test',
+        songIds: [],
+        createdAt: now,
+      );
+
+      final updated = entity.copyWith(
+        isRealtimeSynced: true,
+        autoDownloadNewTracks: true,
+        spotifySourceUrl: 'https://open.spotify.com/playlist/test',
+        coverArtUrl: 'https://example.com/cover.jpg',
+        lastSyncedAt: now,
+      );
+
+      expect(updated.isRealtimeSynced, isTrue);
+      expect(updated.autoDownloadNewTracks, isTrue);
+      expect(updated.spotifySourceUrl, equals('https://open.spotify.com/playlist/test'));
+      expect(updated.coverArtUrl, equals('https://example.com/cover.jpg'));
+      expect(updated.lastSyncedAt, equals(now));
+    });
   });
 }
