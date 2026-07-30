@@ -14,12 +14,27 @@ class PlaylistModel {
   
   DateTime createdAt = DateTime.now();
 
+  bool isRealtimeSynced = false;
+
+  bool autoDownloadNewTracks = false;
+
+  String? spotifySourceUrl;
+
+  String? coverArtUrl;
+
+  DateTime? lastSyncedAt;
+
   PlaylistEntity toEntity() {
     return PlaylistEntity(
       id: id == Isar.autoIncrement ? null : id,
       name: name,
       songIds: songIds,
       createdAt: createdAt,
+      isRealtimeSynced: isRealtimeSynced,
+      autoDownloadNewTracks: autoDownloadNewTracks,
+      spotifySourceUrl: spotifySourceUrl,
+      coverArtUrl: coverArtUrl,
+      lastSyncedAt: lastSyncedAt,
     );
   }
 
@@ -27,7 +42,12 @@ class PlaylistModel {
     final model = PlaylistModel()
       ..name = entity.name
       ..songIds = entity.songIds
-      ..createdAt = entity.createdAt;
+      ..createdAt = entity.createdAt
+      ..isRealtimeSynced = entity.isRealtimeSynced
+      ..autoDownloadNewTracks = entity.autoDownloadNewTracks
+      ..spotifySourceUrl = entity.spotifySourceUrl
+      ..coverArtUrl = entity.coverArtUrl
+      ..lastSyncedAt = entity.lastSyncedAt;
     if (entity.id != null) {
       model.id = entity.id!;
     }
