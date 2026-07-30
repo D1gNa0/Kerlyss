@@ -4,6 +4,7 @@ import '../theme/aether_colors.dart';
 import '../../core/services/toast_service.dart';
 import '../state/playlist_provider.dart';
 import 'playlist_detail_view.dart';
+import 'downloaded_songs_view.dart';
 import '../state/navigation_provider.dart';
 import '../state/track_download_provider.dart';
 import '../state/library_provider.dart';
@@ -20,6 +21,7 @@ class PlaylistsView extends ConsumerStatefulWidget {
 
 class _PlaylistsViewState extends ConsumerState<PlaylistsView> {
   PlaylistEntity? _selectedPlaylist;
+  bool _showDownloads = false;
 
   @override
   void initState() {
@@ -37,8 +39,15 @@ class _PlaylistsViewState extends ConsumerState<PlaylistsView> {
       if (next == 2) { 
         ref.read(playlistProvider.notifier).loadPlaylists();
         if (_selectedPlaylist != null) setState(() => _selectedPlaylist = null);
+        if (_showDownloads) setState(() => _showDownloads = false);
       }
     });
+
+    if (_showDownloads) {
+      return DownloadedSongsView(
+        onBack: () => setState(() => _showDownloads = false),
+      );
+    }
 
     final selectedPlaylist = _selectedPlaylist;
     if (selectedPlaylist != null) {
@@ -79,6 +88,14 @@ class _PlaylistsViewState extends ConsumerState<PlaylistsView> {
             ),
             centerTitle: true,
             actions: [
+              ExcludeFocus(
+                child: TextButton.icon(
+                  autofocus: false,
+                  onPressed: () => setState(() => _showDownloads = true),
+                  icon: const Icon(Icons.download_for_offline_rounded, color: AetherColors.accentCyan, size: 20),
+                  label: const Text('DOWNLOADS', style: TextStyle(color: AetherColors.accentCyan, fontSize: 11, letterSpacing: 1)),
+                ),
+              ),
               ExcludeFocus(
                 child: TextButton.icon(
                   autofocus: false,

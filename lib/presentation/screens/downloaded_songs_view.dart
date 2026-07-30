@@ -14,8 +14,9 @@ import '../state/library_provider.dart';
 import '../../domain/entities/song_entity.dart';
 
 class DownloadedSongsView extends ConsumerStatefulWidget {
+  final VoidCallback? onBack;
 
-  const DownloadedSongsView({super.key});
+  const DownloadedSongsView({super.key, this.onBack});
 
   @override
   ConsumerState<DownloadedSongsView> createState() => _DownloadedSongsViewState();
@@ -82,6 +83,12 @@ class _DownloadedSongsViewState extends ConsumerState<DownloadedSongsView> {
             backgroundColor: Colors.transparent,
             pinned: true,
             automaticallyImplyLeading: false,
+            leading: widget.onBack != null
+                ? IconButton(
+                    icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+                    onPressed: widget.onBack,
+                  )
+                : null,
             flexibleSpace: FlexibleSpaceBar(
               centerTitle: true,
               title: Text(

@@ -4,6 +4,8 @@
 *.log
 *.pyc
 *.swp
+*.apk
+*.zip
 .buildlog/
 .history
 
