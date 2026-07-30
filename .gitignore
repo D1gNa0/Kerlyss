@@ -131,3 +131,6 @@ app.*.symbols
 !docs/workflow/*.md
 !STRUCTURE_AND_PURPOSE.md
 !APP_DISTRIBUTION_GUIDE.md
+
+graphify-out/
+scratch/

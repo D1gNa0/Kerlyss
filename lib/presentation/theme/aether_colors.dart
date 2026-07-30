@@ -19,4 +19,12 @@ class AetherColors {
   // Text
   static const Color textPrimary = Color(0xFFF9FAFB);
   static const Color textSecondary = Color(0xFF9CA3AF);
+
+  // Status & Notifications (Centralized error/warning)
+  static const Color error = Color(0xFFEF4444); // Red Accent
+  static const Color warning = Color(0xFFF59E0B); // Amber Warning
+
+  // Network Configuration
+  static const String androidUserAgent = 'Mozilla/5.0 (Linux; Android 13; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36';
+  static const String iosUserAgent = 'com.google.ios.youtube/19.29.1 (iPhone16,2; U; CPU iOS 17_5_1 like Mac OS X;)';
 }

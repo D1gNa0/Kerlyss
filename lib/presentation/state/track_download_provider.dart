@@ -4,14 +4,13 @@ import '../../core/services/logger_service.dart';
 import '../../core/services/app_storage_paths.dart';
 import '../../data/datasources/remote/youtube_service.dart';
 import '../../data/repositories/repository_providers.dart';
-import '../../data/models/song_model.dart';
 import '../../domain/entities/song_entity.dart';
 import '../../domain/entities/audio_source_type.dart';
 import 'download_state_provider.dart';
 import 'downloaded_songs_provider.dart';
 import 'library_provider.dart';
 
-final trackDownloadServiceProvider = Provider((ref) => TrackDownloadService(ref));
+final trackDownloadServiceProvider = Provider(TrackDownloadService.new);
 
 class TrackDownloadService {
   final Ref ref;
@@ -66,11 +65,7 @@ class TrackDownloadService {
 
       if (destinationPath != null) {
         // Persist in Isar
-        final isarService = ref.read(isarDatabaseServiceProvider);
-        await isarService.updateLocalPath(
-          SongModel.fromEntity(song), 
-          destinationPath,
-        );
+        await ref.read(songRepositoryProvider).updateLocalPath(song, destinationPath);
 
         // Sanity check: verify file exists
         if (await File(destinationPath).exists()) {
@@ -95,12 +90,16 @@ class TrackDownloadService {
     }
   }
 
-  /// Downloads a list of songs sequentially.
+  /// Downloads a list of songs with configurable parallelism.
   /// Skips already downloaded or currently downloading tracks.
-  Future<void> downloadMultiple(List<SongEntity> songs) async {
+  /// Uses [parallelism] to control concurrent downloads (default: 2).
+  Future<void> downloadMultiple(
+    List<SongEntity> songs, {
+    int parallelism = 2,
+  }) async {
     final notifier = ref.read(downloadStateProvider.notifier);
     final state = ref.read(downloadStateProvider);
-    
+
     // Filter out songs that don't need downloading
     final toDownload = songs.where((song) {
       final isDownloading = state.downloadingTrackIds.contains(song.id);
@@ -113,20 +112,35 @@ class TrackDownloadService {
       return;
     }
 
-    Log.i('Bulk download: Starting sequential download for ${toDownload.length} songs.');
+    Log.i('Bulk download: Starting with $parallelism parallel downloads for ${toDownload.length} songs.');
     notifier.startBulk(toDownload.length);
-    
-    for (final song in toDownload) {
-      try {
-        await downloadTrack(song);
-      } catch (e) {
-        Log.e('Bulk download: Failed for ${song.id}: $e');
-        // Continue with next song despite error
-      } finally {
-        notifier.incrementBulk();
-      }
+
+    // Process songs in chunks to maintain parallelism limit
+    final List<List<SongEntity>> chunks = [];
+    for (var i = 0; i < toDownload.length; i += parallelism) {
+      final end = (i + parallelism < toDownload.length)
+          ? i + parallelism
+          : toDownload.length;
+      chunks.add(toDownload.sublist(i, end));
     }
-    
+
+    // Download each chunk in parallel, but chunks sequentially
+    for (final chunk in chunks) {
+      await Future.wait(
+        chunk.map((song) async {
+          try {
+            await downloadTrack(song);
+          } catch (e) {
+            Log.e('Bulk download: Failed for ${song.id}: $e');
+            // Continue with next song despite error
+          } finally {
+            notifier.incrementBulk();
+          }
+        }),
+        eagerError: false,
+      );
+    }
+
     Log.i('Bulk download: Finished.');
   }
 
@@ -150,8 +164,7 @@ class TrackDownloadService {
         await File(pathToDelete).delete();
       }
 
-      final isarService = ref.read(isarDatabaseServiceProvider);
-      await isarService.updateLocalPath(SongModel.fromEntity(song), null);
+      await ref.read(songRepositoryProvider).updateLocalPath(song, null);
 
       final current = ref.read(downloadStateProvider).alreadyDownloadedIds;
       final newSet = Set<String>.from(current)..remove(song.id);

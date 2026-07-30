@@ -42,15 +42,15 @@ class AetherGlass extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                AetherColors.glassWhite.withOpacity(opacity),
-                AetherColors.glassWhite.withOpacity(opacity * 0.2),
+                AetherColors.glassWhite.withValues(alpha: opacity),
+                AetherColors.glassWhite.withValues(alpha: opacity * 0.2),
               ],
             ),
             borderGradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                AetherColors.glassBorder.withOpacity(0.1),
+                AetherColors.glassBorder.withValues(alpha: 0.1),
                 Colors.transparent,
               ],
             ),

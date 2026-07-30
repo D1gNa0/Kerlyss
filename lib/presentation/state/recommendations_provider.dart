@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/song_entity.dart';
+import '../../core/services/logger_service.dart';
 import '../../core/services/stream_resolution_cache.dart';
 import '../../data/datasources/remote/deezer_public_service.dart';
 import '../../data/repositories/repository_providers.dart';
@@ -64,6 +65,7 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
   final Random _random = Random();
   DateTime? _lastInvalidatedAt;
   DateTime? _nextRetryAllowedAt;
+  int _fetchRequestId = 0;
 
   RecommendationsNotifier(this._ref, this._deezerService)
       : super(RecommendationState(similarSongs: [], trendingSongs: [], isLoading: false)) {
@@ -72,6 +74,7 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
 
   Future<void> fetchRecommendations({bool force = false}) async {
     if (state.isLoading) return;
+    final requestId = ++_fetchRequestId;
     if (!force && _nextRetryAllowedAt != null && DateTime.now().isBefore(_nextRetryAllowedAt!)) {
       return;
     }
@@ -158,7 +161,7 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
 
           // Tier C: global fallback using popular Deezer queries
           if (similar.length < _targetCount) {
-            final fallbackResults = await fallbackResultsFuture!;
+            final fallbackResults = await fallbackResultsFuture;
             _mergeCandidates(
               pool: similar,
               incoming: fallbackResults,
@@ -237,9 +240,10 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
 
         _prefetchPlaybackCandidates(similar, trending);
       }
-    } catch (e) {
+    } catch (e, stack) {
+      Log.e('RecommendationsNotifier: fetchRecommendations failed: $e', e, stack);
       _nextRetryAllowedAt = DateTime.now().add(const Duration(seconds: 30));
-      if (mounted) {
+      if (mounted && requestId == _fetchRequestId) {
         state = state.copyWith(
           isLoading: false,
         );
@@ -450,5 +454,11 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
     }
 
     return true;
+  }
+
+  @override
+  void dispose() {
+    _nextRetryAllowedAt = null;
+    super.dispose();
   }
 }

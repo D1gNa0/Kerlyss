@@ -46,7 +46,7 @@ class SpotifyImportPanel extends ConsumerWidget {
         padding: const EdgeInsets.all(24),
         margin: const EdgeInsets.symmetric(horizontal: 24),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05),
+          color: Colors.white.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: Colors.white12),
         ),
@@ -63,7 +63,7 @@ class SpotifyImportPanel extends ConsumerWidget {
             Text(
               'Paste a public Spotify playlist link into the search bar above to import its tracks into Kerlyss.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.7)),
+              style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.7)),
             ),
             const SizedBox(height: 24),
             if (isImporting) ...[
@@ -93,7 +93,7 @@ class SpotifyImportPanel extends ConsumerWidget {
                       }
                     : null,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.lightGreenAccent.withOpacity(0.2),
+                  backgroundColor: Colors.lightGreenAccent.withValues(alpha: 0.2),
                   foregroundColor: Colors.lightGreenAccent,
                   padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),

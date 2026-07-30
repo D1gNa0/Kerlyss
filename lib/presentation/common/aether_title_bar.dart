@@ -103,7 +103,7 @@ class _WinBtnState extends State<_WinBtn> {
   Widget build(BuildContext context) {
     final hoverBg = widget.isClose
         ? const Color(0xFFE81123) // Classic Windows red
-        : Colors.white.withOpacity(0.12);
+        : Colors.white.withValues(alpha: 0.12);
 
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),

@@ -103,7 +103,7 @@ class DiscoverySearchNotifier extends StateNotifier<DiscoverySearchState> {
       state = state.copyWith(
         isLoading: false,
         results: [],
-        error: 'Failed to search: \${e.toString()}',
+        error: 'Failed to search: $e',
       );
     }
   }

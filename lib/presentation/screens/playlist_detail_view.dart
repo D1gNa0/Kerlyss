@@ -4,20 +4,17 @@ import '../common/aether_song_tile.dart';
 import '../state/audio_state.dart';
 import '../theme/aether_colors.dart';
 import '../state/playlist_provider.dart';
-import '../state/audio_state.dart';
 import '../state/audio_provider.dart';
 import '../state/library_provider.dart';
 import '../state/track_download_provider.dart';
 import '../state/download_state_provider.dart';
-import '../../domain/entities/audio_source_type.dart';
 import '../../domain/entities/song_entity.dart';
-import '../common/source_badge.dart';
 import '../common/mini_player.dart';
-import '../../data/models/playlist_model.dart';
+import '../../domain/entities/playlist_entity.dart';
 import '../common/app_dialogs.dart';
 
 class PlaylistDetailView extends ConsumerStatefulWidget {
-  final PlaylistModel playlist;
+  final PlaylistEntity playlist;
   final VoidCallback? onBack;
   const PlaylistDetailView({super.key, required this.playlist, this.onBack});
 
@@ -28,15 +25,17 @@ class PlaylistDetailView extends ConsumerStatefulWidget {
 class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
   List<SongEntity>? _loadedSongs;
   bool _isLoading = true;
+  late String _playlistName;
 
   @override
   void initState() {
     super.initState();
+    _playlistName = widget.playlist.name;
     _loadSongs();
   }
 
   Future<void> _loadSongs() async {
-    final songs = await ref.read(playlistProvider.notifier).getPlaylistSongs(widget.playlist.id);
+    final songs = await ref.read(playlistProvider.notifier).getPlaylistSongs(widget.playlist.id!);
     if (mounted) {
       // Sort: Newest First to match library sorting
       songs.sort((a, b) => b.dateAdded.compareTo(a.dateAdded));
@@ -75,13 +74,16 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
           child: IconButton(
             icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
             onPressed: () {
-              if (widget.onBack != null) widget.onBack!();
-              else Navigator.pop(context);
+              if (widget.onBack != null) {
+                widget.onBack!();
+              } else {
+                Navigator.pop(context);
+              }
             },
           ),
         ),
         title: Text(
-          widget.playlist.name.toUpperCase(),
+          _playlistName.toUpperCase(),
           style: Theme.of(context).textTheme.displayMedium?.copyWith(
             fontSize: 14,
             letterSpacing: 4,
@@ -143,13 +145,13 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
   }
 
   Widget _buildEmptyState() {
-    return Center(
+    return const Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.music_note_rounded, color: Colors.white10, size: 48),
-          const SizedBox(height: 16),
-          const Text(
+          Icon(Icons.music_note_rounded, color: Colors.white10, size: 48),
+          SizedBox(height: 16),
+          Text(
             'NO SONGS IN THIS PLAYLIST',
             style: TextStyle(color: Colors.white24, letterSpacing: 2, fontSize: 10),
           ),
@@ -168,11 +170,11 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
           song: song,
           onDownload: () => ref.read(trackDownloadServiceProvider).downloadTrack(song),
           onRemove: () async {
-            await ref.read(playlistProvider.notifier).removeSongFromPlaylist(widget.playlist.id, song.id);
+            await ref.read(playlistProvider.notifier).removeSongFromPlaylist(widget.playlist.id!, song.id);
             _loadSongs();
           },
-          onTap: () {
-            final playlist = _loadedSongs!.map((s) => SongMetadata.fromEntity(s)).toList();
+           onTap: () {
+            final playlist = _loadedSongs!.map(SongMetadata.fromEntity).toList();
             
             ref.read(audioProvider.notifier).playPlaylist(playlist, index);
           },
@@ -190,10 +192,10 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
       initialValue: widget.playlist.name,
     ).then((value) async {
       if (value == null || value.isEmpty) return;
-      await ref.read(playlistProvider.notifier).renamePlaylist(widget.playlist.id, value);
+      await ref.read(playlistProvider.notifier).renamePlaylist(widget.playlist.id!, value);
       if (!mounted) return;
       setState(() {
-        widget.playlist.name = value;
+        _playlistName = value;
       });
     });
   }
@@ -206,11 +208,13 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
       confirmLabel: 'DELETE',
     ).then((confirmed) {
       if (!confirmed) return;
-      ref.read(playlistProvider.notifier).deletePlaylist(widget.playlist.id);
-      if (widget.onBack != null) {
-        widget.onBack!();
-      } else {
-        Navigator.pop(context);
+      ref.read(playlistProvider.notifier).deletePlaylist(widget.playlist.id!);
+      if (context.mounted) {
+        if (widget.onBack != null) {
+          widget.onBack!();
+        } else {
+          Navigator.pop(context);
+        }
       }
     });
   }

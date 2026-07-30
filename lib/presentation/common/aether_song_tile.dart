@@ -54,7 +54,7 @@ class AetherSongTile extends ConsumerWidget {
         child: ListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          tileColor: Colors.white.withOpacity(0.02),
+          tileColor: Colors.white.withValues(alpha: 0.02),
           onTap: onTap,
           leading: Stack(
             alignment: Alignment.bottomRight,
@@ -270,7 +270,7 @@ class AetherSongTile extends ConsumerWidget {
                         : const Icon(Icons.add_circle_outline_rounded, color: Colors.white24, size: 18),
                       onTap: () {
                         if (isAlreadyAdded) return;
-                        ref.read(playlistProvider.notifier).addSongToPlaylist(p.id, song);
+                        ref.read(playlistProvider.notifier).addSongToPlaylist(p.id!, song);
                         Navigator.pop(context);
                         ToastService.show(context, 'Added to ${p.name}');
                       },

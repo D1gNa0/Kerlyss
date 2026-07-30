@@ -7,21 +7,21 @@ abstract class Failure {
 }
 
 class NetworkFailure extends Failure {
-  const NetworkFailure([String message = 'Network request failed.']) : super(message);
+  const NetworkFailure([super.message = 'Network request failed.']);
 }
 
 class ParsingFailure extends Failure {
-  const ParsingFailure([String message = 'Failed to parse response.']) : super(message);
+  const ParsingFailure([super.message = 'Failed to parse response.']);
 }
 
 class StorageFailure extends Failure {
-  const StorageFailure([String message = 'Local storage operation failed.']) : super(message);
+  const StorageFailure([super.message = 'Local storage operation failed.']);
 }
 
 class SearchFailure extends Failure {
-  const SearchFailure([String message = 'Search operation failed.']) : super(message);
+  const SearchFailure([super.message = 'Search operation failed.']);
 }
 
 class AudioPlaybackFailure extends Failure {
-  const AudioPlaybackFailure([String message = 'Audio playback failed.']) : super(message);
+  const AudioPlaybackFailure([super.message = 'Audio playback failed.']);
 }

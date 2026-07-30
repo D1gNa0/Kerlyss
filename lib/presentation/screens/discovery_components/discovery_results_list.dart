@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../domain/entities/song_entity.dart';
 import '../../state/audio_provider.dart';
 import '../../state/audio_state.dart';
-import '../../state/download_state_provider.dart';
 import '../../common/aether_song_tile.dart';
 
 class DiscoveryResultsList extends ConsumerWidget {
@@ -21,8 +20,6 @@ class DiscoveryResultsList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final downloadState = ref.watch(downloadStateProvider);
-
     return SliverPadding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       sliver: SliverList(

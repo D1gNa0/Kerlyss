@@ -1,15 +1,65 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:dio/dio.dart';
 import 'package:path/path.dart' as p;
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import '../../../core/services/logger_service.dart';
 
+class DownloadChunk {
+  final int startOffset;
+  final List<int> data;
+  DownloadChunk(this.startOffset, this.data);
+}
+
+class Lock {
+  bool _locked = false;
+  final _waiters = <Completer<void>>[];
+
+  Future<T> synchronized<T>(Future<T> Function() action) async {
+    while (_locked) {
+      final completer = Completer<void>();
+      _waiters.add(completer);
+      await completer.future;
+    }
+    _locked = true;
+    try {
+      return await action();
+    } finally {
+      _locked = false;
+      if (_waiters.isNotEmpty) {
+        _waiters.removeAt(0).complete();
+      }
+    }
+  }
+}
+
+/// Reusable HTTP client for YouTube downloads with connection pooling.
+/// YouTube throttles connections, so we limit concurrent downloads.
+class YoutubeDownloadClient {
+  static final HttpClient _sharedClient = HttpClient()
+    ..maxConnectionsPerHost = 6
+    ..connectionTimeout = const Duration(seconds: 30);
+
+  static HttpClient get instance => _sharedClient;
+
+  static const String _userAgent =
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+  static const String _referer = 'https://www.youtube.com/';
+
+  static Future<HttpClientRequest> createRequest(Uri url, {String? range}) async {
+    final req = await _sharedClient.getUrl(url);
+    req.headers.set(HttpHeaders.userAgentHeader, _userAgent);
+    req.headers.set('Referer', _referer);
+    if (range != null) {
+      req.headers.set(HttpHeaders.rangeHeader, range);
+    }
+    return req;
+  }
+}
+
 class YoutubeService {
   final YoutubeExplode _yt = YoutubeExplode();
-  final Dio _dio;
 
-  YoutubeService(this._dio);
+  YoutubeService();
 
   YoutubeExplode get client => _yt;
 
@@ -44,7 +94,14 @@ class YoutubeService {
 
   /// Extracts the direct audio stream URI for a given video ID.
   Future<String> getStreamUri(String videoId) async {
-    final manifest = await _yt.videos.streamsClient.getManifest(videoId);
+    final manifest = await _yt.videos.streamsClient.getManifest(
+      videoId,
+      ytClients: [
+        YoutubeApiClient.ios,
+        YoutubeApiClient.android,
+        YoutubeApiClient.androidVr,
+      ],
+    );
     final audioStreamInfo = manifest.audioOnly.withHighestBitrate();
     return audioStreamInfo.url.toString();
   }
@@ -55,7 +112,7 @@ class YoutubeService {
     void Function(double progress)? onProgress,
   }) async {
     try {
-      Log.i('YoutubeService: Starting install for $videoId');
+      Log.i('YoutubeService: Starting download for $videoId');
       final manifest = await _yt.videos.streamsClient.getManifest(
         videoId,
         ytClients: [YoutubeApiClient.androidVr],
@@ -65,7 +122,8 @@ class YoutubeService {
       if (muxedStreams.isEmpty) {
         throw Exception('No standalone muxed streams available for this video.');
       }
-      
+
+      // Use highest bitrate muxed stream for best quality
       final audioStreamInfo = (muxedStreams..sort((a, b) => b.bitrate.compareTo(a.bitrate))).first;
       final totalSize = audioStreamInfo.size.totalBytes;
       final rawUrl = audioStreamInfo.url;
@@ -76,47 +134,129 @@ class YoutubeService {
         await parent.create(recursive: true);
       }
 
-      const int connections = 4;
-      final int chunkSize = (totalSize / connections).ceil();
+      // Single connection download with progress tracking
+      // Note: YouTube throttles multi-connection downloads, so we use single connection
+      // which is actually faster due to no overhead of managing chunks
+      final progressCompleter = Completer<void>();
+      final receivedBytes = List<int>.empty(growable: true);
+      int lastReportedPercent = 0;
+
+      final request = await YoutubeDownloadClient.createRequest(rawUrl);
+      request.close().then((response) async {
+        try {
+          await for (final chunk in response) {
+            receivedBytes.addAll(chunk);
+            if (onProgress != null) {
+              final percent = (receivedBytes.length * 100 ~/ totalSize);
+              if (percent != lastReportedPercent && percent <= 100) {
+                lastReportedPercent = percent;
+                onProgress(receivedBytes.length / totalSize);
+              }
+            }
+          }
+          progressCompleter.complete();
+        } catch (e) {
+          progressCompleter.completeError(e);
+        }
+      }).catchError((e) {
+        progressCompleter.completeError(e);
+      });
+
+      await progressCompleter.future;
+
+      // Write to file
+      await file.writeAsBytes(receivedBytes);
+
+      Log.i('YoutubeService: Download finalized successfully for $videoId');
+      return file;
+    } catch (e) {
+      Log.e('YoutubeService: Download failed for $videoId: $e');
+      rethrow;
+    }
+  }
+
+  /// Downloads a track using parallel chunks for faster speeds.
+  /// Use this for large files where YouTube doesn't throttle aggressively.
+  Future<File> downloadTrackParallel(
+    String videoId,
+    String destinationPath, {
+    void Function(double progress)? onProgress,
+    int connections = 3,
+  }) async {
+    try {
+      Log.i('YoutubeService: Starting parallel download for $videoId ($connections connections)');
+      final manifest = await _yt.videos.streamsClient.getManifest(
+        videoId,
+        ytClients: [YoutubeApiClient.androidVr],
+      );
+
+      final muxedStreams = manifest.muxed.toList();
+      if (muxedStreams.isEmpty) {
+        throw Exception('No standalone muxed streams available for this video.');
+      }
+
+      final audioStreamInfo = muxedStreams.first;
+      final totalSize = audioStreamInfo.size.totalBytes;
+      final rawUrl = audioStreamInfo.url;
+
+      final file = File(destinationPath);
+      final parent = file.parent;
+      if (!await parent.exists()) {
+        await parent.create(recursive: true);
+      }
+
+      final chunkSize = (totalSize / connections).ceil();
+      final partResults = List<DownloadChunk?>.filled(connections, null);
+
+      // Atomic progress tracking using a lock
       int totalDownloaded = 0;
-      final partResults = List<List<int>>.filled(connections, []);
+      int lastReportedPercent = 0;
+      final progressLock = Lock();
 
       Future<void> downloadPart(int i) async {
         final start = i * chunkSize;
         final end = (start + chunkSize - 1).clamp(0, totalSize - 1);
         if (start >= totalSize) return;
 
-        final client = HttpClient();
-        final req = await client.getUrl(rawUrl);
-        req.headers.set(HttpHeaders.userAgentHeader,
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-        req.headers.set('Referer', 'https://www.youtube.com/');
-        req.headers.set(HttpHeaders.rangeHeader, 'bytes=$start-$end');
+        final req = await YoutubeDownloadClient.createRequest(
+          rawUrl,
+          range: 'bytes=$start-$end',
+        );
         final res = await req.close();
 
         final bytes = <int>[];
         await for (final chunk in res) {
           bytes.addAll(chunk);
-          totalDownloaded += chunk.length;
-          if (onProgress != null) onProgress(totalDownloaded / totalSize);
+          if (onProgress != null) {
+            await progressLock.synchronized(() async {
+              totalDownloaded += chunk.length;
+              final percent = (totalDownloaded * 100 ~/ totalSize);
+              if (percent != lastReportedPercent && percent <= 100) {
+                lastReportedPercent = percent;
+                onProgress(totalDownloaded / totalSize);
+              }
+            });
+          }
         }
-        partResults[i] = bytes;
-        client.close();
+        partResults[i] = DownloadChunk(start, bytes);
       }
 
       await Future.wait(List.generate(connections, downloadPart));
 
+      // Combine chunks in order
       final sink = file.openWrite();
-      for (final part in partResults) {
-        sink.add(part);
+      for (var i = 0; i < partResults.length; i++) {
+        if (partResults[i] != null) {
+          sink.add(partResults[i]!.data);
+        }
       }
       await sink.flush();
       await sink.close();
 
-      Log.i('YoutubeService: Install finalized successfully for $videoId');
+      Log.i('YoutubeService: Parallel download finalized for $videoId');
       return file;
-    } catch (e, stack) {
-      Log.e('YoutubeService: Install failed for $videoId: $e');
+    } catch (e) {
+      Log.e('YoutubeService: Parallel download failed for $videoId: $e');
       rethrow;
     }
   }

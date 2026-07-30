@@ -103,6 +103,7 @@ class ImportStateNotifier extends StateNotifier<ImportState> {
               newFailed.add(query);
             }
           } catch (e) {
+            Log.w('ImportStateNotifier: Failed to resolve "$query": $e');
             newFailed.add(query);
           }
         }));

@@ -62,11 +62,11 @@ class _AetherLinkSearchBarState extends ConsumerState<AetherLinkSearchBar> {
             border: InputBorder.none,
             hintText: 'PASTE LINK TO IMPORT...',
             hintStyle: TextStyle(
-              color: Colors.white.withOpacity(0.3),
+              color: Colors.white.withValues(alpha: 0.3),
               fontSize: 12,
               letterSpacing: 2,
             ),
-            icon: Icon(Icons.link_rounded, color: Colors.white.withOpacity(0.5), size: 20),
+            icon: Icon(Icons.link_rounded, color: Colors.white.withValues(alpha: 0.5), size: 20),
           ),
         ),
       ),
@@ -102,7 +102,7 @@ class ResolutionPreviewCard extends ConsumerWidget {
                 errorBuilder: (_, __, ___) => Container(
                   width: 56,
                   height: 56,
-                  color: Colors.white.withOpacity(0.05),
+                  color: Colors.white.withValues(alpha: 0.05),
                   child: const Icon(Icons.music_note_rounded, color: Colors.white24, size: 24),
                 ),
               ),

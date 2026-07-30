@@ -3,13 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../theme/aether_colors.dart';
 import '../../core/services/toast_service.dart';
 import '../state/playlist_provider.dart';
-import '../common/aether_glass.dart';
 import 'playlist_detail_view.dart';
 import '../state/navigation_provider.dart';
 import '../state/track_download_provider.dart';
 import '../state/library_provider.dart';
 import '../state/download_state_provider.dart';
-import '../../data/models/playlist_model.dart';
+import '../../domain/entities/playlist_entity.dart';
 import '../common/app_dialogs.dart';
 
 class PlaylistsView extends ConsumerStatefulWidget {
@@ -20,7 +19,7 @@ class PlaylistsView extends ConsumerStatefulWidget {
 }
 
 class _PlaylistsViewState extends ConsumerState<PlaylistsView> {
-  PlaylistModel? _selectedPlaylist;
+  PlaylistEntity? _selectedPlaylist;
 
   @override
   void initState() {
@@ -60,7 +59,7 @@ class _PlaylistsViewState extends ConsumerState<PlaylistsView> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Colors.white.withOpacity(0.02),
+              Colors.white.withValues(alpha: 0.02),
               Colors.transparent,
             ],
           ),
@@ -101,7 +100,7 @@ class _PlaylistsViewState extends ConsumerState<PlaylistsView> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.playlist_add_rounded, color: Colors.white12, size: 64),
+                    const Icon(Icons.playlist_add_rounded, color: Colors.white12, size: 64),
                     const SizedBox(height: 16),
                     const Text(
                       'NO PLAYLISTS YET',
@@ -159,7 +158,7 @@ class _PlaylistsViewState extends ConsumerState<PlaylistsView> {
 }
 
 class _PlaylistTile extends ConsumerWidget {
-  final PlaylistModel playlist;
+  final PlaylistEntity playlist;
   final VoidCallback onSelect;
   const _PlaylistTile({required this.playlist, required this.onSelect});
 
@@ -188,12 +187,12 @@ class _PlaylistTile extends ConsumerWidget {
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        tileColor: Colors.white.withOpacity(0.03),
+        tileColor: Colors.white.withValues(alpha: 0.03),
         leading: Container(
           width: 48,
           height: 48,
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
+            color: Colors.white.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(
@@ -213,7 +212,7 @@ class _PlaylistTile extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: AetherColors.primaryAccent.withOpacity(0.1),
+                  color: AetherColors.primaryAccent.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: const Text('DOWNLOADED', style: TextStyle(color: AetherColors.primaryAccent, fontSize: 8, fontWeight: FontWeight.bold)),
@@ -232,7 +231,7 @@ class _PlaylistTile extends ConsumerWidget {
                 child: IconButton(
                   icon: const Icon(Icons.download_for_offline_rounded, color: Colors.white24, size: 20),
                   onPressed: () async {
-                    final songs = await ref.read(playlistProvider.notifier).getPlaylistSongs(playlist.id);
+                    final songs = await ref.read(playlistProvider.notifier).getPlaylistSongs(playlist.id!);
                     ref.read(trackDownloadServiceProvider).downloadMultiple(songs);
                   },
                   tooltip: 'Download All',
@@ -259,8 +258,10 @@ class _PlaylistTile extends ConsumerWidget {
       confirmLabel: 'DELETE',
     ).then((confirmed) {
       if (!confirmed) return;
-      ref.read(playlistProvider.notifier).deletePlaylist(playlist.id);
-      ToastService.show(context, 'Deleted ${playlist.name}');
+      ref.read(playlistProvider.notifier).deletePlaylist(playlist.id!);
+      if (context.mounted) {
+        ToastService.show(context, 'Deleted ${playlist.name}');
+      }
     });
   }
 }

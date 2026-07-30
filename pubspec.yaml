@@ -25,7 +25,7 @@ dependencies:
   on_audio_query: ^2.9.0
   glassmorphism: ^3.0.0
   google_fonts: ^6.2.1
-  youtube_explode_dart: 3.0.5
+  youtube_explode_dart: ^3.0.5
   string_similarity: ^2.0.0
   html: ^0.15.4
   window_manager: ^0.5.1

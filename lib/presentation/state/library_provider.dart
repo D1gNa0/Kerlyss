@@ -28,6 +28,10 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
   final LocalDownloadLibrary _localDownloadLibrary;
 
   final Ref _ref;
+  bool _isLoading = false;
+  int _loadRequestId = 0;
+  DateTime? _lastReloadTime;
+  static const _minReloadInterval = Duration(seconds: 2);
 
   LibraryNotifier(this._repository, this._localDownloadLibrary, this._ref) : super(const LibraryState()) {
     loadLibrary();
@@ -45,7 +49,7 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
           !nextIds.containsAll(previousIds);
 
       if (downloadSetChanged) {
-        loadLibrary();
+        _debouncedLoadLibrary();
       }
     });
   }
@@ -60,14 +64,26 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
           !previousSongIds.containsAll(nextSongIds) ||
           !nextSongIds.containsAll(previousSongIds);
 
-      // Only refresh the library when playlist membership changed, not when a playlist is renamed.
       if (playlistSongsChanged) {
-        loadLibrary();
+        _debouncedLoadLibrary();
       }
     });
   }
 
+  void _debouncedLoadLibrary() {
+    final now = DateTime.now();
+    if (_lastReloadTime != null && now.difference(_lastReloadTime!) < _minReloadInterval) {
+      return;
+    }
+    _lastReloadTime = now;
+    loadLibrary();
+  }
+
   Future<void> loadLibrary() async {
+    if (_isLoading) return;
+    _isLoading = true;
+    final requestId = ++_loadRequestId;
+
     final isInitialLoad = state.favoriteSongs.isEmpty && state.allSongs.isEmpty;
     if (isInitialLoad) {
       state = LibraryState(isLoading: true, favoriteSongs: [], allSongs: []);
@@ -76,22 +92,27 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
     try {
       final favorites = await _repository.getFavorites();
       final all = await _repository.getAllSongs();
-      
-      // Also scan disk for anything that might not be in Isar (e.g. manually added files)
       final downloaded = await _localDownloadLibrary.listDownloadedSongs();
-      // ─── FILTERING: Only include managed tracks in "All Tracks" ────────────────
-      // A track is "managed" if it is a favorite or it is physically downloaded.
-      final List<SongEntity> rawAll = List.from(all);
-      
-      // Sync disk files (same as before)
+
+      final favoriteIds = favorites.map((s) => s.id).toSet();
+      final playlistSongIds = _ref.read(playlistProvider).playlists
+          .expand((p) => p.songIds)
+          .toSet();
       final knownLocalPaths = all
-          .where((song) => song.localPath != null)
-          .map((song) => song.localPath!)
+          .where((s) => s.localPath != null)
+          .map((s) => s.localPath!)
           .toSet();
 
+      final List<SongEntity> filteredAll = [];
+      for (final song in all) {
+        if (favoriteIds.contains(song.id) || song.localPath != null || playlistSongIds.contains(song.id)) {
+          filteredAll.add(song);
+        }
+      }
+
       for (final diskSong in downloaded) {
-        if (!knownLocalPaths.contains(diskSong.path)) {
-          rawAll.add(SongEntity(
+        if (!knownLocalPaths.contains(diskSong.path) && playlistSongIds.contains(diskSong.path)) {
+          filteredAll.add(SongEntity(
             id: diskSong.path,
             title: diskSong.title,
             artist: 'Local File',
@@ -100,22 +121,10 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
             sourceUrl: diskSong.path,
             sourceType: AudioSourceType.local,
             localPath: diskSong.path,
-            dateAdded: diskSong.modifiedAt, // Use stable file date
+            dateAdded: diskSong.modifiedAt,
           ));
         }
       }
-
-      // FINAL FILTER: Only keep if it's a favorite, downloaded, OR in a playlist
-      final favoriteIds = favorites.map((s) => s.id).toSet();
-      final playlistSongIds = _ref.read(playlistProvider).playlists
-          .expand((p) => p.songIds)
-          .toSet();
-
-      final filteredAll = rawAll.where((s) => 
-        favoriteIds.contains(s.id) || 
-        s.localPath != null || 
-        playlistSongIds.contains(s.id)
-      ).toList();
 
       // ─── STABLE SORTING: Date Added (Newest First) -> Title (A-Z) ───────────
       int stableSort(SongEntity a, SongEntity b) {
@@ -134,13 +143,18 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
         allSongs: filteredAll,
         favoriteSongIds: sortedFavorites.map((song) => song.id).toSet(),
       );
-    } catch (e) {
+    } catch (e, stack) {
+      Log.e('LibraryNotifier: loadLibrary failed: $e', e, stack);
       state = LibraryState(
         isLoading: false,
         favoriteSongs: state.favoriteSongs,
         allSongs: state.allSongs,
         favoriteSongIds: state.favoriteSongIds,
       );
+    } finally {
+      if (requestId == _loadRequestId) {
+        _isLoading = false;
+      }
     }
   }
 
@@ -179,6 +193,12 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
 
   bool isSongFavorite(String id) {
     return state.favoriteSongIds.contains(id);
+  }
+
+  @override
+  void dispose() {
+    _isLoading = false;
+    super.dispose();
   }
 }
 

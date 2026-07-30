@@ -79,7 +79,7 @@ class MiniPlayer extends ConsumerWidget {
                         child: Container(
                           width: 40,
                           height: 40,
-                          color: Colors.white.withOpacity(0.05),
+                          color: Colors.white.withValues(alpha: 0.05),
                           child: (hasSong && currentSong.artworkUrl != null)
                               ? Image.network(
                                   currentSong.artworkUrl!, 
@@ -126,15 +126,9 @@ class MiniPlayer extends ConsumerWidget {
                                   },
                                 ).then((newBpm) {
                                   if (newBpm != null && newBpm is int) {
-                                    // Manually update the state current song to reflect instantly without waiting for re-fetch
                                     final current = ref.read(audioProvider).currentSong;
                                     if (current.id == currentSong.id) {
-                                      final updated = SongMetadata(
-                                        id: current.id, title: current.title, artist: current.artist, 
-                                        album: current.album, artworkUrl: current.artworkUrl, duration: current.duration, 
-                                        source: current.source, bpm: newBpm
-                                      );
-                                      ref.read(audioProvider.notifier).state = ref.read(audioProvider).copyWith(currentSong: updated);
+                                      ref.read(audioProvider.notifier).updateCurrentSongBpm(newBpm);
                                     }
                                   }
                                 });
@@ -160,7 +154,7 @@ class MiniPlayer extends ConsumerWidget {
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(4),
                                       border: Border.all(
-                                        color: AetherColors.accentCyan.withOpacity(0.3)
+                                        color: AetherColors.accentCyan.withValues(alpha: 0.3)
                                       ),
                                     ),
                                     child: Text(
@@ -292,7 +286,7 @@ class MiniPlayer extends ConsumerWidget {
                           ? audioState.position.inMilliseconds / currentSong.duration.inMilliseconds
                           : 0.0,
                       minHeight: 2, // Hair-thin Spotify aesthetic
-                      backgroundColor: Colors.white.withOpacity(0.03),
+                      backgroundColor: Colors.white.withValues(alpha: 0.03),
                       valueColor: const AlwaysStoppedAnimation<Color>(Colors.white54),
                     ),
                   ),
@@ -308,7 +302,7 @@ class MiniPlayer extends ConsumerWidget {
                     child: LinearProgressIndicator(
                       value: downloadProgress.clamp(0.0, 1.0),
                       minHeight: 2,
-                      backgroundColor: Colors.white.withOpacity(0.05),
+                      backgroundColor: Colors.white.withValues(alpha: 0.05),
                       valueColor: const AlwaysStoppedAnimation<Color>(AetherColors.primaryAccent),
                     ),
                   ),

@@ -27,10 +27,14 @@ class _FlatLogPrinter extends LogPrinter {
       _ => 'LOG',
     };
 
-    final lines = <String>['$color$levelStr: ${event.message}$reset'];
+    final messageStr = event.message.toString();
+    final truncatedMessage = messageStr.length > 1000 ? '${messageStr.substring(0, 1000)}... [truncated]' : messageStr;
+    final lines = <String>['$color$levelStr: $truncatedMessage$reset'];
 
     if (event.error != null) {
-      lines.add('$color$levelStr ERROR: ${event.error}$reset');
+      final errorStr = event.error.toString();
+      final truncatedError = errorStr.length > 500 ? '${errorStr.substring(0, 500)}... [truncated]' : errorStr;
+      lines.add('$color$levelStr ERROR: $truncatedError$reset');
     }
 
     if (event.stackTrace != null) {
@@ -73,53 +77,62 @@ class _FileSysLogOutput extends LogOutput {
 
 
 class Log {
-  static late Logger _logger;
-  static late _FileSysLogOutput _fileOutput;
+  static Logger? _logger;
+  static _FileSysLogOutput? _fileOutput;
+
+  static Logger get _instance {
+    _logger ??= Logger(
+      level: Level.info,
+      printer: _FlatLogPrinter(),
+      output: ConsoleOutput(),
+    );
+    return _logger!;
+  }
 
   static Future<void> init() async {
     _fileOutput = _FileSysLogOutput();
-    await _fileOutput.init();
+    await _fileOutput!.init();
 
     _logger = Logger(
       level: Level.info,
       printer: _FlatLogPrinter(),
       output: MultiOutput([
         ConsoleOutput(),
-        _fileOutput,
+        _fileOutput!,
       ]),
     );
     
     i('Kerlyss Logger Initialized.');
-    i('Log file: ${_fileOutput.file?.path ?? "File logging unavailable"}');
+    i('Log file: ${_fileOutput?.file?.path ?? "File logging unavailable"}');
   }
 
   /// Log a message at level [Level.trace].
   static void t(dynamic message, [dynamic error, StackTrace? stackTrace]) {
-    _logger.t(message, error: error, stackTrace: stackTrace);
+    _instance.t(message, error: error, stackTrace: stackTrace);
   }
 
   /// Log a message at level [Level.debug].
   static void d(dynamic message, [dynamic error, StackTrace? stackTrace]) {
-    _logger.d(message, error: error, stackTrace: stackTrace);
+    _instance.d(message, error: error, stackTrace: stackTrace);
   }
 
   /// Log a message at level [Level.info].
   static void i(dynamic message, [dynamic error, StackTrace? stackTrace]) {
-    _logger.i(message, error: error, stackTrace: stackTrace);
+    _instance.i(message, error: error, stackTrace: stackTrace);
   }
 
   /// Log a message at level [Level.warning].
   static void w(dynamic message, [dynamic error, StackTrace? stackTrace]) {
-    _logger.w(message, error: error, stackTrace: stackTrace);
+    _instance.w(message, error: error, stackTrace: stackTrace);
   }
 
   /// Log a message at level [Level.error].
   static void e(dynamic message, [dynamic error, StackTrace? stackTrace]) {
-    _logger.e(message, error: error, stackTrace: stackTrace);
+    _instance.e(message, error: error, stackTrace: stackTrace);
   }
 
   /// Log a message at level [Level.fatal].
   static void f(dynamic message, [dynamic error, StackTrace? stackTrace]) {
-    _logger.f(message, error: error, stackTrace: stackTrace);
+    _instance.f(message, error: error, stackTrace: stackTrace);
   }
 }

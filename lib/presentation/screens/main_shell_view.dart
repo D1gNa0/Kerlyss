@@ -9,7 +9,6 @@ import '../state/keyboard_shortcuts_provider.dart';
 import 'home_view.dart';
 import 'playlists_view.dart';
 import 'discovery_view.dart';
-import 'downloaded_songs_view.dart';
 
 import '../common/aether_bottom_nav.dart';
 import '../common/mini_player.dart';
@@ -83,7 +82,6 @@ class _MainShellViewState extends ConsumerState<MainShellView> {
   @override
   Widget build(BuildContext context) {
     final currentIndex = ref.watch(navigationProvider);
-    final audioState = ref.watch(audioProvider);
 
     return Scaffold(
       backgroundColor: AetherColors.deepMatteBlack,
@@ -113,7 +111,7 @@ class _MainShellViewState extends ConsumerState<MainShellView> {
           const AetherTitleBar(),
 
           // Global Player & Navigation
-          Align(
+          const Align(
             alignment: Alignment.bottomCenter,
             child: SafeArea(
               top: false,
@@ -122,13 +120,13 @@ class _MainShellViewState extends ConsumerState<MainShellView> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // Bulk Progress Indicator
-                  const _BulkDownloadOverlay(),
+                  _BulkDownloadOverlay(),
 
                   // Global Persistent Player
-                  const MiniPlayer(),
+                  MiniPlayer(),
                   
                   // Navigation Bar
-                  const AetherBottomNav(),
+                  AetherBottomNav(),
                 ],
               ),
             ),
@@ -152,12 +150,12 @@ class _BulkDownloadOverlay extends ConsumerWidget {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: AetherColors.ultraDarkGray.withOpacity(0.9),
+        color: AetherColors.ultraDarkGray.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withValues(alpha: 0.3),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),

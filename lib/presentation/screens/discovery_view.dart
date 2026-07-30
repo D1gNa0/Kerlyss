@@ -105,21 +105,21 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
     if (searchState.results.isEmpty) return;
 
     final isarService = ref.read(isarDatabaseServiceProvider);
-    final newAlreadyDownloaded = <String>{};
 
-    for (final song in searchState.results) {
-      final existing = await isarService.getSongById(song.id);
-      if (existing != null && existing.localPath != null) {
-        // Verify file still exists on disk
+    final songIds = searchState.results.map((s) => s.id).toList();
+    final existingSongs = await isarService.getSongsByIds(songIds);
+
+    final newAlreadyDownloaded = <String>{};
+    for (final existing in existingSongs) {
+      if (existing.localPath != null) {
         if (await File(existing.localPath!).exists()) {
-          newAlreadyDownloaded.add(song.id);
+          newAlreadyDownloaded.add(existing.songId);
         }
       }
     }
 
     if (mounted) {
       setState(() {
-
         ref.read(downloadStateProvider.notifier).setAlreadyDownloaded(newAlreadyDownloaded);
       });
     }
@@ -265,7 +265,7 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
                     return ListTile(
                       title: Text(playlist.name, style: const TextStyle(color: Colors.white, fontSize: 14)),
                       onTap: () {
-                        ref.read(playlistProvider.notifier).addSongToPlaylist(playlist.id, song);
+                        ref.read(playlistProvider.notifier).addSongToPlaylist(playlist.id!, song);
                         Navigator.pop(context);
                         ToastService.show(context, 'Added to ${playlist.name}');
                       },

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../theme/aether_colors.dart';
 import '../common/aether_glass.dart';
-import '../state/app_settings_provider.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../../core/services/update_service.dart';
 
@@ -32,7 +31,7 @@ class SettingsView extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
         children: [
-          _SettingsSection(
+          const _SettingsSection(
             title: 'PLAYBACK CONTROLS',
             children: [
               _ShortcutTile(label: 'Play / Pause', value: 'Space'),
@@ -74,8 +73,8 @@ class SettingsView extends ConsumerWidget {
                 },
               ),
               _SettingsTile(
-                label: 'Check for Updates', 
-                value: 'v0.2.1', 
+                label: 'Check for Updates',
+                value: 'Tap to check',
                 onTap: () => UpdateService().checkForUpdates(context),
               ),
             ],
@@ -100,7 +99,7 @@ class _SettingsSection extends StatelessWidget {
         Text(
           title,
           style: TextStyle(
-            color: Colors.white.withOpacity(0.3),
+            color: Colors.white.withValues(alpha: 0.3),
             fontSize: 10,
             letterSpacing: 2,
             fontWeight: FontWeight.bold,
@@ -161,9 +160,9 @@ class _ShortcutTile extends StatelessWidget {
       trailing: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05),
+          color: Colors.white.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: Colors.white.withOpacity(0.1)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
         ),
         child: Text(
           value, 

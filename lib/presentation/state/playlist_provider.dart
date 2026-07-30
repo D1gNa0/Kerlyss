@@ -1,12 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../data/models/playlist_model.dart';
+import '../../domain/entities/playlist_entity.dart';
 import '../../domain/entities/song_entity.dart';
 import '../../domain/repositories/song_repository.dart';
+import '../../domain/repositories/playlist_repository.dart';
 import '../../data/repositories/repository_providers.dart';
-import '../../data/datasources/local/isar_database_service.dart';
+import '../../core/services/logger_service.dart';
 
 class PlaylistState {
-  final List<PlaylistModel> playlists;
+  final List<PlaylistEntity> playlists;
   final bool isLoading;
 
   const PlaylistState({
@@ -15,7 +16,7 @@ class PlaylistState {
   });
 
   PlaylistState copyWith({
-    List<PlaylistModel>? playlists,
+    List<PlaylistEntity>? playlists,
     bool? isLoading,
   }) {
     return PlaylistState(
@@ -26,100 +27,122 @@ class PlaylistState {
 }
 
 class PlaylistNotifier extends StateNotifier<PlaylistState> {
-  final IsarDatabaseService _db;
+  final PlaylistRepository _playlistRepository;
   final SongRepository _songRepository;
 
-  PlaylistNotifier(this._db, this._songRepository) : super(const PlaylistState()) {
+  PlaylistNotifier(this._playlistRepository, this._songRepository) : super(const PlaylistState()) {
     loadPlaylists();
   }
 
   Future<void> loadPlaylists() async {
-    state = state.copyWith(isLoading: true);
-    final playlists = await _db.getAllPlaylists();
-    state = state.copyWith(playlists: playlists, isLoading: false);
+    try {
+      state = state.copyWith(isLoading: true);
+      final playlists = await _playlistRepository.getAllPlaylists();
+      state = state.copyWith(playlists: playlists, isLoading: false);
+    } catch (e, stack) {
+      Log.e('PlaylistNotifier: loadPlaylists failed: $e', e, stack);
+      state = state.copyWith(isLoading: false);
+    }
   }
 
   Future<void> createPlaylist(String name) async {
-    final playlist = PlaylistModel()..name = name..songIds = [];
-    await _db.savePlaylist(playlist);
-    state = state.copyWith(playlists: [...state.playlists, playlist]);
+    try {
+      await _playlistRepository.createPlaylist(name, []);
+      await loadPlaylists();
+    } catch (e, stack) {
+      Log.e('PlaylistNotifier: createPlaylist failed: $e', e, stack);
+    }
   }
 
   Future<void> deletePlaylist(int id) async {
-    await _db.deletePlaylist(id);
-    state = state.copyWith(
-      playlists: state.playlists.where((playlist) => playlist.id != id).toList(),
-    );
+    try {
+      await _playlistRepository.deletePlaylist(id);
+      state = state.copyWith(
+        playlists: state.playlists.where((playlist) => playlist.id != id).toList(),
+      );
+    } catch (e, stack) {
+      Log.e('PlaylistNotifier: deletePlaylist failed: $e', e, stack);
+    }
   }
 
   Future<void> renamePlaylist(int id, String newName) async {
-    final playlist = await _db.getPlaylistById(id);
-    if (playlist != null) {
-      playlist.name = newName;
-      await _db.savePlaylist(playlist);
-      final updatedPlaylists = state.playlists.map((existing) {
-        if (existing.id == id) {
-          existing.name = newName;
-        }
-        return existing;
-      }).toList();
-      state = state.copyWith(playlists: updatedPlaylists);
+    try {
+      final playlist = await _playlistRepository.getPlaylistById(id);
+      if (playlist != null) {
+        final updated = playlist.copyWith(name: newName);
+        await _playlistRepository.savePlaylist(updated);
+        final updatedPlaylists = state.playlists.map((existing) {
+          if (existing.id == id) {
+            return updated;
+          }
+          return existing;
+        }).toList();
+        state = state.copyWith(playlists: updatedPlaylists);
+      }
+    } catch (e, stack) {
+      Log.e('PlaylistNotifier: renamePlaylist failed: $e', e, stack);
     }
   }
 
   Future<void> addSongToPlaylist(int playlistId, SongEntity song) async {
-    // 1. Ensure metadata is saved (even if not downloaded/favorite)
-    await _songRepository.saveSong(song);
+    try {
+      await _songRepository.saveSong(song);
+      final playlist = await _playlistRepository.getPlaylistById(playlistId);
+      if (playlist == null) return;
 
-    // 2. Fetch playlist
-    final playlist = await _db.getPlaylistById(playlistId);
-    if (playlist == null) return;
-
-    // 3. Add ID if not already there
-    if (!playlist.songIds.contains(song.id)) {
-      final updatedIds = List<String>.from(playlist.songIds)..add(song.id);
-      playlist.songIds = updatedIds;
-      await _db.savePlaylist(playlist);
-      final updatedPlaylists = state.playlists.map((existing) {
-        if (existing.id == playlistId) {
-          existing.songIds = updatedIds;
-        }
-        return existing;
-      }).toList();
-      state = state.copyWith(playlists: updatedPlaylists);
+      if (!playlist.songIds.contains(song.id)) {
+        final updatedIds = List<String>.from(playlist.songIds)..add(song.id);
+        final updated = playlist.copyWith(songIds: updatedIds);
+        await _playlistRepository.savePlaylist(updated);
+        final updatedPlaylists = state.playlists.map((existing) {
+          if (existing.id == playlistId) {
+            return updated;
+          }
+          return existing;
+        }).toList();
+        state = state.copyWith(playlists: updatedPlaylists);
+      }
+    } catch (e, stack) {
+      Log.e('PlaylistNotifier: addSongToPlaylist failed: $e', e, stack);
     }
   }
 
   Future<void> removeSongFromPlaylist(int playlistId, String songId) async {
-    final playlist = await _db.getPlaylistById(playlistId);
-    if (playlist == null) return;
+    try {
+      final playlist = await _playlistRepository.getPlaylistById(playlistId);
+      if (playlist == null) return;
 
-    final updatedIds = List<String>.from(playlist.songIds)..remove(songId);
-    playlist.songIds = updatedIds;
-    await _db.savePlaylist(playlist);
-    final updatedPlaylists = state.playlists.map((existing) {
-      if (existing.id == playlistId) {
-        existing.songIds = updatedIds;
-      }
-      return existing;
-    }).toList();
-    state = state.copyWith(playlists: updatedPlaylists);
+      final updatedIds = List<String>.from(playlist.songIds)..remove(songId);
+      final updated = playlist.copyWith(songIds: updatedIds);
+      await _playlistRepository.savePlaylist(updated);
+      final updatedPlaylists = state.playlists.map((existing) {
+        if (existing.id == playlistId) {
+          return updated;
+        }
+        return existing;
+      }).toList();
+      state = state.copyWith(playlists: updatedPlaylists);
+    } catch (e, stack) {
+      Log.e('PlaylistNotifier: removeSongFromPlaylist failed: $e', e, stack);
+    }
   }
 
-  /// Fetches the full SongEntity objects for a playlist.
   Future<List<SongEntity>> getPlaylistSongs(int playlistId) async {
-    final playlist = await _db.getPlaylistById(playlistId);
-    if (playlist == null) return [];
+    try {
+      final playlist = await _playlistRepository.getPlaylistById(playlistId);
+      if (playlist == null || playlist.songIds.isEmpty) return [];
 
-    final songs = await Future.wait(
-      playlist.songIds.map(_songRepository.getSongById),
-    );
-    return songs.whereType<SongEntity>().toList();
+      final songs = await _songRepository.getSongsByIds(playlist.songIds);
+      return songs;
+    } catch (e, stack) {
+      Log.e('PlaylistNotifier: getPlaylistSongs failed: $e', e, stack);
+      return [];
+    }
   }
 }
 
 final playlistProvider = StateNotifierProvider<PlaylistNotifier, PlaylistState>((ref) {
-  final db = ref.watch(isarDatabaseServiceProvider);
-  final repository = ref.watch(songRepositoryProvider);
-  return PlaylistNotifier(db, repository);
+  final repository = ref.watch(playlistRepositoryProvider);
+  final songRepository = ref.watch(songRepositoryProvider);
+  return PlaylistNotifier(repository, songRepository);
 });

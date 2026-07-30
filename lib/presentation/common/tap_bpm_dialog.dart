@@ -130,13 +130,13 @@ class _TapBpmDialogState extends ConsumerState<TapBpmDialog> with SingleTickerPr
                   height: 160,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: _taps.isNotEmpty ? AetherColors.primaryAccent.withOpacity(0.2) : Colors.white.withOpacity(0.05),
+                    color: _taps.isNotEmpty ? AetherColors.primaryAccent.withValues(alpha: 0.2) : Colors.white.withValues(alpha: 0.05),
                     border: Border.all(
                       color: _taps.isNotEmpty ? AetherColors.primaryAccent : Colors.white24,
                       width: 2,
                     ),
                     boxShadow: _taps.isNotEmpty ? [
-                      BoxShadow(color: AetherColors.primaryAccent.withOpacity(0.4), blurRadius: 20)
+                      BoxShadow(color: AetherColors.primaryAccent.withValues(alpha: 0.4), blurRadius: 20)
                     ] : [],
                   ),
                   alignment: Alignment.center,
@@ -157,7 +157,7 @@ class _TapBpmDialogState extends ConsumerState<TapBpmDialog> with SingleTickerPr
             const SizedBox(height: 12),
             Text(
               'Tap to the rhythm of the beat',
-              style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 12),
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12),
             ),
             
             const SizedBox(height: 32),

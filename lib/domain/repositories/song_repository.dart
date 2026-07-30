@@ -30,8 +30,14 @@ abstract class SongRepository {
   /// Saves or updates song metadata without necessarily marking as favorite.
   Future<void> saveSong(SongEntity song);
 
+  /// Updates the local path of a specific song in local storage.
+  Future<void> updateLocalPath(SongEntity song, String? path);
+
   /// Fetches a song by its unique ID.
   Future<SongEntity?> getSongById(String id);
+
+  /// Fetches multiple songs by their IDs (batch operation).
+  Future<List<SongEntity>> getSongsByIds(List<String> ids);
 
   /// Scrapes a Spotify playlist link for tracks.
   Future<SpotifyPlaylistModel> getPlaylistFromSpotifyUrl(String url);
@@ -44,5 +50,8 @@ abstract class SongRepository {
 
   /// Updates the BPM of a specific song in local storage.
   Future<void> updateBpm(String id, int bpm);
+
+  /// Prefetches and caches the streaming manifest for a song in the background.
+  Future<void> prefetchSongStream(SongEntity song);
 }
 

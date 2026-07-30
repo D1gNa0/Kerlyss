@@ -12,8 +12,6 @@ import '../../core/services/toast_service.dart';
 
 import '../state/library_provider.dart';
 import '../../domain/entities/song_entity.dart';
-import '../../data/models/playlist_model.dart';
-import '../theme/aether_colors.dart';
 
 class DownloadedSongsView extends ConsumerStatefulWidget {
 

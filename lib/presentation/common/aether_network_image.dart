@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../theme/aether_colors.dart';
 
 /// A professional, themed network image wrapper with caching and transitions.
 class AetherNetworkImage extends StatelessWidget {
@@ -25,6 +24,9 @@ class AetherNetworkImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final maxWidth = (width != null && width!.isFinite) ? (width! * 2).toInt() : 512;
+    final maxHeight = (height != null && height!.isFinite) ? (height! * 2).toInt() : 512;
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(borderRadius),
       child: CachedNetworkImage(
@@ -32,6 +34,8 @@ class AetherNetworkImage extends StatelessWidget {
         width: width,
         height: height,
         fit: fit,
+        memCacheWidth: maxWidth,
+        memCacheHeight: maxHeight,
         fadeInDuration: const Duration(milliseconds: 300),
         placeholder: (context, url) => placeholder ?? _buildDefaultPlaceholder(),
         errorWidget: (context, url, error) => errorWidget ?? _buildDefaultError(),
@@ -43,7 +47,7 @@ class AetherNetworkImage extends StatelessWidget {
     return Container(
       width: width,
       height: height,
-      color: Colors.white.withOpacity(0.05),
+      color: Colors.white.withValues(alpha: 0.05),
       child: Center(
         child: SizedBox(
           width: (width ?? 44) * 0.5,
@@ -61,7 +65,7 @@ class AetherNetworkImage extends StatelessWidget {
     return Container(
       width: width,
       height: height,
-      color: Colors.white.withOpacity(0.03),
+      color: Colors.white.withValues(alpha: 0.03),
       child: Icon(
         Icons.music_note_rounded,
         color: Colors.white12,

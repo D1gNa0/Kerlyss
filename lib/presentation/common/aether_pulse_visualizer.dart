@@ -93,7 +93,7 @@ class AetherPulsePainter extends CustomPainter {
       final double bassBoost = bands.take(4).reduce((a, b) => a + b) / 4.0;
       final double targetRadius = baseRadius + (ringOffset * 60) + (bassBoost * 20);
 
-      paint.color = primaryColor.withOpacity(opacity.clamp(0.1, 0.4));
+      paint.color = primaryColor.withValues(alpha: opacity.clamp(0.1, 0.4));
       paint.strokeWidth = 2.0 + (bassBoost * 4);
 
       canvas.drawCircle(center, targetRadius, paint);
@@ -113,7 +113,7 @@ class AetherPulsePainter extends CustomPainter {
       ..strokeWidth = 1.5;
 
     paint.shader = LinearGradient(
-      colors: [primaryColor.withOpacity(opacity), secondaryColor.withOpacity(opacity)],
+      colors: [primaryColor.withValues(alpha: opacity), secondaryColor.withValues(alpha: opacity)],
     ).createShader(Rect.fromCircle(center: center, radius: radius + 20));
 
     for (int i = 0; i <= points; i++) {

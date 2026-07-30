@@ -1,8 +1,9 @@
-import '../../data/models/playlist_model.dart';
+import '../entities/playlist_entity.dart';
 
 abstract class PlaylistRepository {
   Future<void> createPlaylist(String name, List<String> songIds);
-  Future<List<PlaylistModel>> getAllPlaylists();
+  Future<List<PlaylistEntity>> getAllPlaylists();
   Future<void> deletePlaylist(int id);
-  Future<PlaylistModel?> getPlaylistById(int id);
+  Future<PlaylistEntity?> getPlaylistById(int id);
+  Future<void> savePlaylist(PlaylistEntity playlist);
 }

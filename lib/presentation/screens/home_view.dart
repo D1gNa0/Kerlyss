@@ -7,22 +7,13 @@ import '../state/audio_provider.dart';
 import '../state/audio_state.dart';
 import '../state/link_resolver_provider.dart';
 import '../common/aether_loading_pulse.dart';
-import '../common/source_badge.dart';
 import '../common/aether_link_bar.dart';
 import '../state/library_provider.dart';
-import 'settings_view.dart';
 import 'profile_view.dart';
-import 'playlists_view.dart';
-import '../state/playlist_provider.dart';
-import '../state/library_provider.dart';
-import '../state/navigation_provider.dart';
+import 'settings_view.dart';
 import '../common/aether_song_tile.dart';
-import '../state/audio_state.dart';
-import '../../domain/entities/song_entity.dart';
-import '../../domain/entities/audio_source_type.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:kerlyss/l10n/app_localizations.dart';
-import '../common/aether_network_image.dart';
 import '../state/downloaded_songs_provider.dart';
 import '../state/track_download_provider.dart';
 
@@ -39,42 +30,7 @@ final _isDraggingProvider = StateProvider<bool>((ref) => false);
 
 
 
-// ─── Stub marker — red background with label for unimplemented items ─────────
-class _ComingSoon extends StatelessWidget {
-  final String label;
-  final Widget child;
-  const _ComingSoon({required this.label, required this.child});
 
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Opacity(opacity: 0.5, child: child),
-        Positioned.fill(
-          child: Center(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white10),
-              ),
-              child: Text(
-                'COMING SOON',
-                style: const TextStyle(
-                  color: Colors.white38,
-                  fontSize: 7,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.5,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
 
 
 class HomeView extends ConsumerWidget {
@@ -269,44 +225,7 @@ class HomeView extends ConsumerWidget {
     );
   }
 
-  void _showAddToPlaylistDialog(BuildContext context, WidgetRef ref, SongEntity song) {
-    final playlistState = ref.read(playlistProvider);
-    final l10n = AppLocalizations.of(context)!;
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AetherColors.ultraDarkGray,
-        title: Text(l10n.addToPlaylist.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 13, letterSpacing: 2)),
-        content: playlistState.playlists.isEmpty
-            ? const Text('No playlists found. Create one first!', style: TextStyle(color: Colors.white38, fontSize: 12))
-            : SizedBox(
-                width: double.maxFinite,
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: playlistState.playlists.length,
-                  itemBuilder: (context, index) {
-                    final playlist = playlistState.playlists[index];
-                    return ListTile(
-                      title: Text(playlist.name, style: const TextStyle(color: Colors.white, fontSize: 14)),
-                        onTap: () {
-                          ref.read(playlistProvider.notifier).addSongToPlaylist(playlist.id, song);
-                          Navigator.pop(context);
-                          ToastService.show(context, l10n.addedTo(playlist.name));
-                        },
-                    );
-                  },
-                ),
-              ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('CLOSE', style: TextStyle(color: Color(0x57FFFFFF))),
-          ),
-        ],
-      ),
-    );
-  }
+
 
   Future<void> _handleDrop(BuildContext context, WidgetRef ref, DropDoneDetails details) async {
     final localDownloadLibrary = ref.read(localDownloadLibraryProvider);

@@ -13,23 +13,23 @@ class SourceBadge extends StatelessWidget {
     switch (source) {
       case AudioSourceType.local:
         iconData = Icons.phone_android_rounded;
-        color = Colors.blueAccent.withOpacity(0.8);
+        color = Colors.blueAccent.withValues(alpha: 0.8);
         break;
       case AudioSourceType.youtube:
         iconData = Icons.play_circle_filled_rounded;
-        color = Colors.redAccent.withOpacity(0.8);
+        color = Colors.redAccent.withValues(alpha: 0.8);
         break;
       case AudioSourceType.spotify:
         iconData = Icons.circle_rounded;
-        color = Colors.greenAccent.withOpacity(0.8);
+        color = Colors.greenAccent.withValues(alpha: 0.8);
         break;
       case AudioSourceType.jamendo:
         iconData = Icons.library_music_rounded;
-        color = Colors.orangeAccent.withOpacity(0.8);
+        color = Colors.orangeAccent.withValues(alpha: 0.8);
         break;
       case AudioSourceType.deezer:
         iconData = Icons.music_note_rounded;
-        color = Colors.cyanAccent.withOpacity(0.8);
+        color = Colors.cyanAccent.withValues(alpha: 0.8);
         break;
     }
 

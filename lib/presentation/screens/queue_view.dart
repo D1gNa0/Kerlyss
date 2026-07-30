@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../state/audio_provider.dart';
-import '../state/audio_state.dart';
 import '../theme/aether_colors.dart';
 
 class QueueView extends ConsumerWidget {
@@ -17,7 +16,7 @@ class QueueView extends ConsumerWidget {
       width: 350,
       decoration: BoxDecoration(
         color: AetherColors.deepMatteBlack,
-        border: Border(left: BorderSide(color: Colors.white.withOpacity(0.05))),
+        border: Border(left: BorderSide(color: Colors.white.withValues(alpha: 0.05))),
       ),
       child: Column(
         children: [
@@ -64,7 +63,7 @@ class QueueView extends ConsumerWidget {
                       return ListTile(
                         key: ValueKey('${song.id}_$index'),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                        tileColor: isPlaying ? Colors.white.withOpacity(0.05) : Colors.transparent,
+                        tileColor: isPlaying ? Colors.white.withValues(alpha: 0.05) : Colors.transparent,
                         onTap: () {
                           ref.read(audioProvider.notifier).playPlaylist(playlist, index);
                         },

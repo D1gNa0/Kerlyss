@@ -67,7 +67,7 @@ class _NavIcon extends StatelessWidget {
         duration: const Duration(milliseconds: 300),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isActive ? Colors.white.withOpacity(0.1) : Colors.transparent,
+          color: isActive ? Colors.white.withValues(alpha: 0.1) : Colors.transparent,
           shape: BoxShape.circle,
         ),
         child: Icon(

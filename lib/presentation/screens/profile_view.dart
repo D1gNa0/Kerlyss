@@ -76,7 +76,7 @@ class ProfileView extends ConsumerWidget {
                         : ElevatedButton(
                             onPressed: () => ref.read(authProvider.notifier).login(),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white.withOpacity(0.2),
+                              backgroundColor: Colors.white.withValues(alpha: 0.2),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
                             child: const Text('CONNECT TO AETHER', style: TextStyle(color: Colors.white)),

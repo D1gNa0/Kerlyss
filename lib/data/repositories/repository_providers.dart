@@ -11,11 +11,32 @@ import '../datasources/remote/search_aggregator.dart';
 import '../datasources/remote/bpm_scraper_service.dart';
 import '../datasources/remote/deezer_public_service.dart';
 import 'song_repository_impl.dart';
+import '../../domain/repositories/song_repository.dart';
+import '../../core/services/logger_service.dart';
 
 // Data Sources
 final isarDatabaseServiceProvider = Provider((ref) => IsarDatabaseService());
 
-final dioProvider = Provider((ref) => Dio());
+/// Configured Dio instance with connection pooling and reasonable defaults.
+final dioProvider = Provider<Dio>((ref) {
+  final dio = Dio(BaseOptions(
+    connectTimeout: const Duration(seconds: 15),
+    receiveTimeout: const Duration(seconds: 15),
+    sendTimeout: const Duration(seconds: 15),
+  ));
+
+  // Add logging interceptor for debugging
+  dio.interceptors.add(LogInterceptor(
+    requestBody: false,
+    responseBody: false,
+    error: true,
+    logPrint: (o) => Log.d('[Dio] $o'),
+  ));
+
+  ref.onDispose(dio.close);
+
+  return dio;
+});
 
 final spotifyPublicServiceProvider = Provider((ref) {
   final dio = ref.watch(dioProvider);
@@ -28,9 +49,8 @@ final jamendoServiceProvider = Provider((ref) {
 });
 
 final youtubeServiceProvider = Provider((ref) {
-  final dio = ref.watch(dioProvider);
-  final service = YoutubeService(dio);
-  ref.onDispose(() => service.close());
+  final service = YoutubeService();
+  ref.onDispose(service.close);
   return service;
 });
 
@@ -47,7 +67,8 @@ final deezerPublicServiceProvider = Provider((ref) {
 
 final searchAggregatorProvider = Provider((ref) {
   final deezerService = ref.watch(deezerPublicServiceProvider);
-  return SearchAggregator(deezerService);
+  final isarService = ref.watch(isarDatabaseServiceProvider);
+  return SearchAggregator(deezerService, isarService: isarService);
 });
 
 // Repositories
@@ -61,7 +82,7 @@ final bpmScraperServiceProvider = Provider<BpmScraperService>((ref) {
   return BpmScraperService(dio);
 });
 
-final songRepositoryProvider = Provider<SongRepositoryImpl>((ref) {
+final songRepositoryProvider = Provider<SongRepository>((ref) {
   final localDataSource = ref.watch(isarDatabaseServiceProvider);
   final spotifyPublicService = ref.watch(spotifyPublicServiceProvider);
   final youtubeAudioEngine = ref.watch(youtubeAudioEngineProvider);

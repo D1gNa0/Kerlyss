@@ -14,17 +14,19 @@ import 'package:just_audio/just_audio.dart' show AudioSource;
 
 import 'package:kerlyss/core/services/logger_service.dart';
 import 'package:kerlyss/core/services/playback_session_store.dart';
-import 'package:kerlyss/data/datasources/local/local_download_library.dart';
 import 'package:kerlyss/core/services/youtube_proxy_server.dart';
+import 'package:kerlyss/data/datasources/local/local_download_library.dart';
 import 'package:kerlyss/data/datasources/remote/youtube_service.dart';
 import 'package:kerlyss/data/repositories/repository_providers.dart';
-import 'package:kerlyss/data/repositories/song_repository_impl.dart';
+import 'package:kerlyss/domain/repositories/song_repository.dart';
 import 'package:kerlyss/domain/entities/audio_source_type.dart';
-import 'package:kerlyss/domain/entities/song_entity.dart';
 import 'package:kerlyss/presentation/state/downloaded_songs_provider.dart';
 import '../../domain/entities/downloaded_song.dart';
 
 import 'audio_state.dart';
+import 'package:kerlyss/presentation/theme/aether_colors.dart';
+
+final playbackErrorProvider = StateProvider<String?>((ref) => null);
 
 final audioProvider = StateNotifierProvider<AudioNotifier, AudioState>((ref) {
   final localDownloadLibrary = ref.watch(localDownloadLibraryProvider);
@@ -32,6 +34,9 @@ final audioProvider = StateNotifierProvider<AudioNotifier, AudioState>((ref) {
   final youtubeService = ref.watch(youtubeServiceProvider);
   final isarService = ref.read(isarDatabaseServiceProvider);
   final songRepo = ref.read(songRepositoryProvider);
+
+  ref.onDispose(YoutubeProxyServer.stop);
+
   return AudioNotifier(localDownloadLibrary, youtubeService, audioService, isarService, songRepo);
 });
 
@@ -44,7 +49,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
   final LocalDownloadLibrary _localDownloadLibrary;
   final YoutubeService _youtubeService;
   final IsarDatabaseService _isarService;
-  final SongRepositoryImpl _songRepository;
+  final SongRepository _songRepository;
   final PlaybackSessionStore _sessionStore = PlaybackSessionStore();
 
   final _frequencyController = StreamController<List<double>>.broadcast();
@@ -116,8 +121,8 @@ class AudioNotifier extends StateNotifier<AudioState> {
     _subs.add(_audioService.currentIndexStream.listen((index) {
       if (!mounted || index == null) return;
       if (index != state.currentIndex && index >= 0 && index < state.playlist.length) {
-        Log.i('AudioNotifier: Gapless transition to index $index');
         final nextSong = state.playlist[index];
+        Log.i('▶️ [ENGINE_PLAYING] Audio engine switched active track to index $index -> "${nextSong.title}" by "${nextSong.artist}" (ID: ${nextSong.id})');
         state = state.copyWith(
           currentIndex: index,
           currentSong: nextSong,
@@ -125,6 +130,9 @@ class AudioNotifier extends StateNotifier<AudioState> {
         globalAudioHandler.setMediaFromSong(nextSong);
         _schedulePersistSession();
         _checkAndFetchBpm(nextSong);
+
+        // Paced pre-fetch: resolve next 1 song for instant gapless transitions
+        _prefetchUpcomingSongs(index, count: 1);
       }
     }));
 
@@ -163,6 +171,26 @@ class AudioNotifier extends StateNotifier<AudioState> {
       if (!mounted) return;
       state = state.copyWith(bufferedPosition: bufferedPosition);
     }));
+
+    if (_audioService is JustAudioService) {
+      _subs.add(_audioService.errorStream.listen((error) {
+        if (!mounted) return;
+        Log.e('AudioNotifier: Playback error detected: $error');
+        String userMessage = 'Playback failed';
+        if (error.contains('403') || error.contains('Forbidden')) {
+          userMessage = 'Stream unavailable - try downloading the song';
+          YoutubeProxyServer.clearCaches();
+        } else if (error.contains('SocketException') || error.contains('Network')) {
+          userMessage = 'Network error - check your connection';
+        } else if (error.contains('timeout')) {
+          userMessage = 'Connection timeout - try again';
+        }
+        state = state.copyWith(
+          status: PlaybackStatus.error,
+          errorMessage: userMessage,
+        );
+      }));
+    }
 
     _audioService.setVolume(1.0);
   }
@@ -212,6 +240,44 @@ class AudioNotifier extends StateNotifier<AudioState> {
     }
   }
 
+  /// Pre-fetches stream URIs for upcoming songs to enable instant playback.
+  /// [currentIndex] is the currently playing song index.
+  /// [count] is how many upcoming songs to pre-fetch (default: 3).
+  Future<void> _prefetchUpcomingSongs(int currentIndex, {int count = 1}) async {
+    if (currentIndex < 0 || state.playlist.isEmpty) return;
+
+    int staggeredCount = 0;
+    for (var i = 1; i <= count; i++) {
+      final nextIndex = currentIndex + i;
+      if (nextIndex >= state.playlist.length) break;
+
+      final upcomingSong = state.playlist[nextIndex];
+
+      // Only pre-fetch remote sources
+      if (upcomingSong.source == AudioSourceType.deezer ||
+          upcomingSong.source == AudioSourceType.youtube) {
+        if (staggeredCount > 0) {
+          await Future.delayed(const Duration(milliseconds: 1000));
+        }
+        staggeredCount++;
+        unawaited(_prefetchSongStream(upcomingSong));
+      }
+    }
+  }
+
+  Future<void> _prefetchSongStream(SongMetadata song) async {
+    try {
+      final videoId = await _songRepository.resolveStreamUri(song.toEntity());
+
+      // Also pre-fetch the actual stream info through the proxy server
+      if (Platform.isWindows && videoId.isNotEmpty) {
+        YoutubeProxyServer.prefetchStream(videoId, _youtubeService.client);
+      }
+    } catch (e) {
+      Log.w('AudioNotifier: Failed to pre-fetch stream for "${song.title}": $e');
+    }
+  }
+
   Future<void> _restorePlaybackSession() async {
     try {
       _isRestoringSession = true;
@@ -231,7 +297,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
       final clampedIndex = min(max(snapshot.currentIndex, 0), snapshot.playlist.length - 1);
       final restoredSong = snapshot.playlist[clampedIndex];
 
-      state = state.copyWith(status: PlaybackStatus.loading);
+      state = state.copyWith(status: PlaybackStatus.loading, clearError: true);
 
       _audioService.setVolume(snapshot.volume);
 
@@ -348,14 +414,13 @@ class AudioNotifier extends StateNotifier<AudioState> {
   }
 
   /// Plays a playlist starting at [index].
-  /// Reorders queue so clicked song is at position 0 — bypasses broken
-  /// initialIndex on just_audio_windows which always plays index 0.
   Future<void> playPlaylist(List<SongMetadata> playlist, int index) async {
     try {
       if (index < 0 || index >= playlist.length) return;
       final requestId = ++_playRequestId;
       _isRestoringSession = false;
       final clickedSong = playlist[index];
+      Log.i('🎵 [USER_CLICK] User clicked song "${clickedSong.title}" by "${clickedSong.artist}" (ID: ${clickedSong.id}, source: ${clickedSong.source}) at index $index of ${playlist.length}');
 
       final canReuseCurrentQueue = !_isRestoringSession &&
           state.playlist.length == playlist.length &&
@@ -366,43 +431,14 @@ class AudioNotifier extends StateNotifier<AudioState> {
         final existingIndex = state.playlist.indexWhere((song) => song.id == clickedSong.id);
         if (existingIndex >= 0) {
           state = state.copyWith(
-            status: PlaybackStatus.loading,
+            status: PlaybackStatus.loading, clearError: true,
           );
 
-          final currentIdx = (state.currentIndex >= 0)
-              ? state.currentIndex
-              : (_audioService.currentIndex ?? 0);
-
-          int targetIndex = existingIndex;
-          final currentValid = currentIdx >= 0 && currentIdx < state.playlist.length;
-
-          // If clicked song is already in queue, place it right after current song
-          // to preserve queue flow and still play the clicked song immediately.
-          if (currentValid && existingIndex != currentIdx) {
-            int insertionIndex = currentIdx + 1;
-            if (insertionIndex > state.playlist.length) {
-              insertionIndex = state.playlist.length;
-            }
-
-            final reordered = List<SongMetadata>.from(state.playlist);
-            final movedSong = reordered.removeAt(existingIndex);
-            if (existingIndex < insertionIndex) {
-              insertionIndex -= 1;
-            }
-            reordered.insert(insertionIndex, movedSong);
-
-            targetIndex = insertionIndex;
-
-            state = state.copyWith(playlist: reordered);
-            await _audioService.moveInQueue(existingIndex, insertionIndex);
-            if (!mounted || requestId != _playRequestId) return;
-          }
-
-          await _audioService.seek(Duration.zero, index: targetIndex);
+          await _audioService.seek(Duration.zero, index: existingIndex);
           if (!mounted || requestId != _playRequestId) return;
           await _ensurePlaybackStarted();
           if (!mounted || requestId != _playRequestId) return;
-          final resolvedIndex = _audioService.currentIndex ?? targetIndex;
+          final resolvedIndex = _audioService.currentIndex ?? existingIndex;
           if (resolvedIndex < 0 || resolvedIndex >= state.playlist.length) return;
           final resolvedSong = state.playlist[resolvedIndex];
           state = state.copyWith(
@@ -413,33 +449,29 @@ class AudioNotifier extends StateNotifier<AudioState> {
           _syncStatusFromEngine();
           _schedulePersistSession();
           _checkAndFetchBpm(resolvedSong);
+          _prefetchUpcomingSongs(resolvedIndex, count: 1);
           return;
         }
       }
 
-      // Reorder: [clicked, ...after clicked, ...before clicked]
-      final reordered = [
-        ...playlist.sublist(index),
-        ...playlist.sublist(0, index),
-      ];
-
+      // Maintain exact 1-to-1 playlist order without rotation: [0, 1, 2, 3...]
       state = state.copyWith(
-        playlist: reordered,
-        status: PlaybackStatus.loading,
+        playlist: playlist,
+        status: PlaybackStatus.loading, clearError: true,
       );
 
       final sources = await Future.wait(
-        reordered.map((song) => _buildAudioSource(song)),
+        playlist.map((song) => _buildAudioSource(song)),
       );
       if (!mounted || requestId != _playRequestId) return;
 
-      await _audioService.setAudioQueue(sources, initialIndex: 0, play: false);
+      await _audioService.setAudioQueue(sources, initialIndex: index, play: true);
       if (!mounted || requestId != _playRequestId) return;
       await _ensurePlaybackStarted();
       if (!mounted || requestId != _playRequestId) return;
-      final resolvedIndex = _audioService.currentIndex ?? 0;
-      if (resolvedIndex < 0 || resolvedIndex >= reordered.length) return;
-      final resolvedSong = reordered[resolvedIndex];
+      final resolvedIndex = _audioService.currentIndex ?? index;
+      if (resolvedIndex < 0 || resolvedIndex >= playlist.length) return;
+      final resolvedSong = playlist[resolvedIndex];
       state = state.copyWith(
         currentIndex: resolvedIndex,
         currentSong: resolvedSong,
@@ -448,6 +480,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
       _syncStatusFromEngine();
       _schedulePersistSession();
       _checkAndFetchBpm(resolvedSong);
+      _prefetchUpcomingSongs(resolvedIndex, count: 1);
     } catch (e) {
       _setPlaybackError('playPlaylist', e);
     }
@@ -572,7 +605,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
       _isNavigatingQueue = true;
       final nextIndex = (state.currentIndex + 1) % state.playlist.length;
       Log.i('Audio: Seeking next track at index $nextIndex');
-      await _audioService.seek(Duration.zero, index: nextIndex);
+      await _audioService.seek(Duration.zero, index: nextIndex).timeout(const Duration(seconds: 3));
       await _ensurePlaybackStarted();
     } catch (e) {
       _setPlaybackError('next', e);
@@ -587,13 +620,14 @@ class AudioNotifier extends StateNotifier<AudioState> {
       if (state.playlist.isEmpty) return;
       _isNavigatingQueue = true;
       if (_audioService.position > const Duration(seconds: 4)) {
-        await _audioService.seek(Duration.zero);
+        await _audioService.seek(Duration.zero).timeout(const Duration(seconds: 3));
         await _ensurePlaybackStarted();
         return;
       }
-      var prevIndex = state.currentIndex - 1;
-      if (prevIndex < 0) prevIndex = state.playlist.length - 1;
-      await _audioService.seek(Duration.zero, index: prevIndex);
+
+      final prevIndex = (state.currentIndex - 1 + state.playlist.length) % state.playlist.length;
+      Log.i('Audio: Seeking previous track at index $prevIndex');
+      await _audioService.seek(Duration.zero, index: prevIndex).timeout(const Duration(seconds: 3));
       await _ensurePlaybackStarted();
     } catch (e) {
       _setPlaybackError('previous', e);
@@ -603,6 +637,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
   }
 
   Future<AudioSource> _buildAudioSource(SongMetadata song) async {
+    Log.i('🛠️ [BUILD_SOURCE] Building AudioSource for "${song.title}" by "${song.artist}" (ID: ${song.id}, source: ${song.source})');
     // 1. Check Isar Database for local path
     String? localPath;
     try {
@@ -610,7 +645,9 @@ class AudioNotifier extends StateNotifier<AudioState> {
       if (dbSong != null && dbSong.localPath != null) {
         localPath = dbSong.localPath;
       }
-    } catch (_) {}
+    } catch (e) {
+      Log.w('AudioNotifier: Failed to lookup local path for ${song.id}: $e');
+    }
 
     // Fallback: Check local downloads library directly
     if (localPath == null) {
@@ -640,7 +677,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
 
     // 3. Streaming (Remote Source)
     final headers = {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'User-Agent': AetherColors.androidUserAgent,
     };
 
     // Priority: check if the provided sourceUrl is a direct stream URL (not youtube)
@@ -650,22 +687,15 @@ class AudioNotifier extends StateNotifier<AudioState> {
 
     // 4. Deezer track: resolve to YouTube via smart background search
     if (sourceUrl.startsWith('deezer_')) {
-      Log.d('AudioNotifier: Resolving Deezer track "${song.title}" via YouTube search...');
-      final deezerEntity = SongEntity(
-        id: song.id,
-        title: song.title,
-        artist: song.artist,
-        album: song.album ?? 'Unknown Album',
-        albumArtUrl: song.artworkUrl,
-        duration: song.duration,
-        sourceUrl: sourceUrl,
-        sourceType: AudioSourceType.deezer,
-        bpm: song.bpm,
-        dateAdded: DateTime.now(),
-      );
-      final videoId = await _songRepository.resolveStreamUri(deezerEntity);
+      // Lazy Resolution: We pass the query directly to the proxy server!
+      // This prevents the UI from freezing when loading playlists, as the heavy YouTube search
+      // is deferred until the exact moment the audio player tries to buffer the song.
       final port = await YoutubeProxyServer.start(_youtubeService.client);
-      final proxyUrl = 'http://127.0.0.1:$port/?id=$videoId';
+      final queryStr = Uri.encodeComponent('${song.artist} ${song.title}');
+      
+      // We pass the deezer_id to bypass the ID check, and pass the query to trigger lazy search
+      final proxyUrl = 'http://127.0.0.1:$port/?query=$queryStr&deezer_id=${song.id}';
+      
       return AudioSource.uri(Uri.parse(proxyUrl), headers: headers, tag: song);
     }
 
@@ -679,11 +709,39 @@ class AudioNotifier extends StateNotifier<AudioState> {
     }
 
     if (videoId != null && videoId.isNotEmpty) {
-      final port = await YoutubeProxyServer.start(_youtubeService.client);
-      final proxyUrl = 'http://127.0.0.1:$port/?id=$videoId';
-      return AudioSource.uri(Uri.parse(proxyUrl), headers: headers, tag: song);
+      // Universal Streaming Proxy: Works on all platforms (Windows, Android, iOS)
+      try {
+        final port = await YoutubeProxyServer.start(_youtubeService.client);
+        final proxyUrl = 'http://127.0.0.1:$port/?id=$videoId';
+        return AudioSource.uri(Uri.parse(proxyUrl), headers: headers, tag: song);
+      } catch (e) {
+        Log.w('AudioNotifier: Proxy failed for YouTube video "$videoId": $e. Trying direct stream.');
+        try {
+          final directUrl = await _youtubeService.getStreamUri(videoId);
+          return AudioSource.uri(Uri.parse(directUrl), headers: headers, tag: song);
+        } catch (directError) {
+          Log.e('AudioNotifier: Both proxy and direct failed for "$videoId": $directError');
+          rethrow;
+        }
+      }
     } else {
       return AudioSource.uri(Uri.parse(sourceUrl), headers: headers, tag: song);
+    }
+  }
+
+  void updateCurrentSongBpm(int newBpm) {
+    if (state.currentSong.id.isNotEmpty) {
+      final updated = SongMetadata(
+        id: state.currentSong.id,
+        title: state.currentSong.title,
+        artist: state.currentSong.artist,
+        album: state.currentSong.album,
+        artworkUrl: state.currentSong.artworkUrl,
+        duration: state.currentSong.duration,
+        source: state.currentSong.source,
+        bpm: newBpm,
+      );
+      state = state.copyWith(currentSong: updated);
     }
   }
 
@@ -742,7 +800,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
     }
     _visualizerTimer?.cancel();
     _frequencyController.close();
-    _audioService.dispose();
+    _fetchingBpm.clear();
     super.dispose();
   }
 }

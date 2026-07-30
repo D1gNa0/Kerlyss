@@ -45,7 +45,7 @@ class DiscoverySearchBar extends ConsumerWidget {
                         ? l10n.pasteSpotifyLink
                         : l10n.searchPlaceholder,
                     hintStyle: TextStyle(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       fontSize: 12,
                       letterSpacing: 2,
                     ),

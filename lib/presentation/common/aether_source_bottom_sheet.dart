@@ -3,7 +3,6 @@ import 'dart:ui';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../theme/aether_colors.dart';
 import '../state/discovery_search_provider.dart';
-import 'aether_glass.dart';
 import '../../core/services/logger_service.dart';
 
 class AetherSourceBottomSheet extends ConsumerWidget {
@@ -87,7 +86,7 @@ class _SourceOption extends StatelessWidget {
             width: 64,
             height: 64,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
+              color: Colors.white.withValues(alpha: 0.05),
               shape: BoxShape.circle,
               border: Border.all(color: Colors.white10),
             ),

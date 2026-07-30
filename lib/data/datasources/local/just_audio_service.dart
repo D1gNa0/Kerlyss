@@ -10,7 +10,22 @@ class JustAudioService implements AudioServiceInterface {
   ConcatenatingAudioSource? _activeQueue;
   int _queueLoadToken = 0;
 
-  JustAudioService() : _player = globalAudioHandler.player;
+  final _errorController = StreamController<String>.broadcast();
+  Stream<String> get errorStream => _errorController.stream;
+
+  JustAudioService() : _player = globalAudioHandler.player {
+    _player.playbackEventStream.listen((event) {}, onError: (error, stack) {
+      Log.e('JustAudioService: Playback error: $error');
+      _errorController.add(error.toString());
+    });
+
+    _player.playerStateStream.listen((state) {
+      if (state.processingState == ProcessingState.ready && !state.playing) {
+      }
+    });
+
+    _player.setVolume(1.0);
+  }
 
   @override
   Stream<PlaybackStatus> get playbackStatusStream {
@@ -92,11 +107,21 @@ class JustAudioService implements AudioServiceInterface {
   Future<void> setAudioQueue(List<AudioSource> queue, {int initialIndex = 0, bool play = false}) async {
     Log.d('JustAudioService: setting AudioQueue (${queue.length} items, startAt: $initialIndex)');
     final token = ++_queueLoadToken;
-    _activeQueue = ConcatenatingAudioSource(children: queue);
+    _activeQueue = ConcatenatingAudioSource(
+      children: queue,
+      // Pre-load next 2 songs for gapless playback
+      useLazyPreparation: true,
+    );
     try {
-      await _player.setAudioSource(_activeQueue!, initialIndex: initialIndex);
+      await _player.setAudioSource(
+        _activeQueue!,
+        initialIndex: initialIndex,
+      );
       if (token != _queueLoadToken) {
         return;
+      }
+      if (initialIndex > 0 && _player.currentIndex != initialIndex) {
+        await _player.seek(Duration.zero, index: initialIndex);
       }
       if (play) {
         await _player.play();

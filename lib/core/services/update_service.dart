@@ -78,7 +78,7 @@ class UpdateService {
             onPressed: () => Navigator.pop(context),
             child: Text(
               'Later',
-              style: TextStyle(color: Colors.white.withOpacity(0.5)),
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
             ),
           ),
           ElevatedButton(

@@ -11,6 +11,7 @@ import '../models/song_model.dart';
 import '../../domain/entities/audio_source_type.dart';
 import '../../../core/services/logger_service.dart';
 import '../../../core/services/stream_resolution_cache.dart';
+import '../../../core/services/youtube_proxy_server.dart';
 
 class SongRepositoryImpl implements SongRepository {
   final IsarDatabaseService _localDataSource;
@@ -80,54 +81,81 @@ class SongRepositoryImpl implements SongRepository {
 
   @override
   Future<String> resolveStreamUri(SongEntity song) async {
-    // For Deezer tracks: check the pre-resolution cache first (avoids live YouTube search)
-    final isDeezerTrack = song.sourceType == AudioSourceType.deezer ||
-        song.id.startsWith('deezer_') ||
-        song.sourceUrl.startsWith('deezer_');
-
-    if (isDeezerTrack) {
-      final cached = StreamResolutionCache.instance.get(song.id);
-      if (cached != null) {
-        Log.d('SongRepository: Cache HIT for "${song.title}" → $cached');
-        return cached;
-      }
-
-      final inFlight = _inFlightStreamResolutions[song.id];
-      if (inFlight != null) {
-        Log.d('SongRepository: In-flight HIT for "${song.title}" — waiting on existing resolution');
-        return inFlight;
-      }
-
-      final resolution = _resolveDeezerStreamUri(song);
-      _inFlightStreamResolutions[song.id] = resolution;
-
-      try {
-        return await resolution;
-      } finally {
-        final activeResolution = _inFlightStreamResolutions[song.id];
-        if (identical(activeResolution, resolution)) {
-          _inFlightStreamResolutions.remove(song.id);
-        }
+    if (song.localPath != null && song.localPath!.isNotEmpty) {
+      return song.localPath!;
+    }
+    if (song.sourceType == AudioSourceType.local) {
+      final path = song.sourceUrl;
+      if (path.isNotEmpty &&
+          (path.contains('/') ||
+              path.contains('\\') ||
+              path.endsWith('.mp3') ||
+              path.endsWith('.mp4') ||
+              path.endsWith('.m4a'))) {
+        return path;
       }
     }
+    try {
+      final isDeezerTrack = song.sourceType == AudioSourceType.deezer ||
+          song.id.startsWith('deezer_') ||
+          song.sourceUrl.startsWith('deezer_');
 
-    // For YouTube/Spotify tracks, pass the raw ID directly
-    return await _youtubeAudioEngine.getStreamUri(song.sourceUrl);
+      if (isDeezerTrack) {
+        Log.i('🔍 [RESOLVE_URI] Resolving URI for Deezer track "${song.title}" by "${song.artist}" (ID: ${song.id})');
+        final cached = StreamResolutionCache.instance.get(song.id);
+        if (cached != null) {
+          Log.i('🔍 [RESOLVE_URI] Cache HIT for "${song.title}" → YouTube videoId=$cached');
+          return cached;
+        }
+
+        final inFlight = _inFlightStreamResolutions[song.id];
+        if (inFlight != null) {
+          Log.i('🔍 [RESOLVE_URI] In-flight HIT for "${song.title}" — waiting on active resolution');
+          return inFlight;
+        }
+
+        final resolution = _resolveDeezerStreamUri(song);
+        _inFlightStreamResolutions[song.id] = resolution;
+
+        try {
+          return await resolution;
+        } finally {
+          final activeResolution = _inFlightStreamResolutions[song.id];
+          if (identical(activeResolution, resolution)) {
+            _inFlightStreamResolutions.remove(song.id);
+          }
+        }
+      }
+
+      Log.i('🔍 [RESOLVE_URI] Resolving YouTube stream for "${song.title}" (sourceUrl: ${song.sourceUrl})');
+      return await _youtubeAudioEngine.getStreamUri(song.sourceUrl);
+    } catch (e, stack) {
+      Log.e('SongRepository: resolveStreamUri failed for ${song.id}: $e', e, stack);
+      rethrow;
+    }
   }
 
   Future<String> _resolveDeezerStreamUri(SongEntity song) async {
-    final query = '${song.artist} ${song.title}';
-    Log.i('SongRepository: Cache MISS — resolving "$query" to YouTube stream...');
+    try {
+      final query = '${song.artist} ${song.title}';
+      Log.i('🔎 [DEEZER_SEARCH] Searching YouTube for query "$query" (Deezer ID: ${song.id})');
 
-    final results = await _youtubeService.searchVideos(query);
-    if (results.isEmpty) {
-      throw Exception('Could not find a YouTube stream for Deezer track: $query');
+      final results = await _youtubeService.searchVideos(query);
+      if (results.isEmpty) {
+        throw Exception('Could not find a YouTube stream for Deezer track: $query');
+      }
+
+      final videoId = results.first.id.value;
+      StreamResolutionCache.instance.put(song.id, videoId);
+      Log.i('🔎 [DEEZER_SEARCH] Resolved "${song.title}" → YouTube videoId=$videoId');
+
+      YoutubeProxyServer.prefetchStream(videoId, _youtubeService.client);
+
+      return videoId;
+    } catch (e, stack) {
+      Log.e('SongRepository: _resolveDeezerStreamUri failed: $e', e, stack);
+      rethrow;
     }
-
-    final videoId = results.first.id.value;
-    StreamResolutionCache.instance.put(song.id, videoId);
-    Log.d('SongRepository: Resolved "${song.title}" → $videoId');
-    return videoId;
   }
 
   @override
@@ -187,6 +215,13 @@ class SongRepositoryImpl implements SongRepository {
   }
 
   @override
+  Future<List<SongEntity>> getSongsByIds(List<String> ids) async {
+    if (ids.isEmpty) return [];
+    final models = await _localDataSource.getSongsByIds(ids);
+    return models.map((m) => m.toEntity()).toList();
+  }
+
+  @override
   Future<SpotifyPlaylistModel> getPlaylistFromSpotifyUrl(String url) async {
     return await _spotifyPublicService.extractPlaylistData(url);
   }
@@ -212,11 +247,30 @@ class SongRepositoryImpl implements SongRepository {
   }
 
   @override
+  Future<void> updateLocalPath(SongEntity song, String? path) async {
+    final model = SongModel.fromEntity(song);
+    await _localDataSource.updateLocalPath(model, path);
+  }
+
+  @override
   Future<void> updateBpm(String id, int bpm) async {
     final existing = await _localDataSource.getSongById(id);
     if (existing != null) {
       existing.bpm = bpm;
       await _localDataSource.saveSong(existing);
+    }
+  }
+
+  @override
+  Future<void> prefetchSongStream(SongEntity song) async {
+    if (song.sourceType == AudioSourceType.local || song.localPath != null) return;
+    try {
+      final videoId = await resolveStreamUri(song);
+      if (videoId.isNotEmpty) {
+        await YoutubeProxyServer.prefetchStream(videoId, _youtubeService.client);
+      }
+    } catch (e) {
+      Log.w('SongRepository: Failed to pre-fetch stream for "${song.title}": $e');
     }
   }
 }

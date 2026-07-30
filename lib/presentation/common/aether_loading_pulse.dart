@@ -62,7 +62,7 @@ class _AetherLoadingPulseState extends State<AetherLoadingPulse>
                 style: Theme.of(context).textTheme.displayMedium?.copyWith(
                       fontSize: 12,
                       letterSpacing: 4,
-                      color: Colors.white.withOpacity(0.8),
+                      color: Colors.white.withValues(alpha: 0.8),
                     ),
               ),
               const SizedBox(height: 24),

@@ -1,4 +1,8 @@
 import 'package:dio/dio.dart';
+import '../../models/deezer_track_model.dart';
+import '../../models/deezer_track_detail_model.dart';
+import '../../../core/error/exceptions.dart';
+import '../../../core/error/failures.dart';
 import '../../../core/services/logger_service.dart';
 import '../../../domain/entities/song_entity.dart';
 import '../../../domain/entities/audio_source_type.dart';
@@ -40,7 +44,7 @@ class BpmScraperService {
     Log.i('BpmDetection: [START] Requesting URL -> $url');
 
     try {
-      final response = await _dio.get(
+      final response = await _dio.get<Map<String, dynamic>>(
         url,
         options: Options(
           sendTimeout: const Duration(seconds: 10),
@@ -55,47 +59,58 @@ class BpmScraperService {
         if (data != null && data['data'] != null) {
           final List results = data['data'];
           if (results.isNotEmpty) {
-            final firstResult = results[0];
-            final trackId = firstResult['id'];
-            
-            if (trackId != null) {
-              Log.i('BpmDetection: Found track ID $trackId. Fetching full track details...');
+            try {
+              final firstResult = results[0] as Map<String, dynamic>;
+              final model = DeezerTrackModel.fromJson(firstResult);
               
-              // Step 2: Fetch full track details to get BPM
-              final trackUrl = 'https://api.deezer.com/track/$trackId';
-              final trackResponse = await _dio.get(
-                trackUrl,
-                options: Options(
-                  sendTimeout: const Duration(seconds: 10),
-                  receiveTimeout: const Duration(seconds: 10),
-                ),
-              );
+              if (model.id.isNotEmpty) {
+                Log.i('BpmDetection: Found track ID ${model.id}. Fetching full track details...');
+                
+                // Step 2: Fetch full track details to get BPM
+                final trackUrl = 'https://api.deezer.com/track/${model.id}';
+                final trackResponse = await _dio.get<Map<String, dynamic>>(
+                  trackUrl,
+                  options: Options(
+                    sendTimeout: const Duration(seconds: 10),
+                    receiveTimeout: const Duration(seconds: 10),
+                  ),
+                );
 
-              if (trackResponse.statusCode == 200) {
-                final trackData = trackResponse.data;
-                if (trackData != null && trackData['bpm'] != null && trackData['bpm'] > 0) {
-                  final bpm = (trackData['bpm'] as num).round();
-                  Log.i('BpmDetection: [SUCCESS] Found $bpm BPM for "$searchTerms"');
-                  return bpm;
+                if (trackResponse.statusCode == 200) {
+                  final trackData = trackResponse.data;
+                  if (trackData != null) {
+                    final detailModel = DeezerTrackDetailModel.fromJson(trackData);
+                    if (detailModel.bpm != null && detailModel.bpm! > 0) {
+                      Log.i('BpmDetection: [SUCCESS] Found ${detailModel.bpm} BPM for "$searchTerms"');
+                      return detailModel.bpm;
+                    } else {
+                      Log.w('BpmDetection: [FAIL] Track details fetched, but BPM is missing or 0.');
+                    }
+                  }
                 } else {
-                  Log.w('BpmDetection: [FAIL] Track details fetched, but BPM is missing or 0.');
+                   Log.w('BpmDetection: [FAIL] Failed to fetch track details for ID ${model.id}.');
                 }
-              } else {
-                 Log.w('BpmDetection: [FAIL] Failed to fetch track details for ID $trackId.');
               }
+            } catch (e) {
+              Log.w('BpmDetection: [FAIL] Failed to parse track data: $e');
+              throw ParsingFailure('Failed to parse Deezer track: $e');
             }
           } else {
             Log.w('BpmDetection: [FAIL] Deezer returned 0 results for "$searchTerms".');
           }
         } else {
            Log.w('BpmDetection: [FAIL] Unexpected JSON structure from Deezer search.');
+           throw ParsingFailure('Unexpected Deezer response structure');
         }
       }
 
       return null;
-    } catch (e) {
+    } on DioException catch (e) {
       Log.e('BpmDetection: [ERROR] Network/API failure: $e');
-      return null;
+      throw ServerException('Deezer BPM fetch failed: ${e.message}');
+    } catch (e) {
+      Log.e('BpmDetection: [ERROR] Unexpected failure: $e');
+      throw ServerException('BPM detection error: $e');
     }
   }
 
