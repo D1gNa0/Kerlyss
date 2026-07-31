@@ -134,6 +134,7 @@ class _SpotifyPreImportModalState extends ConsumerState<SpotifyPreImportModal> {
                       // Header Card
                       AetherGlass(
                         borderRadius: 16,
+                        height: 104,
                         padding: const EdgeInsets.all(16),
                         child: Row(
                           children: [

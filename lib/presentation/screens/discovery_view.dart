@@ -148,7 +148,10 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
             backgroundColor: Colors.transparent,
             isScrollControlled: true,
             builder: (context) => SpotifyPreImportModal(spotifyUrl: url),
-          );
+          ).then((_) {
+            _searchController.clear();
+            ref.read(discoverySearchProvider.notifier).clearSearch();
+          });
         });
       }
     });
