@@ -121,21 +121,25 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
                   }),
                 ),
                 if (downloadPlaylist)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 20.0),
-                    child: SwitchListTile(
-                      value: autoDownload,
-                      activeColor: Colors.lightGreenAccent,
-                      title: const Row(
+                  SwitchListTile(
+                    value: autoDownload,
+                    activeColor: Colors.lightGreenAccent,
+                    contentPadding: EdgeInsets.zero,
+                    title: const Padding(
+                      padding: EdgeInsets.only(left: 16.0),
+                      child: Row(
                         children: [
                           Icon(Icons.autorenew_rounded, color: Colors.lightGreenAccent, size: 18),
                           SizedBox(width: 8),
                           Text('Auto-Download Newly Added Songs', style: TextStyle(color: Colors.white70, fontSize: 13)),
                         ],
                       ),
-                      subtitle: const Text('Automatically download new tracks when synced', style: TextStyle(color: Colors.white38, fontSize: 11)),
-                      onChanged: (val) => setDialogState(() => autoDownload = val),
                     ),
+                    subtitle: const Padding(
+                      padding: EdgeInsets.only(left: 16.0),
+                      child: Text('Automatically download new tracks when synced', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                    ),
+                    onChanged: (val) => setDialogState(() => autoDownload = val),
                   ),
                 const Divider(color: Colors.white10),
                 ListTile(
