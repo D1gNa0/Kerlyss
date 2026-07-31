@@ -60,19 +60,6 @@ class HomeView extends ConsumerWidget {
               elevation: 0,
               pinned: true,
               automaticallyImplyLeading: false,
-              leading: Padding(
-                padding: const EdgeInsets.only(left: 12.0),
-                child: Center(
-                  child: AetherIconButton(
-                    tooltip: 'Home (Current Screen)',
-                    icon: Icons.grid_view_rounded,
-                    size: 20,
-                    buttonSize: 38,
-                    color: AetherColors.primaryAccent,
-                    onPressed: () {},
-                  ),
-                ),
-              ),
               flexibleSpace: FlexibleSpaceBar(
                 centerTitle: true,
                 title: Text('HOME LIBRARY', style: Theme.of(context).textTheme.displayMedium),

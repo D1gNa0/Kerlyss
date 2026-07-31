@@ -293,36 +293,22 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
         elevation: 0,
         centerTitle: true,
         toolbarHeight: 64,
-        leadingWidth: 96,
         leading: Padding(
           padding: const EdgeInsets.only(left: 12.0),
-          child: Row(
-            children: [
-              AetherIconButton(
-                tooltip: 'Back',
-                icon: Icons.arrow_back_ios_new_rounded,
-                size: 16,
-                buttonSize: 36,
-                onPressed: () {
-                  if (widget.onBack != null) {
-                    widget.onBack!();
-                  } else {
-                    Navigator.pop(context);
-                  }
-                },
-              ),
-              const SizedBox(width: 6),
-              AetherIconButton(
-                tooltip: 'Home',
-                icon: Icons.grid_view_rounded,
-                size: 18,
-                buttonSize: 36,
-                onPressed: () {
-                  if (widget.onBack != null) widget.onBack!();
-                  ref.read(navigationProvider.notifier).setIndex(0);
-                },
-              ),
-            ],
+          child: Center(
+            child: AetherIconButton(
+              tooltip: 'Back',
+              icon: Icons.arrow_back_ios_new_rounded,
+              size: 16,
+              buttonSize: 36,
+              onPressed: () {
+                if (widget.onBack != null) {
+                  widget.onBack!();
+                } else {
+                  Navigator.pop(context);
+                }
+              },
+            ),
           ),
         ),
         title: Text(

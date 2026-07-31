@@ -151,18 +151,6 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
             backgroundColor: Colors.transparent,
             pinned: true,
             automaticallyImplyLeading: false,
-            leading: Padding(
-              padding: const EdgeInsets.only(left: 12.0),
-              child: Center(
-                child: AetherIconButton(
-                  tooltip: 'Home',
-                  icon: Icons.grid_view_rounded,
-                  size: 18,
-                  buttonSize: 36,
-                  onPressed: () => ref.read(navigationProvider.notifier).setIndex(0),
-                ),
-              ),
-            ),
             flexibleSpace: FlexibleSpaceBar(
               centerTitle: true,
               title: Text(

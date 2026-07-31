@@ -41,67 +41,70 @@ class SpotifyImportPanel extends ConsumerWidget {
       }
     });
 
-    return Center(
-      child: Container(
-        padding: const EdgeInsets.all(24),
-        margin: const EdgeInsets.symmetric(horizontal: 24),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white12),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.queue_music_rounded, size: 64, color: Colors.lightGreenAccent),
-            const SizedBox(height: 16),
-            const Text(
-              'Spotify Playlist Importer',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Paste a public Spotify playlist link into the search bar above to import its tracks into Kerlyss.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.7)),
-            ),
-            const SizedBox(height: 24),
-            if (isImporting) ...[
-              CircularProgressIndicator(
-                value: importState.status == ImportStatus.resolving
-                    ? (importState.processedTracks / (importState.totalTracks > 0 ? importState.totalTracks : 1))
-                    : null,
-                color: Colors.lightGreenAccent,
-              ),
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white12),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.queue_music_rounded, size: 64, color: Colors.lightGreenAccent),
               const SizedBox(height: 16),
+              const Text(
+                'Spotify Playlist Importer',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+              const SizedBox(height: 8),
               Text(
-                importState.status == ImportStatus.analyzing
-                    ? 'Analyzing Spotify Playlist...'
-                    : 'Resolving ${importState.processedTracks} of ${importState.totalTracks} tracks...',
-                style: const TextStyle(color: Colors.white),
+                'Paste a public Spotify playlist link into the search bar above to import its tracks into Kerlyss.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.7)),
               ),
-            ] else ...[
-              ElevatedButton(
-                onPressed: searchState.query.isNotEmpty && searchState.query.contains('spotify.com')
-                    ? () {
-                        // Dismiss keyboard
-                        FocusScope.of(context).unfocus();
-                        ref.read(importStateProvider.notifier).importSpotifyPlaylist(
-                              searchState.query,
-                              searchState.downloadOnImport,
-                            );
-                      }
-                    : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.lightGreenAccent.withValues(alpha: 0.2),
-                  foregroundColor: Colors.lightGreenAccent,
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+              const SizedBox(height: 24),
+              if (isImporting) ...[
+                CircularProgressIndicator(
+                  value: importState.status == ImportStatus.resolving
+                      ? (importState.processedTracks / (importState.totalTracks > 0 ? importState.totalTracks : 1))
+                      : null,
+                  color: Colors.lightGreenAccent,
                 ),
-                child: const Text('Start Import', style: TextStyle(fontWeight: FontWeight.bold)),
-              ),
+                const SizedBox(height: 16),
+                Text(
+                  importState.status == ImportStatus.analyzing
+                      ? 'Analyzing Spotify Playlist...'
+                      : 'Resolving ${importState.processedTracks} of ${importState.totalTracks} tracks...',
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ] else ...[
+                ElevatedButton(
+                  onPressed: searchState.query.isNotEmpty && searchState.query.contains('spotify.com')
+                      ? () {
+                          // Dismiss keyboard
+                          FocusScope.of(context).unfocus();
+                          ref.read(importStateProvider.notifier).importSpotifyPlaylist(
+                                searchState.query,
+                                searchState.downloadOnImport,
+                              );
+                        }
+                      : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.lightGreenAccent.withValues(alpha: 0.2),
+                    foregroundColor: Colors.lightGreenAccent,
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                  ),
+                  child: const Text('Start Import', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

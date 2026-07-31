@@ -60,7 +60,7 @@ void main() {
       expect(sizedBox.height, equals(60.0));
     });
 
-    testWidgets('2. Touch targets of mode toggle chip and clear button meet touch constraints',
+    testWidgets('2. Clear button touch target meets touch constraints',
         (WidgetTester tester) async {
       controller.text = 'hello';
       await tester.pumpWidget(createWidgetUnderTest(
@@ -70,7 +70,7 @@ void main() {
       ));
 
       final iconButtons = tester.widgetList<AetherIconButton>(find.byType(AetherIconButton));
-      expect(iconButtons.length, greaterThanOrEqualTo(2));
+      expect(iconButtons.length, equals(1));
 
       for (final btn in iconButtons) {
         expect(btn.buttonSize, greaterThanOrEqualTo(40.0));
