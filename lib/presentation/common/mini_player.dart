@@ -155,14 +155,15 @@ class MiniPlayer extends ConsumerWidget {
                                     padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(4),
+                                      color: AetherColors.primaryAccent.withValues(alpha: 0.1),
                                       border: Border.all(
-                                        color: AetherColors.secondaryAccent.withValues(alpha: 0.4)
+                                        color: AetherColors.primaryAccent.withValues(alpha: 0.4)
                                       ),
                                     ),
                                     child: Text(
                                       '${currentSong.bpm} BPM',
                                       style: const TextStyle(
-                                        color: AetherColors.secondaryAccent,
+                                        color: AetherColors.primaryAccent,
                                         fontSize: 8,
                                         fontWeight: FontWeight.bold,
                                         letterSpacing: 0.5,

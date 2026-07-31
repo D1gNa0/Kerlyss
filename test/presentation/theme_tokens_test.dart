@@ -1,9 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:kerlyss/presentation/theme/aether_colors.dart';
 import 'package:kerlyss/presentation/theme/aether_theme.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  GoogleFonts.config.allowRuntimeFetching = false;
   test('AetherColors defines dark obsidian backdrop, electric indigo primary accent, emerald green success, and crimson error', () {
     expect(AetherColors.deepMatteBlack.value, equals(0xFF0A0A0E));
     expect(AetherColors.primaryAccent.value, equals(0xFF6366F1)); // Tier 3: Electric Indigo Slate

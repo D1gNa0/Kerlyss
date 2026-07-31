@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../state/audio_provider.dart';
 import '../state/audio_state.dart';
 import '../common/aether_title_bar.dart';
+import '../common/aether_glass.dart';
+import '../common/vercel_hover_button.dart';
 import '../theme/aether_colors.dart';
 import '../common/aether_pulse_visualizer.dart';
 import '../common/aether_network_image.dart';
@@ -189,13 +191,13 @@ class FullPlayerView extends ConsumerWidget {
                             borderRadius: BorderRadius.circular(8),
                             color: Colors.white.withValues(alpha: 0.03),
                             border: Border.all(
-                              color: AetherColors.accentCyan.withValues(alpha: 0.4)
+                              color: AetherColors.primaryAccent.withValues(alpha: 0.4)
                             ),
                           ),
                           child: Text(
                             '${currentSong.bpm} BPM',
                             style: const TextStyle(
-                              color: AetherColors.accentCyan,
+                              color: AetherColors.primaryAccent,
                               fontSize: 9,
                               fontWeight: FontWeight.bold,
                               letterSpacing: 1,
@@ -217,7 +219,7 @@ class FullPlayerView extends ConsumerWidget {
                         message: l10n.stubNotImplemented,
                         child: Stack(children: [
                           const Icon(Icons.shuffle_rounded, color: AetherColors.textSecondary, size: 20),
-                          Positioned(top: 0, right: 0, child: Container(width: 6, height: 6, decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle))),
+                          Positioned(top: 0, right: 0, child: Container(width: 6, height: 6, decoration: const BoxDecoration(color: AetherColors.error, shape: BoxShape.circle))),
                         ]),
                       ),
                       IconButton(
@@ -239,55 +241,25 @@ class FullPlayerView extends ConsumerWidget {
                         message: audioState.status == PlaybackStatus.error
                             ? (audioState.errorMessage ?? 'Playback error - tap to retry')
                             : l10n.playPause,
-                        child: GestureDetector(
-                          onTap: () {
-                            if (audioState.status == PlaybackStatus.error) {
-                              ref.read(audioProvider.notifier).togglePlay();
-                            } else {
-                              ref.read(audioProvider.notifier).togglePlay();
-                            }
-                          },
-                          child: Container(
+                        child: VercelHoverButton(
+                          borderRadius: 34,
+                          accentColor: AetherColors.primaryAccent,
+                          padding: EdgeInsets.zero,
+                          onTap: () => ref.read(audioProvider.notifier).togglePlay(),
+                          child: SizedBox(
                             width: 68,
                             height: 68,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: audioState.status == PlaybackStatus.error ? Colors.red : Colors.white,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.white.withValues(alpha: 0.2),
-                                  blurRadius: 20,
-                                ),
-                              ],
-                            ),
-                            child: audioState.status == PlaybackStatus.error
-                                ? const Icon(
-                                    Icons.error_outline_rounded,
-                                    color: Colors.white,
-                                    size: 32,
-                                  )
-                                : Padding(
-                                    padding: EdgeInsets.only(
-                                      left: audioState.status == PlaybackStatus.playing ? 0 : 4,
+                            child: Center(
+                              child: audioState.status == PlaybackStatus.loading || audioState.status == PlaybackStatus.buffering
+                                  ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 3)
+                                  : Icon(
+                                      audioState.status == PlaybackStatus.playing
+                                          ? Icons.pause_rounded
+                                          : Icons.play_arrow_rounded,
+                                      color: AetherColors.textPrimary,
+                                      size: 36,
                                     ),
-                                    child: audioState.status == PlaybackStatus.loading || audioState.status == PlaybackStatus.buffering
-                                        ? SizedBox(
-                                            width: 24,
-                                            height: 24,
-                                            child: CircularProgressIndicator(
-                                              color: audioState.status == PlaybackStatus.error ? Colors.white : Colors.black,
-                                              strokeWidth: 3,
-                                            ),
-                                          )
-                                        : Icon(
-                                            audioState.status == PlaybackStatus.playing
-                                                ? Icons.pause_rounded
-                                                : Icons.play_arrow_rounded,
-                                            color: Colors.black,
-                                            size: 40,
-                                          ),
-                                  ),
+                            ),
                           ),
                         ),
                       ),

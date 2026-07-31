@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../theme/aether_colors.dart';
 import '../state/discovery_search_provider.dart';
 import '../../core/services/logger_service.dart';
+import 'vercel_hover_button.dart';
 
 class AetherSourceBottomSheet extends ConsumerWidget {
   const AetherSourceBottomSheet({super.key});
@@ -78,31 +79,31 @@ class _SourceOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        children: [
-          Container(
+    return Column(
+      children: [
+        VercelHoverButton(
+          onTap: onTap,
+          borderRadius: 32,
+          accentColor: AetherColors.primaryAccent,
+          padding: EdgeInsets.zero,
+          child: SizedBox(
             width: 64,
             height: 64,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.05),
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white10),
+            child: Center(
+              child: Icon(icon, color: AetherColors.textPrimary, size: 28),
             ),
-            child: Icon(icon, color: Colors.white, size: 28),
           ),
-          const SizedBox(height: 12),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontSize: 10,
-                  letterSpacing: 1,
-                  color: AetherColors.textSecondary,
-                ),
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          label,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                fontSize: 10,
+                letterSpacing: 1,
+                color: AetherColors.textSecondary,
+              ),
+        ),
+      ],
     );
   }
 }

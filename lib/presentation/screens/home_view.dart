@@ -7,6 +7,8 @@ import '../state/audio_provider.dart';
 import '../state/audio_state.dart';
 import '../state/link_resolver_provider.dart';
 import '../common/aether_loading_pulse.dart';
+import '../common/aether_glass.dart';
+import '../common/vercel_hover_button.dart';
 import '../common/aether_link_bar.dart';
 import '../state/library_provider.dart';
 import 'profile_view.dart';
@@ -261,21 +263,18 @@ class _CategoryChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ExcludeFocus(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
-          child: Text(
-            label,
-            style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                  fontSize: 11,
-                  color: isActive ? Colors.white : AetherColors.textSecondary,
-                  fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-                ),
-          ),
-        ),
+    return VercelHoverButton(
+      onTap: onTap,
+      borderRadius: 16,
+      accentColor: AetherColors.primaryAccent,
+      padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.displayMedium?.copyWith(
+              fontSize: 11,
+              color: isActive ? AetherColors.primaryAccent : AetherColors.textSecondary,
+              fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+            ),
       ),
     );
   }
