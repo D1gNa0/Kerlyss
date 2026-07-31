@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import '../theme/aether_colors.dart';
 
-/// A Vercel.com inspired hover button/card component.
-/// Tracks cursor coordinates in real-time to render a soft, wide ambient backlight
-/// coming from behind the glass tile right where the user is hovering.
+/// A clean, modern Vercel-style hover card component.
+/// Provides instant, uniform surface highlight and hairline border illumination on hover
+/// without any mouse-following movement.
 class VercelHoverButton extends StatefulWidget {
   final Widget child;
   final VoidCallback? onTap;
@@ -27,40 +27,14 @@ class VercelHoverButton extends StatefulWidget {
 class _VercelHoverButtonState extends State<VercelHoverButton> {
   bool _isHovered = false;
   bool _isPressed = false;
-  Offset _hoverOffset = Offset.zero;
-  Size _widgetSize = Size.zero;
-
-  void _updateHoverOffset(PointerEvent details) {
-    final RenderBox? box = context.findRenderObject() as RenderBox?;
-    if (box != null) {
-      setState(() {
-        _hoverOffset = details.localPosition;
-        _widgetSize = box.size;
-      });
-    }
-  }
-
-  Alignment _calculateGradientAlignment() {
-    if (_widgetSize.width == 0 || _widgetSize.height == 0) {
-      return Alignment.center;
-    }
-    final double x = (2 * (_hoverOffset.dx / _widgetSize.width)) - 1;
-    final double y = (2 * (_hoverOffset.dy / _widgetSize.height)) - 1;
-    return Alignment(x.clamp(-1.0, 1.0), y.clamp(-1.0, 1.0));
-  }
 
   @override
   Widget build(BuildContext context) {
     final isActive = _isHovered || _isPressed;
-    final lightCenter = _calculateGradientAlignment();
 
     return MouseRegion(
       cursor: widget.onTap != null ? SystemMouseCursors.click : SystemMouseCursors.basic,
-      onEnter: (e) {
-        _updateHoverOffset(e);
-        setState(() => _isHovered = true);
-      },
-      onHover: _updateHoverOffset,
+      onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: GestureDetector(
         onTapDown: widget.onTap != null ? (_) => setState(() => _isPressed = true) : null,
@@ -75,31 +49,18 @@ class _VercelHoverButtonState extends State<VercelHoverButton> {
             borderRadius: BorderRadius.circular(widget.borderRadius),
             border: Border.all(
               color: isActive
-                  ? widget.accentColor.withValues(alpha: 0.35)
-                  : Colors.white.withValues(alpha: 0.08),
+                  ? widget.accentColor.withValues(alpha: 0.28)
+                  : Colors.white.withValues(alpha: 0.06),
               width: isActive ? 1.5 : 1.0,
             ),
-            gradient: RadialGradient(
-              center: lightCenter,
-              radius: 2.2,
-              colors: isActive
-                  ? [
-                      widget.accentColor.withValues(alpha: 0.15),
-                      widget.accentColor.withValues(alpha: 0.04),
-                      AetherColors.ultraDarkGray.withValues(alpha: 0.7),
-                    ]
-                  : [
-                      Colors.white.withValues(alpha: 0.04),
-                      Colors.white.withValues(alpha: 0.01),
-                      AetherColors.ultraDarkGray.withValues(alpha: 0.5),
-                    ],
-              stops: const [0.0, 0.45, 1.0],
-            ),
+            color: isActive
+                ? Colors.white.withValues(alpha: 0.06)
+                : Colors.white.withValues(alpha: 0.02),
             boxShadow: isActive
                 ? [
                     BoxShadow(
-                      color: widget.accentColor.withValues(alpha: 0.15),
-                      blurRadius: 24,
+                      color: widget.accentColor.withValues(alpha: 0.08),
+                      blurRadius: 16,
                       spreadRadius: -2,
                     ),
                   ]
