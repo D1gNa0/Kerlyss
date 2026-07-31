@@ -10,6 +10,7 @@ import '../state/track_download_provider.dart';
 import '../state/audio_state.dart';
 import '../state/audio_provider.dart';
 import 'source_badge.dart';
+import 'fix_track_match_dialog.dart';
 import '../../core/services/toast_service.dart';
 
 class AetherSongTile extends ConsumerWidget {
@@ -151,6 +152,8 @@ class AetherSongTile extends ConsumerWidget {
       onSelected: (value) {
         if (value == 'add_to_playlist') {
           _showAddToPlaylistDialog(context, ref);
+        } else if (value == 'fix_match') {
+          _showFixTrackMatchDialog(context);
         } else if (value == 'uninstall') {
           _showUninstallDialog(context, ref);
         } else if (value == 'remove') {
@@ -198,6 +201,16 @@ class AetherSongTile extends ConsumerWidget {
             ],
           ),
         ),
+        const PopupMenuItem(
+          value: 'fix_match',
+          child: Row(
+            children: [
+              Icon(Icons.youtube_searched_for_rounded, color: Colors.lightBlueAccent, size: 18),
+              SizedBox(width: 8),
+              Text('Fix Track Match', style: TextStyle(color: Colors.white, fontSize: 13)),
+            ],
+          ),
+        ),
         if (onRemove != null)
           const PopupMenuItem(
             value: 'remove',
@@ -221,6 +234,13 @@ class AetherSongTile extends ConsumerWidget {
             ),
           ),
       ],
+    );
+  }
+
+  void _showFixTrackMatchDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => FixTrackMatchDialog(song: song),
     );
   }
 
