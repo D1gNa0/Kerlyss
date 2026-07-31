@@ -7,6 +7,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:window_manager/window_manager.dart';
 import 'core/services/logger_service.dart';
 import 'presentation/theme/aether_theme.dart';
+import 'presentation/common/ambient_light_canvas.dart';
 import 'data/datasources/local/isar_database_service.dart';
 import 'data/repositories/repository_providers.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -109,7 +110,9 @@ class KerlyssApp extends StatelessWidget {
       supportedLocales: const [
         Locale('en', ''),
       ],
-      home: const MainShellView(),
+      home: const AmbientLightCanvas(
+        child: MainShellView(),
+      ),
     );
   }
 }
