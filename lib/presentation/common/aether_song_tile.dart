@@ -52,81 +52,85 @@ class AetherSongTile extends ConsumerWidget {
     final isDownloaded = hasLocalPath || downloadState.alreadyDownloadedIds.contains(song.id);
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
-      child: ExcludeFocus(
-        child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          tileColor: Colors.white.withValues(alpha: 0.02),
-          onTap: onTap,
-          leading: Stack(
-            alignment: Alignment.bottomRight,
-            children: [
-              AetherNetworkImage(
-                url: song.albumArtUrl ?? 'https://picsum.photos/seed/placeholder/200/200',
-                width: 44,
-                height: 44,
-                borderRadius: 10,
-                fit: BoxFit.cover,
-              ),
-              Padding(
-                padding: const EdgeInsets.all(2),
-                child: SourceBadge(source: song.sourceType),
-              ),
-            ],
-          ),
-          title: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  song.title,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 15),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: VercelHoverButton(
+        onTap: onTap,
+        borderRadius: 16,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          children: [
+            Stack(
+              alignment: Alignment.bottomRight,
+              children: [
+                AetherNetworkImage(
+                  url: song.albumArtUrl ?? 'https://picsum.photos/seed/placeholder/200/200',
+                  width: 44,
+                  height: 44,
+                  borderRadius: 10,
+                  fit: BoxFit.cover,
                 ),
-              ),
-            ],
-          ),
-          subtitle: Text(
-            showAlbum ? '${song.artist} • ${song.album}' : song.artist,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 12),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          trailing: trailing ?? Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Download Indicator / Button
-              if (showDownloadStatus) 
-                if (isDownloaded)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 10),
-                    child: Icon(Icons.check_circle_outline_rounded, color: AetherColors.success, size: 16),
-                  )
-                else if (onDownload != null)
-                  AetherIconButton(
-                    tooltip: 'Download song',
-                    icon: Icons.download_rounded,
-                    color: Colors.white70,
-                    size: 18,
-                    buttonSize: 36,
-                    onPressed: isDownloading ? null : onDownload,
+                Padding(
+                  padding: const EdgeInsets.all(2),
+                  child: SourceBadge(source: song.sourceType),
+                ),
+              ],
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    song.title,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 15, fontWeight: FontWeight.bold),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-
-              // Heart/Favorite Toggle (Tier 1: Crimson Red)
-              AetherIconButton(
-                tooltip: isFav ? 'Remove from favorites' : 'Add to favorites',
-                icon: isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                color: isFav ? AetherColors.error : Colors.white70,
-                size: 18,
-                buttonSize: 36,
-                onPressed: () => ref.read(libraryProvider.notifier).toggleFavorite(song),
+                  const SizedBox(height: 2),
+                  Text(
+                    showAlbum ? '${song.artist} • ${song.album}' : song.artist,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 12, color: AetherColors.textSecondary),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
+            ),
+            trailing ?? Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Download Indicator / Button
+                if (showDownloadStatus) 
+                  if (isDownloaded)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 10),
+                      child: Icon(Icons.check_circle_outline_rounded, color: AetherColors.success, size: 16),
+                    )
+                  else if (onDownload != null)
+                    AetherIconButton(
+                      tooltip: 'Download song',
+                      icon: Icons.download_rounded,
+                      color: Colors.white70,
+                      size: 18,
+                      buttonSize: 36,
+                      onPressed: isDownloading ? null : onDownload,
+                    ),
 
-              // More Options
-              _buildMoreMenu(context, ref, isDownloaded),
-            ],
-          ),
+                // Heart/Favorite Toggle (Tier 1: Crimson Red)
+                AetherIconButton(
+                  tooltip: isFav ? 'Remove from favorites' : 'Add to favorites',
+                  icon: isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                  color: isFav ? AetherColors.error : Colors.white70,
+                  size: 18,
+                  buttonSize: 36,
+                  onPressed: () => ref.read(libraryProvider.notifier).toggleFavorite(song),
+                ),
+
+                // More Options
+                _buildMoreMenu(context, ref, isDownloaded),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -134,7 +138,14 @@ class AetherSongTile extends ConsumerWidget {
 
   Widget _buildMoreMenu(BuildContext context, WidgetRef ref, bool isDownloaded) {
     return PopupMenuButton<String>(
-      icon: const Icon(Icons.more_vert_rounded, color: Colors.white70, size: 18),
+      tooltip: 'Show menu',
+      child: const AetherIconButton(
+        tooltip: 'Show menu',
+        icon: Icons.more_vert_rounded,
+        size: 18,
+        buttonSize: 36,
+        color: Colors.white70,
+      ),
       padding: EdgeInsets.zero,
       color: AetherColors.ultraDarkGray,
       offset: const Offset(0, 40),

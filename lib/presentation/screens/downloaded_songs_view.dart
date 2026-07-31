@@ -5,6 +5,7 @@ import '../common/aether_song_tile.dart';
 import '../state/audio_provider.dart';
 import '../state/audio_state.dart';
 import '../common/aether_glass.dart';
+import '../common/vercel_hover_button.dart';
 import '../state/downloaded_songs_provider.dart';
 import '../../domain/entities/audio_source_type.dart';
 import '../../core/services/logger_service.dart';
@@ -84,9 +85,14 @@ class _DownloadedSongsViewState extends ConsumerState<DownloadedSongsView> {
             pinned: true,
             automaticallyImplyLeading: false,
             leading: widget.onBack != null
-                ? IconButton(
-                    icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
-                    onPressed: widget.onBack,
+                ? Center(
+                    child: AetherIconButton(
+                      tooltip: 'Back',
+                      icon: Icons.arrow_back_ios_new_rounded,
+                      size: 16,
+                      buttonSize: 36,
+                      onPressed: widget.onBack,
+                    ),
                   )
                 : null,
             flexibleSpace: FlexibleSpaceBar(
@@ -101,10 +107,15 @@ class _DownloadedSongsViewState extends ConsumerState<DownloadedSongsView> {
               ),
             ),
             actions: [
-              IconButton(
-                onPressed: () => ref.invalidate(downloadedSongsProvider),
-                icon: const Icon(Icons.refresh_rounded, color: Colors.white54),
-                tooltip: 'Refresh downloads',
+              Padding(
+                padding: const EdgeInsets.only(right: 8.0),
+                child: AetherIconButton(
+                  tooltip: 'Refresh downloads',
+                  icon: Icons.refresh_rounded,
+                  size: 18,
+                  buttonSize: 36,
+                  onPressed: () => ref.invalidate(downloadedSongsProvider),
+                ),
               ),
             ],
           ),

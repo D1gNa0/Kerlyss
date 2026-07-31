@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../theme/aether_colors.dart';
+import '../common/aether_glass.dart';
+import '../common/vercel_hover_button.dart';
 import '../../core/services/toast_service.dart';
 import '../state/playlist_provider.dart';
 import 'playlist_detail_view.dart';
@@ -89,23 +91,24 @@ class _PlaylistsViewState extends ConsumerState<PlaylistsView> {
             ),
             centerTitle: true,
             actions: [
-              ExcludeFocus(
-                child: TextButton.icon(
-                  autofocus: false,
-                  onPressed: () => setState(() => _showDownloads = true),
-                  icon: const Icon(Icons.download_for_offline_rounded, color: AetherColors.accentCyan, size: 20),
-                  label: const Text('DOWNLOADS', style: TextStyle(color: AetherColors.accentCyan, fontSize: 11, letterSpacing: 1)),
-                ),
+              AetherIconButton(
+                tooltip: 'Downloads',
+                icon: Icons.download_for_offline_rounded,
+                color: Colors.white,
+                size: 18,
+                buttonSize: 36,
+                onPressed: () => setState(() => _showDownloads = true),
               ),
-              ExcludeFocus(
-                child: TextButton.icon(
-                  autofocus: false,
-                  onPressed: () => _showCreatePlaylistDialog(context, ref),
-                  icon: const Icon(Icons.add_rounded, color: AetherColors.primaryAccent, size: 20),
-                  label: const Text('CREATE', style: TextStyle(color: AetherColors.primaryAccent, fontSize: 11, letterSpacing: 1)),
-                ),
+              const SizedBox(width: 4),
+              AetherIconButton(
+                tooltip: 'Create Playlist',
+                icon: Icons.add_rounded,
+                color: Colors.white,
+                size: 18,
+                buttonSize: 36,
+                onPressed: () => _showCreatePlaylistDialog(context, ref),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 12),
             ],
           ),
           if (state.isLoading)
@@ -256,19 +259,22 @@ class _PlaylistTile extends ConsumerWidget {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                IconButton(
-                  icon: Icon(
-                    Icons.bolt_rounded,
-                    color: playlist.isRealtimeSynced ? AetherColors.primaryAccent : Colors.white54,
-                    size: 20,
-                  ),
-                  onPressed: () => _showSyncSettings(context, ref, allDownloaded),
+                AetherIconButton(
                   tooltip: 'Sync & Download Settings',
+                  icon: Icons.bolt_rounded,
+                  color: playlist.isRealtimeSynced ? AetherColors.primaryAccent : Colors.white70,
+                  size: 18,
+                  buttonSize: 36,
+                  onPressed: () => _showSyncSettings(context, ref, allDownloaded),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.delete_outline_rounded, color: AetherColors.error, size: 20),
-                  onPressed: () => _confirmDelete(context, ref),
+                const SizedBox(width: 4),
+                AetherIconButton(
                   tooltip: 'Delete Playlist',
+                  icon: Icons.delete_outline_rounded,
+                  color: AetherColors.error,
+                  size: 18,
+                  buttonSize: 36,
+                  onPressed: () => _confirmDelete(context, ref),
                 ),
               ],
             ),

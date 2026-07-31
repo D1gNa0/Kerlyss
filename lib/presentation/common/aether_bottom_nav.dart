@@ -62,32 +62,12 @@ class _NavIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: isActive ? AetherColors.primaryAccent.withValues(alpha: 0.2) : Colors.white.withValues(alpha: 0.03),
-          border: Border.all(
-            color: isActive ? AetherColors.primaryAccent.withValues(alpha: 0.6) : Colors.transparent,
-          ),
-          boxShadow: isActive ? [
-            BoxShadow(
-              color: AetherColors.primaryAccent.withValues(alpha: 0.25),
-              blurRadius: 12,
-              spreadRadius: 0,
-            )
-          ] : [],
-        ),
-        child: Icon(
-          icon,
-          color: isActive ? AetherColors.primaryAccent : AetherColors.textSecondary,
-          size: 22,
-        ),
-      ),
+    return AetherIconButton(
+      icon: icon,
+      size: 20,
+      buttonSize: 44,
+      color: isActive ? Colors.white : Colors.white54,
+      onPressed: onTap,
     );
   }
 }
