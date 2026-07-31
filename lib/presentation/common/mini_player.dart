@@ -6,6 +6,7 @@ import '../../domain/entities/song_entity.dart';
 import '../../domain/entities/audio_source_type.dart';
 import 'aether_glass.dart';
 import 'glow_edge_container.dart';
+import 'vercel_hover_button.dart';
 import '../theme/aether_colors.dart';
 import '../screens/full_player_view.dart';
 import '../screens/queue_view.dart';
@@ -184,7 +185,7 @@ class MiniPlayer extends ConsumerWidget {
                             icon: Icon(
                               isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
                               color: hasSong
-                                  ? (isFavorite ? AetherColors.primaryAccent : Colors.white54)
+                                  ? (isFavorite ? AetherColors.error : Colors.white54)
                                   : Colors.white12,
                               size: 22,
                             ),
@@ -205,14 +206,14 @@ class MiniPlayer extends ConsumerWidget {
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2.5,
                                       value: downloadProgress > 0 ? downloadProgress.clamp(0.0, 1.0) : null,
-                                      color: AetherColors.secondaryAccent,
+                                      color: AetherColors.success,
                                       backgroundColor: Colors.white12,
                                     ),
                                   )
                                 : Icon(
                                     isDownloaded ? Icons.check_circle_outline_rounded : Icons.download_rounded,
                                     color: hasSong
-                                        ? (isDownloaded ? Colors.greenAccent : Colors.white54)
+                                        ? (isDownloaded ? AetherColors.success : Colors.white54)
                                         : Colors.white12,
                                     size: 22,
                                   ),
@@ -222,26 +223,29 @@ class MiniPlayer extends ConsumerWidget {
                       Tooltip(
                         message: 'Play/Pause',
                         child: ExcludeFocus(
-                          child: GlowEdgeContainer(
-                            isGlowing: hasSong,
+                          child: VercelHoverButton(
                             borderRadius: 24,
-                            child: IconButton(
-                              onPressed: hasSong 
-                                  ? () => ref.read(audioProvider.notifier).togglePlay() 
-                                  : null,
-                              icon: audioState.status == PlaybackStatus.loading || audioState.status == PlaybackStatus.buffering
-                                  ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(color: Colors.white54, strokeWidth: 2),
-                                    )
-                                  : Icon(
-                                      audioState.status == PlaybackStatus.playing
-                                          ? Icons.pause_rounded
-                                          : Icons.play_arrow_rounded,
-                                      color: hasSong ? AetherColors.textPrimary : Colors.white12,
-                                      size: 24,
-                                    ),
+                            accentColor: AetherColors.primaryAccent,
+                            padding: EdgeInsets.zero,
+                            onTap: hasSong ? () => ref.read(audioProvider.notifier).togglePlay() : null,
+                            child: SizedBox(
+                              width: 44,
+                              height: 44,
+                              child: Center(
+                                child: audioState.status == PlaybackStatus.loading || audioState.status == PlaybackStatus.buffering
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(color: Colors.white54, strokeWidth: 2),
+                                      )
+                                    : Icon(
+                                        audioState.status == PlaybackStatus.playing
+                                            ? Icons.pause_rounded
+                                            : Icons.play_arrow_rounded,
+                                        color: hasSong ? AetherColors.textPrimary : Colors.white12,
+                                        size: 24,
+                                      ),
+                              ),
                             ),
                           ),
                         ),
