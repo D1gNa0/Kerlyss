@@ -361,20 +361,20 @@ class _PlaylistTile extends ConsumerWidget {
                         child: OutlinedButton.icon(
                           style: OutlinedButton.styleFrom(
                             side: BorderSide(
-                              color: allDownloaded ? Colors.redAccent.withValues(alpha: 0.5) : AetherColors.accentCyan.withValues(alpha: 0.5),
+                              color: allDownloaded ? AetherColors.error.withValues(alpha: 0.5) : AetherColors.success.withValues(alpha: 0.5),
                             ),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
                           icon: Icon(
                             allDownloaded ? Icons.delete_sweep_rounded : Icons.download_for_offline_rounded,
-                            color: allDownloaded ? Colors.redAccent : AetherColors.accentCyan,
+                            color: allDownloaded ? AetherColors.error : AetherColors.success,
                             size: 18,
                           ),
                           label: Text(
                             allDownloaded ? 'REMOVE DOWNLOADED FILES' : 'DOWNLOAD ALL TRACKS NOW',
                             style: TextStyle(
-                              color: allDownloaded ? Colors.redAccent : AetherColors.accentCyan,
+                              color: allDownloaded ? AetherColors.error : AetherColors.success,
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
                               letterSpacing: 1,
@@ -415,7 +415,7 @@ class _PlaylistTile extends ConsumerWidget {
                       );
                   if (context.mounted) Navigator.pop(context);
                 },
-                child: const Text('SAVE', style: TextStyle(color: Colors.lightGreenAccent)),
+                child: const Text('SAVE', style: TextStyle(color: AetherColors.primaryAccent)),
               ),
             ],
           );

@@ -251,7 +251,7 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
                     );
                 if (context.mounted) Navigator.pop(context);
               },
-              child: const Text('SAVE', style: TextStyle(color: Colors.lightGreenAccent)),
+                child: const Text('SAVE', style: TextStyle(color: AetherColors.primaryAccent)),
             ),
           ],
         ),
@@ -320,7 +320,7 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
                   ? const SizedBox(
                       width: 18,
                       height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.amberAccent),
+                      child: CircularProgressIndicator(strokeWidth: 2, color: AetherColors.primaryAccent),
                     )
                   : const Icon(Icons.refresh_rounded, color: Colors.white70, size: 20),
               onPressed: _isSyncing ? null : _triggerManualSync,
@@ -329,7 +329,7 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
           IconButton(
             icon: Icon(
               Icons.bolt_rounded,
-              color: currentPlaylist.isRealtimeSynced ? Colors.amberAccent : Colors.white54,
+              color: currentPlaylist.isRealtimeSynced ? AetherColors.primaryAccent : Colors.white54,
               size: 20,
             ),
             onPressed: () => _showSyncSettingsDialog(context, currentPlaylist),
@@ -338,7 +338,7 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
           if (allDownloaded)
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 14.0, vertical: 16.0),
-              child: Icon(Icons.check_circle_outline_rounded, color: Colors.greenAccent, size: 20),
+              child: Icon(Icons.check_circle_outline_rounded, color: AetherColors.success, size: 20),
             ),
           IconButton(
             icon: const Icon(Icons.edit_rounded, color: Colors.white24, size: 18),
