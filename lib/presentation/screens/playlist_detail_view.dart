@@ -172,16 +172,17 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
                         ),
                       ),
                       onPressed: () async {
+                        final songs = _loadedSongs;
                         Navigator.pop(context);
-                        if (_loadedSongs != null && _loadedSongs!.isNotEmpty) {
+                        if (songs != null && songs.isNotEmpty) {
                           if (allDownloaded) {
-                            for (final song in _loadedSongs!) {
+                            for (final song in songs) {
                               await ref.read(trackDownloadServiceProvider).deleteDownloadedTrack(song);
                             }
-                            ToastService.show(context, 'Removed downloads for ${currentPlaylist.name}');
+                            if (mounted) ToastService.show(context, 'Removed downloads for ${currentPlaylist.name}');
                           } else {
-                            ref.read(trackDownloadServiceProvider).downloadMultiple(_loadedSongs!);
-                            ToastService.show(context, 'Downloading ${_loadedSongs!.length} tracks...');
+                            ref.read(trackDownloadServiceProvider).downloadMultiple(songs);
+                            if (mounted) ToastService.show(context, 'Downloading ${songs.length} tracks...');
                           }
                         }
                       },

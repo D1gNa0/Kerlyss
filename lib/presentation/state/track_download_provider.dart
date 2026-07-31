@@ -38,29 +38,50 @@ class TrackDownloadService {
         final youtubeService = ref.read(youtubeServiceProvider);
         final downloadsDirectory = await AppStoragePaths.downloadsDirectory();
 
-        // For Deezer tracks, find the matching YouTube video first using pristine metadata
-        String videoId = song.id;
+        List<String> candidateVideoIds = [];
         if (song.sourceType == AudioSourceType.deezer) {
           Log.i('TrackDownload: Resolving Deezer track "${song.artist} - ${song.title}" to YouTube for download...');
           final results = await youtubeService.searchVideos('${song.artist} ${song.title}');
-          if (results.isEmpty) throw Exception('No YouTube match found for Deezer track: ${song.title}');
-          videoId = results.first.id.value;
-          Log.i('TrackDownload: Found YouTube video $videoId for "${song.title}"');
+          candidateVideoIds = results.take(3).map((v) => v.id.value).toList();
+          if (candidateVideoIds.isEmpty) {
+            final titleResults = await youtubeService.searchVideos(song.title);
+            candidateVideoIds = titleResults.take(3).map((v) => v.id.value).toList();
+          }
+        } else {
+          candidateVideoIds = [song.id];
         }
 
-        destinationPath = YoutubeService.buildDestinationPath(
-          downloadsDirectory.path,
-          videoId,
-          song.title, // Always use the clean Deezer title, not the YouTube video title
-        );
+        if (candidateVideoIds.isEmpty) {
+          throw Exception('No YouTube match found for track: ${song.title}');
+        }
 
-        await youtubeService.downloadTrack(
-          videoId,
-          destinationPath,
-          onProgress: (progress) {
-            notifier.updateProgress(song.id, progress);
-          },
-        );
+        Object? lastDownloadError;
+        for (final videoId in candidateVideoIds) {
+          try {
+            destinationPath = YoutubeService.buildDestinationPath(
+              downloadsDirectory.path,
+              videoId,
+              song.title,
+            );
+
+            await youtubeService.downloadTrack(
+              videoId,
+              destinationPath,
+              onProgress: (progress) {
+                notifier.updateProgress(song.id, progress);
+              },
+            );
+            lastDownloadError = null;
+            break;
+          } catch (e) {
+            Log.w('TrackDownload: Candidate video $videoId failed for "${song.title}": $e. Trying next candidate...');
+            lastDownloadError = e;
+          }
+        }
+
+        if (lastDownloadError != null) {
+          throw lastDownloadError;
+        }
       }
 
       if (destinationPath != null) {

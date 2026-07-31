@@ -111,6 +111,30 @@ class YoutubeService {
     return audioStreamInfo.url.toString();
   }
 
+  Future<StreamManifest> _getManifestWithFallback(String videoId) async {
+    final clientOptions = [
+      [YoutubeApiClient.android],
+      [YoutubeApiClient.ios],
+      [YoutubeApiClient.androidVr],
+      <YoutubeApiClient>[],
+    ];
+
+    Object? lastError;
+    for (final clients in clientOptions) {
+      try {
+        final manifest = clients.isEmpty
+            ? await _yt.videos.streamsClient.getManifest(videoId)
+            : await _yt.videos.streamsClient.getManifest(videoId, ytClients: clients);
+        if (manifest.muxed.isNotEmpty || manifest.audioOnly.isNotEmpty) {
+          return manifest;
+        }
+      } catch (e) {
+        lastError = e;
+      }
+    }
+    throw lastError ?? Exception('Failed to get manifest for video $videoId');
+  }
+
   Future<File> downloadTrack(
     String videoId,
     String destinationPath, {
@@ -118,18 +142,18 @@ class YoutubeService {
   }) async {
     try {
       Log.i('YoutubeService: Starting download for $videoId');
-      final manifest = await _yt.videos.streamsClient.getManifest(
-        videoId,
-        ytClients: [YoutubeApiClient.androidVr],
-      );
+      final manifest = await _getManifestWithFallback(videoId);
 
       final muxedStreams = manifest.muxed.toList();
-      if (muxedStreams.isEmpty) {
-        throw Exception('No standalone muxed streams available for this video.');
+      final audioOnlyStreams = manifest.audioOnly.toList();
+
+      if (muxedStreams.isEmpty && audioOnlyStreams.isEmpty) {
+        throw Exception('No compatible streams available for this video.');
       }
 
-      // Use highest bitrate muxed stream for best quality
-      final audioStreamInfo = (muxedStreams..sort((a, b) => b.bitrate.compareTo(a.bitrate))).first;
+      final audioStreamInfo = muxedStreams.isNotEmpty
+          ? (muxedStreams..sort((a, b) => b.bitrate.compareTo(a.bitrate))).first
+          : (audioOnlyStreams..sort((a, b) => b.bitrate.compareTo(a.bitrate))).first;
       final totalSize = audioStreamInfo.size.totalBytes;
       final rawUrl = audioStreamInfo.url;
 

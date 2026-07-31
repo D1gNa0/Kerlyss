@@ -373,6 +373,7 @@ class _PlaylistTile extends ConsumerWidget {
                         ),
                       ),
                       onPressed: () async {
+                        final messenger = ScaffoldMessenger.maybeOf(context);
                         Navigator.pop(context);
                         final songs = await ref.read(playlistProvider.notifier).getPlaylistSongs(playlist.id!);
                         if (songs.isNotEmpty) {
@@ -380,10 +381,10 @@ class _PlaylistTile extends ConsumerWidget {
                             for (final song in songs) {
                               await ref.read(trackDownloadServiceProvider).deleteDownloadedTrack(song);
                             }
-                            ToastService.show(context, 'Removed downloads for ${playlist.name}');
+                            if (context.mounted) ToastService.show(context, 'Removed downloads for ${playlist.name}');
                           } else {
                             ref.read(trackDownloadServiceProvider).downloadMultiple(songs);
-                            ToastService.show(context, 'Downloading ${songs.length} tracks for ${playlist.name}...');
+                            if (context.mounted) ToastService.show(context, 'Downloading ${songs.length} tracks for ${playlist.name}...');
                           }
                         }
                       },
