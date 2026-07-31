@@ -5,7 +5,7 @@ import 'package:kerlyss/presentation/theme/aether_theme.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  GoogleFonts.config.allowRuntimeFetching = false;
+  GoogleFonts.config.allowRuntimeFetching = true;
   test('AetherColors defines dark obsidian backdrop, crisp white primary accent, emerald green success, and crimson error', () {
     expect(AetherColors.deepMatteBlack.value, equals(0xFF0A0A0E));
     expect(AetherColors.primaryAccent.value, equals(0xFFFFFFFF)); // Crisp Off-White
