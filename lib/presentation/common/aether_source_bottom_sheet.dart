@@ -70,7 +70,7 @@ class AetherSourceBottomSheet extends ConsumerWidget {
   }
 }
 
-class _SourceOption extends StatelessWidget {
+class _SourceOption extends StatefulWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
@@ -78,32 +78,54 @@ class _SourceOption extends StatelessWidget {
   const _SourceOption({required this.icon, required this.label, required this.onTap});
 
   @override
+  State<_SourceOption> createState() => _SourceOptionState();
+}
+
+class _SourceOptionState extends State<_SourceOption> {
+  bool _isHovered = false;
+
+  @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        VercelHoverButton(
-          onTap: onTap,
-          borderRadius: 32,
-          accentColor: AetherColors.primaryAccent,
-          padding: EdgeInsets.zero,
-          child: SizedBox(
-            width: 64,
-            height: 64,
-            child: Center(
-              child: Icon(icon, color: AetherColors.textPrimary, size: 28),
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          label,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                fontSize: 10,
-                letterSpacing: 1,
-                color: AetherColors.textSecondary,
+    return GestureDetector(
+      onTap: widget.onTap,
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _isHovered = true),
+        onExit: (_) => setState(() => _isHovered = false),
+        child: Column(
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _isHovered ? AetherColors.primaryAccent.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.04),
+                border: Border.all(
+                  color: _isHovered ? AetherColors.primaryAccent.withValues(alpha: 0.6) : Colors.white12,
+                  width: _isHovered ? 1.5 : 1.0,
+                ),
               ),
+              child: Center(
+                child: Icon(
+                  widget.icon,
+                  color: _isHovered ? AetherColors.primaryAccent : Colors.white,
+                  size: 26,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              widget.label,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontSize: 10,
+                    letterSpacing: 1.5,
+                    color: _isHovered ? Colors.white : AetherColors.textSecondary,
+                    fontWeight: _isHovered ? FontWeight.bold : FontWeight.normal,
+                  ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }

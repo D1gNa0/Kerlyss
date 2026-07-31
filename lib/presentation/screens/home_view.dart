@@ -263,18 +263,31 @@ class _CategoryChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return VercelHoverButton(
+    return GestureDetector(
       onTap: onTap,
-      borderRadius: 16,
-      accentColor: AetherColors.primaryAccent,
-      padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.displayMedium?.copyWith(
-              fontSize: 11,
-              color: isActive ? AetherColors.primaryAccent : AetherColors.textSecondary,
-              fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                  fontSize: 11,
+                  letterSpacing: 1.5,
+                  color: isActive ? Colors.white : AetherColors.textSecondary,
+                  fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
+                ),
+          ),
+          const SizedBox(height: 6),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            height: 2,
+            width: isActive ? 20 : 0,
+            decoration: BoxDecoration(
+              color: isActive ? AetherColors.primaryAccent : Colors.transparent,
+              borderRadius: BorderRadius.circular(1),
             ),
+          ),
+        ],
       ),
     );
   }
