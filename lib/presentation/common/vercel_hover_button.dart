@@ -55,7 +55,7 @@ class _VercelHoverButtonState extends State<VercelHoverButton> {
     final lightCenter = _calculateGradientAlignment();
 
     return MouseRegion(
-      cursor: SystemMouseCursors.click,
+      cursor: widget.onTap != null ? SystemMouseCursors.click : SystemMouseCursors.basic,
       onEnter: (e) {
         _updateHoverOffset(e);
         setState(() => _isHovered = true);
@@ -63,8 +63,8 @@ class _VercelHoverButtonState extends State<VercelHoverButton> {
       onHover: _updateHoverOffset,
       onExit: (_) => setState(() => _isHovered = false),
       child: GestureDetector(
-        onTapDown: (_) => setState(() => _isPressed = true),
-        onTapUp: (_) => setState(() => _isPressed = false),
+        onTapDown: widget.onTap != null ? (_) => setState(() => _isPressed = true) : null,
+        onTapUp: widget.onTap != null ? (_) => setState(() => _isPressed = false) : null,
         onTapCancel: () => setState(() => _isPressed = false),
         onTap: widget.onTap,
         child: AnimatedContainer(
@@ -84,8 +84,8 @@ class _VercelHoverButtonState extends State<VercelHoverButton> {
               radius: 2.2,
               colors: isActive
                   ? [
-                      widget.accentColor.withValues(alpha: 0.12),
-                      widget.accentColor.withValues(alpha: 0.03),
+                      widget.accentColor.withValues(alpha: 0.15),
+                      widget.accentColor.withValues(alpha: 0.04),
                       AetherColors.ultraDarkGray.withValues(alpha: 0.7),
                     ]
                   : [
@@ -109,5 +109,81 @@ class _VercelHoverButtonState extends State<VercelHoverButton> {
         ),
       ),
     );
+  }
+}
+
+/// Unified minimalist control icon button matching VercelHoverButton design.
+class AetherIconButton extends StatefulWidget {
+  final IconData icon;
+  final VoidCallback? onPressed;
+  final Color? color;
+  final String? tooltip;
+  final double size;
+  final double buttonSize;
+
+  const AetherIconButton({
+    super.key,
+    required this.icon,
+    this.onPressed,
+    this.color,
+    this.tooltip,
+    this.size = 20,
+    this.buttonSize = 40,
+  });
+
+  @override
+  State<AetherIconButton> createState() => _AetherIconButtonState();
+}
+
+class _AetherIconButtonState extends State<AetherIconButton> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = widget.onPressed != null;
+    final defaultColor = widget.color ?? (enabled ? Colors.white70 : Colors.white24);
+    final activeColor = enabled ? (widget.color ?? Colors.white) : Colors.white24;
+
+    Widget button = MouseRegion(
+      cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
+      onEnter: (_) => setState(() => _isHovered = enabled),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        onTap: widget.onPressed,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          width: widget.buttonSize,
+          height: widget.buttonSize,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: _isHovered ? Colors.white.withValues(alpha: 0.10) : Colors.white.withValues(alpha: 0.03),
+            border: Border.all(
+              color: _isHovered ? Colors.white.withValues(alpha: 0.35) : Colors.white.withValues(alpha: 0.08),
+              width: _isHovered ? 1.5 : 1.0,
+            ),
+            boxShadow: _isHovered ? [
+              BoxShadow(
+                color: Colors.white.withValues(alpha: 0.15),
+                blurRadius: 16,
+                spreadRadius: -1,
+              )
+            ] : [],
+          ),
+          child: Center(
+            child: Icon(
+              widget.icon,
+              size: widget.size,
+              color: _isHovered ? activeColor : defaultColor,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (widget.tooltip != null) {
+      button = Tooltip(message: widget.tooltip!, child: button);
+    }
+
+    return button;
   }
 }

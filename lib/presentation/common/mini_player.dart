@@ -176,108 +176,59 @@ class MiniPlayer extends ConsumerWidget {
                         ],
                       ),
                     ),
-                      Tooltip(
-                        message: isFavorite ? 'Unlike' : 'Like',
-                        child: ExcludeFocus(
-                          child: IconButton(
-                            onPressed: hasSong
-                                ? () => ref.read(libraryProvider.notifier).toggleFavorite(_toSongEntity(currentSong))
-                                : null,
-                            icon: Icon(
-                              isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                              color: hasSong
-                                  ? (isFavorite ? AetherColors.error : Colors.white54)
-                                  : Colors.white12,
-                              size: 22,
-                            ),
-                          ),
-                        ),
+                      AetherIconButton(
+                        tooltip: isFavorite ? 'Unlike' : 'Like',
+                        icon: isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                        color: hasSong ? (isFavorite ? AetherColors.error : Colors.white70) : Colors.white24,
+                        onPressed: hasSong
+                            ? () => ref.read(libraryProvider.notifier).toggleFavorite(_toSongEntity(currentSong))
+                            : null,
                       ),
-                      Tooltip(
-                        message: isDownloading ? 'Downloading...' : (isDownloaded ? 'Downloaded' : 'Download'),
-                        child: ExcludeFocus(
-                          child: IconButton(
-                            onPressed: (hasSong && !isDownloaded && !isDownloading)
-                                ? () => ref.read(trackDownloadServiceProvider).downloadTrack(_toSongEntity(currentSong))
-                                : null,
-                            icon: isDownloading
-                                ? SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2.5,
-                                      value: downloadProgress > 0 ? downloadProgress.clamp(0.0, 1.0) : null,
-                                      color: AetherColors.success,
-                                      backgroundColor: Colors.white12,
-                                    ),
-                                  )
-                                : Icon(
-                                    isDownloaded ? Icons.check_circle_outline_rounded : Icons.download_rounded,
-                                    color: hasSong
-                                        ? (isDownloaded ? AetherColors.success : Colors.white54)
-                                        : Colors.white12,
-                                    size: 22,
+                      const SizedBox(width: 4),
+                      AetherIconButton(
+                        tooltip: isDownloading ? 'Downloading...' : (isDownloaded ? 'Downloaded' : 'Download'),
+                        icon: isDownloaded ? Icons.check_circle_outline_rounded : Icons.download_rounded,
+                        color: hasSong ? (isDownloaded ? AetherColors.success : Colors.white70) : Colors.white24,
+                        onPressed: (hasSong && !isDownloaded && !isDownloading)
+                            ? () => ref.read(trackDownloadServiceProvider).downloadTrack(_toSongEntity(currentSong))
+                            : null,
+                      ),
+                      const SizedBox(width: 4),
+                      AetherIconButton(
+                        tooltip: 'Play/Pause',
+                        icon: audioState.status == PlaybackStatus.playing
+                            ? Icons.pause_rounded
+                            : Icons.play_arrow_rounded,
+                        size: 24,
+                        buttonSize: 44,
+                        color: hasSong ? Colors.white : Colors.white24,
+                        onPressed: hasSong ? () => ref.read(audioProvider.notifier).togglePlay() : null,
+                      ),
+                      const SizedBox(width: 4),
+                      AetherIconButton(
+                        tooltip: 'Up Next',
+                        icon: Icons.queue_music_rounded,
+                        color: hasSong ? Colors.white70 : Colors.white24,
+                        onPressed: hasSong ? () {
+                          showGeneralDialog(
+                            context: context,
+                            barrierDismissible: true,
+                            barrierLabel: 'Queue',
+                            barrierColor: Colors.black54,
+                            pageBuilder: (context, anim, secondAnim) {
+                              return Align(
+                                alignment: Alignment.centerRight,
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: SlideTransition(
+                                    position: Tween(begin: const Offset(1, 0), end: Offset.zero).animate(anim),
+                                    child: QueueView(onClose: () => Navigator.pop(context)),
                                   ),
-                          ),
-                        ),
-                      ),
-                      Tooltip(
-                        message: 'Play/Pause',
-                        child: ExcludeFocus(
-                          child: VercelHoverButton(
-                            borderRadius: 24,
-                            accentColor: AetherColors.primaryAccent,
-                            padding: EdgeInsets.zero,
-                            onTap: hasSong ? () => ref.read(audioProvider.notifier).togglePlay() : null,
-                            child: SizedBox(
-                              width: 44,
-                              height: 44,
-                              child: Center(
-                                child: audioState.status == PlaybackStatus.loading || audioState.status == PlaybackStatus.buffering
-                                    ? const SizedBox(
-                                        width: 20,
-                                        height: 20,
-                                        child: CircularProgressIndicator(color: Colors.white54, strokeWidth: 2),
-                                      )
-                                    : Icon(
-                                        audioState.status == PlaybackStatus.playing
-                                            ? Icons.pause_rounded
-                                            : Icons.play_arrow_rounded,
-                                        color: hasSong ? AetherColors.textPrimary : Colors.white12,
-                                        size: 24,
-                                      ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Tooltip(
-                        message: 'Up Next',
-                        child: ExcludeFocus(
-                          child: IconButton(
-                            onPressed: hasSong ? () {
-                              showGeneralDialog(
-                                context: context,
-                                barrierDismissible: true,
-                                barrierLabel: 'Queue',
-                                barrierColor: Colors.black54,
-                                pageBuilder: (context, anim, secondAnim) {
-                                  return Align(
-                                    alignment: Alignment.centerRight,
-                                    child: Material(
-                                      color: Colors.transparent,
-                                      child: SlideTransition(
-                                        position: Tween(begin: const Offset(1, 0), end: Offset.zero).animate(anim),
-                                        child: QueueView(onClose: () => Navigator.pop(context)),
-                                      ),
-                                    ),
-                                  );
-                                },
+                                ),
                               );
-                            } : null,
-                            icon: Icon(Icons.queue_music_rounded, color: hasSong ? Colors.white54 : Colors.white12, size: 24),
-                          ),
-                        ),
+                            },
+                          );
+                        } : null,
                       ),
                     ],
                 ),

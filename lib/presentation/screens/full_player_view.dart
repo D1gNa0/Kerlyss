@@ -222,61 +222,45 @@ class FullPlayerView extends ConsumerWidget {
                           Positioned(top: 0, right: 0, child: Container(width: 6, height: 6, decoration: const BoxDecoration(color: AetherColors.error, shape: BoxShape.circle))),
                         ]),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.skip_previous_rounded, size: 32, color: Colors.white),
-                        onPressed: () => ref.read(audioProvider.notifier).previous(),
+                      AetherIconButton(
                         tooltip: l10n.previousShortcut,
+                        icon: Icons.skip_previous_rounded,
+                        size: 26,
+                        buttonSize: 44,
+                        onPressed: () => ref.read(audioProvider.notifier).previous(),
                       ),
-                      const SizedBox(width: 8),
-                      // Skip Back 5s
-                      Tooltip(
-                        message: l10n.back5s,
-                        child: IconButton(
-                          icon: const Icon(Icons.replay_5_rounded, size: 28, color: Colors.white70),
-                          onPressed: () => ref.read(audioProvider.notifier).seekRelative(-5),
-                        ),
+                      AetherIconButton(
+                        tooltip: l10n.back5s,
+                        icon: Icons.replay_5_rounded,
+                        size: 24,
+                        buttonSize: 44,
+                        onPressed: () => ref.read(audioProvider.notifier).seekRelative(-5),
                       ),
-                      const SizedBox(width: 8),
-                      Tooltip(
-                        message: audioState.status == PlaybackStatus.error
+                      AetherIconButton(
+                        tooltip: audioState.status == PlaybackStatus.error
                             ? (audioState.errorMessage ?? 'Playback error - tap to retry')
                             : l10n.playPause,
-                        child: VercelHoverButton(
-                          borderRadius: 34,
-                          accentColor: AetherColors.primaryAccent,
-                          padding: EdgeInsets.zero,
-                          onTap: () => ref.read(audioProvider.notifier).togglePlay(),
-                          child: SizedBox(
-                            width: 68,
-                            height: 68,
-                            child: Center(
-                              child: audioState.status == PlaybackStatus.loading || audioState.status == PlaybackStatus.buffering
-                                  ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 3)
-                                  : Icon(
-                                      audioState.status == PlaybackStatus.playing
-                                          ? Icons.pause_rounded
-                                          : Icons.play_arrow_rounded,
-                                      color: AetherColors.textPrimary,
-                                      size: 36,
-                                    ),
-                            ),
-                          ),
-                        ),
+                        icon: audioState.status == PlaybackStatus.playing
+                            ? Icons.pause_rounded
+                            : Icons.play_arrow_rounded,
+                        size: 32,
+                        buttonSize: 60,
+                        color: Colors.white,
+                        onPressed: () => ref.read(audioProvider.notifier).togglePlay(),
                       ),
-                      const SizedBox(width: 8),
-                      // Skip Forward 5s
-                      Tooltip(
-                        message: l10n.forward5s,
-                        child: IconButton(
-                          icon: const Icon(Icons.forward_5_rounded, size: 28, color: Colors.white70),
-                          onPressed: () => ref.read(audioProvider.notifier).seekRelative(5),
-                        ),
+                      AetherIconButton(
+                        tooltip: l10n.forward5s,
+                        icon: Icons.forward_5_rounded,
+                        size: 24,
+                        buttonSize: 44,
+                        onPressed: () => ref.read(audioProvider.notifier).seekRelative(5),
                       ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        icon: const Icon(Icons.skip_next_rounded, size: 32, color: Colors.white),
-                        onPressed: () => ref.read(audioProvider.notifier).next(),
+                      AetherIconButton(
                         tooltip: l10n.nextShortcut,
+                        icon: Icons.skip_next_rounded,
+                        size: 26,
+                        buttonSize: 44,
+                        onPressed: () => ref.read(audioProvider.notifier).next(),
                       ),
                       // STUB: repeat not implemented
                       Tooltip(
