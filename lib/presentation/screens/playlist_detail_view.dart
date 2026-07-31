@@ -77,6 +77,7 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
 
   void _showSyncSettingsDialog(BuildContext context, PlaylistEntity currentPlaylist) {
     bool isSynced = currentPlaylist.isRealtimeSynced;
+    bool downloadPlaylist = currentPlaylist.autoDownloadNewTracks;
     bool autoDownload = currentPlaylist.autoDownloadNewTracks;
 
     showDialog(
@@ -86,33 +87,67 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
           backgroundColor: AetherColors.ultraDarkGray,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: const Text('SYNC & DOWNLOAD SETTINGS', style: TextStyle(color: Colors.white, fontSize: 13, letterSpacing: 2, fontWeight: FontWeight.bold)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SwitchListTile(
-                value: isSynced,
-                activeColor: Colors.lightGreenAccent,
-                title: const Text('Real-Time Sync', style: TextStyle(color: Colors.white, fontSize: 14)),
-                subtitle: const Text('Automatically fetch new tracks when opening', style: TextStyle(color: Colors.white38, fontSize: 11)),
-                onChanged: (val) => setDialogState(() => isSynced = val),
-              ),
-              SwitchListTile(
-                value: autoDownload,
-                activeColor: Colors.cyanAccent,
-                title: const Text('Auto-Download New Tracks', style: TextStyle(color: Colors.white, fontSize: 14)),
-                subtitle: const Text('Download newly added tracks for offline playback', style: TextStyle(color: Colors.white38, fontSize: 11)),
-                onChanged: (val) => setDialogState(() => autoDownload = val),
-              ),
-              const Divider(color: Colors.white10),
-              ListTile(
-                leading: const Icon(Icons.refresh_rounded, color: Colors.amberAccent, size: 20),
-                title: const Text('Sync / Refresh Now', style: TextStyle(color: Colors.amberAccent, fontSize: 13, fontWeight: FontWeight.w600)),
-                onTap: () {
-                  Navigator.pop(context);
-                  _triggerManualSync();
-                },
-              ),
-            ],
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SwitchListTile(
+                  value: isSynced,
+                  activeColor: Colors.lightGreenAccent,
+                  title: const Row(
+                    children: [
+                      Icon(Icons.bolt_rounded, color: Colors.amberAccent, size: 20),
+                      SizedBox(width: 8),
+                      Text('Real-Time Sync', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                  subtitle: const Text('Automatically fetch new tracks when opening', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                  onChanged: (val) => setDialogState(() => isSynced = val),
+                ),
+                SwitchListTile(
+                  value: downloadPlaylist,
+                  activeColor: Colors.cyanAccent,
+                  title: const Row(
+                    children: [
+                      Icon(Icons.download_for_offline_rounded, color: Colors.cyanAccent, size: 20),
+                      SizedBox(width: 8),
+                      Text('Download Playlist Songs', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                  subtitle: const Text('Keep tracks downloaded for offline playback', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                  onChanged: (val) => setDialogState(() {
+                    downloadPlaylist = val;
+                    if (!val) autoDownload = false;
+                  }),
+                ),
+                if (downloadPlaylist)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 20.0),
+                    child: SwitchListTile(
+                      value: autoDownload,
+                      activeColor: Colors.lightGreenAccent,
+                      title: const Row(
+                        children: [
+                          Icon(Icons.autorenew_rounded, color: Colors.lightGreenAccent, size: 18),
+                          SizedBox(width: 8),
+                          Text('Auto-Download Newly Added Songs', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                        ],
+                      ),
+                      subtitle: const Text('Automatically download new tracks when synced', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                      onChanged: (val) => setDialogState(() => autoDownload = val),
+                    ),
+                  ),
+                const Divider(color: Colors.white10),
+                ListTile(
+                  leading: const Icon(Icons.refresh_rounded, color: Colors.amberAccent, size: 20),
+                  title: const Text('Sync / Refresh Now', style: TextStyle(color: Colors.amberAccent, fontSize: 13, fontWeight: FontWeight.w600)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _triggerManualSync();
+                  },
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -124,8 +159,13 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
                 await ref.read(playlistProvider.notifier).updatePlaylistSyncSettings(
                       widget.playlist.id!,
                       isRealtimeSynced: isSynced,
-                      autoDownloadNewTracks: autoDownload,
+                      autoDownloadNewTracks: downloadPlaylist ? autoDownload : false,
                     );
+
+                if (downloadPlaylist && _loadedSongs != null && _loadedSongs!.isNotEmpty) {
+                  ref.read(trackDownloadServiceProvider).downloadMultiple(_loadedSongs!);
+                }
+
                 if (context.mounted) Navigator.pop(context);
               },
               child: const Text('SAVE', style: TextStyle(color: Colors.lightGreenAccent)),
