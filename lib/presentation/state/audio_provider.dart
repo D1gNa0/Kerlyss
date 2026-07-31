@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart' show AudioSource;
 // Using custom AudioServiceInterface
 
+import 'package:kerlyss/core/services/app_storage_paths.dart';
 import 'package:kerlyss/core/services/logger_service.dart';
 import 'package:kerlyss/core/services/playback_session_store.dart';
 import 'package:kerlyss/core/services/youtube_proxy_server.dart';
