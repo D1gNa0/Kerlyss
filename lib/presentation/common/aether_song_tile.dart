@@ -99,7 +99,7 @@ class AetherSongTile extends ConsumerWidget {
                 if (isDownloaded)
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 10),
-                    child: Icon(Icons.check_circle_outline_rounded, color: Colors.greenAccent, size: 16),
+                    child: Icon(Icons.check_circle_outline_rounded, color: AetherColors.success, size: 16),
                   )
                 else if (onDownload != null)
                   IconButton(
@@ -110,7 +110,7 @@ class AetherSongTile extends ConsumerWidget {
                             child: CircularProgressIndicator(
                               strokeWidth: 2.5,
                               value: downloadProgress > 0 ? downloadProgress : null,
-                              color: AetherColors.primaryAccent,
+                              color: AetherColors.success,
                               backgroundColor: Colors.white10,
                             ),
                           )
@@ -119,11 +119,11 @@ class AetherSongTile extends ConsumerWidget {
                     tooltip: 'Download song',
                   ),
 
-              // Heart/Favorite Toggle
+              // Heart/Favorite Toggle (Tier 1: Crimson Red)
               IconButton(
                 icon: Icon(
                   isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                  color: isFav ? Colors.redAccent : Colors.white24,
+                  color: isFav ? AetherColors.error : Colors.white24,
                   size: 18,
                 ),
                 onPressed: () {

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../state/navigation_provider.dart';
 import '../theme/aether_colors.dart';
 import 'aether_glass.dart';
+import 'vercel_hover_button.dart';
 
 class AetherBottomNav extends ConsumerWidget {
   const AetherBottomNav({super.key});
@@ -61,20 +62,15 @@ class _NavIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return VercelHoverButton(
       onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: isActive ? Colors.white.withValues(alpha: 0.1) : Colors.transparent,
-          shape: BoxShape.circle,
-        ),
-        child: Icon(
-          icon,
-          color: isActive ? Colors.white : AetherColors.textSecondary,
-          size: 24,
-        ),
+      borderRadius: 24,
+      accentColor: AetherColors.primaryAccent,
+      padding: const EdgeInsets.all(10),
+      child: Icon(
+        icon,
+        color: isActive ? AetherColors.primaryAccent : AetherColors.textSecondary,
+        size: 24,
       ),
     );
   }

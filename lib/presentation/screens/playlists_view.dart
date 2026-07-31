@@ -11,6 +11,7 @@ import '../state/library_provider.dart';
 import '../state/download_state_provider.dart';
 import '../../domain/entities/playlist_entity.dart';
 import '../common/app_dialogs.dart';
+import '../common/vercel_hover_button.dart';
 
 class PlaylistsView extends ConsumerStatefulWidget {
   const PlaylistsView({super.key});
@@ -200,66 +201,79 @@ class _PlaylistTile extends ConsumerWidget {
       }
     }
 
-    return ExcludeFocus(
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        tileColor: Colors.white.withValues(alpha: 0.03),
-        leading: Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(
-            allDownloaded ? Icons.offline_pin_rounded : Icons.playlist_play_rounded, 
-            color: allDownloaded ? AetherColors.primaryAccent : Colors.white24
-          ),
-        ),
-        title: Row(
-          children: [
-            Expanded(
-              child: Text(
-                playlist.name,
-                style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
-              ),
-            ),
-            if (allDownloaded)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AetherColors.primaryAccent.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: const Text('DOWNLOADED', style: TextStyle(color: AetherColors.primaryAccent, fontSize: 8, fontWeight: FontWeight.bold)),
-              ),
-          ],
-        ),
-        subtitle: Text(
-          '${playlist.songIds.length} TRACKS',
-          style: const TextStyle(color: AetherColors.textSecondary, fontSize: 11, letterSpacing: 1),
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: Icon(
-                Icons.bolt_rounded,
-                color: playlist.isRealtimeSynced ? Colors.amberAccent : Colors.white54,
-                size: 20,
-              ),
-              onPressed: () => _showSyncSettings(context, ref, allDownloaded),
-              tooltip: 'Sync & Download Settings',
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete_outline_rounded, color: Colors.white24, size: 20),
-              onPressed: () => _confirmDelete(context, ref),
-              tooltip: 'Delete Playlist',
-            ),
-          ],
-        ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: VercelHoverButton(
         onTap: onSelect,
+        borderRadius: 16,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                allDownloaded ? Icons.offline_pin_rounded : Icons.playlist_play_rounded, 
+                color: allDownloaded ? AetherColors.success : Colors.white24
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          playlist.name,
+                          style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      if (allDownloaded)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AetherColors.success.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text('DOWNLOADED', style: TextStyle(color: AetherColors.success, fontSize: 8, fontWeight: FontWeight.bold)),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${playlist.songIds.length} TRACKS',
+                    style: const TextStyle(color: AetherColors.textSecondary, fontSize: 11, letterSpacing: 1),
+                  ),
+                ],
+              ),
+            ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: Icon(
+                    Icons.bolt_rounded,
+                    color: playlist.isRealtimeSynced ? AetherColors.primaryAccent : Colors.white54,
+                    size: 20,
+                  ),
+                  onPressed: () => _showSyncSettings(context, ref, allDownloaded),
+                  tooltip: 'Sync & Download Settings',
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline_rounded, color: AetherColors.error, size: 20),
+                  onPressed: () => _confirmDelete(context, ref),
+                  tooltip: 'Delete Playlist',
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
