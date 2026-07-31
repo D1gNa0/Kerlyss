@@ -107,7 +107,9 @@ class _DiscoverySearchBarState extends ConsumerState<DiscoverySearchBar> {
             child: Row(
               children: [
                 AetherIconButton(
-                  tooltip: l10n.toggleSpotifyMode,
+                  tooltip: searchState.searchMode == SearchMode.spotifyImport
+                      ? 'Toggle to Search by Name Mode'
+                      : 'Toggle to Spotify Import Mode',
                   icon: searchState.searchMode == SearchMode.spotifyImport
                       ? Icons.queue_music_rounded
                       : Icons.search_rounded,

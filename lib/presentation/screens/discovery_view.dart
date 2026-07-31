@@ -179,44 +179,14 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
             ),
           ),
           
-          // Search Input + Import Button
+          // Search Input
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: DiscoverySearchBar(
-                      focusNode: _searchFocusNode,
-                      controller: _searchController,
-                      onSearchTriggered: _updateExistingDownloads,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  // Import Source button — paste a YouTube/Spotify link
-                  SizedBox(
-                    width: 56,
-                    height: 56,
-                    child: AetherGlass(
-                      borderRadius: 16,
-                      padding: EdgeInsets.zero,
-                      child: ExcludeFocus(
-                        child: IconButton(
-                          onPressed: () {
-                            showModalBottomSheet(
-                              context: context,
-                              backgroundColor: Colors.transparent,
-                              isScrollControlled: true,
-                              builder: (context) => const AetherSourceBottomSheet(),
-                            );
-                          },
-                          icon: const Icon(Icons.add_link_rounded, color: Colors.white70, size: 22),
-                          tooltip: 'Import from YouTube / Spotify link',
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+              child: DiscoverySearchBar(
+                focusNode: _searchFocusNode,
+                controller: _searchController,
+                onSearchTriggered: _updateExistingDownloads,
               ),
             ),
           ),
