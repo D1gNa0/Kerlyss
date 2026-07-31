@@ -30,6 +30,12 @@ class AetherBottomNav extends ConsumerWidget {
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             _NavIcon(
+              tooltip: 'Home',
+              icon: Icons.grid_view_rounded,
+              isActive: currentIndex == 0,
+              onTap: () => ref.read(navigationProvider.notifier).setIndex(0),
+            ),
+            _NavIcon(
               tooltip: 'Discover',
               icon: Icons.explore_rounded,
               isActive: currentIndex == 1,

@@ -140,7 +140,7 @@ void main() {
 
       expect(focusNode.hasFocus, isTrue);
       final animatedContainer = tester.widget<AnimatedContainer>(
-        find.byType(AnimatedContainer).first,
+        find.ancestor(of: find.byType(TextField), matching: find.byType(AnimatedContainer)),
       );
       final decoration = animatedContainer.decoration as BoxDecoration;
       expect(decoration.gradient, isNotNull);

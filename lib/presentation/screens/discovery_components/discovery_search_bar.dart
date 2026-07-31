@@ -69,111 +69,182 @@ class _DiscoverySearchBarState extends ConsumerState<DiscoverySearchBar> {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-      child: SizedBox(
-        height: 60,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            gradient: isFocused
-                ? const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      AetherColors.accentCyan,
-                      AetherColors.primaryAccent,
-                    ],
-                  )
-                : null,
-            boxShadow: isFocused
-                ? [
-                    BoxShadow(
-                      color: AetherColors.accentCyan.withValues(alpha: 0.3),
-                      blurRadius: 12,
-                      spreadRadius: 1,
-                    ),
-                    BoxShadow(
-                      color: AetherColors.primaryAccent.withValues(alpha: 0.3),
-                      blurRadius: 12,
-                      spreadRadius: 1,
-                    ),
-                  ]
-                : [],
-          ),
-          padding: EdgeInsets.all(isFocused ? 1.5 : 0),
-          child: AetherGlass(
-            borderRadius: isFocused ? 14.5 : 16,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            child: Row(
-              children: [
-                AetherIconButton(
-                  tooltip: searchState.searchMode == SearchMode.spotifyImport
-                      ? 'Toggle to Search by Name Mode'
-                      : 'Toggle to Spotify Import Mode',
-                  icon: searchState.searchMode == SearchMode.spotifyImport
-                      ? Icons.queue_music_rounded
-                      : Icons.search_rounded,
-                  color: searchState.searchMode == SearchMode.spotifyImport
-                      ? AetherColors.success
-                      : (isFocused ? Colors.white : Colors.white70),
-                  size: 18,
-                  buttonSize: 40,
-                  onPressed: () {
-                    widget.controller.clear();
-                    ref.read(discoverySearchProvider.notifier).toggleSearchMode();
-                  },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Prominent Mode Selector Pills
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  color: searchState.searchMode == SearchMode.songs ? AetherColors.glassWhite : Colors.transparent,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: searchState.searchMode == SearchMode.songs ? Colors.white.withValues(alpha: 0.28) : Colors.white.withValues(alpha: 0.08),
+                  ),
                 ),
-                Expanded(
-                  child: TextField(
-                    controller: widget.controller,
-                    focusNode: widget.focusNode,
-                    textInputAction: TextInputAction.search,
-                    onSubmitted: (value) {
-                      _debounceTimer?.cancel();
-                      ref.read(discoverySearchProvider.notifier).onSearchQueryChanged(value);
-                      widget.onSearchTriggered();
-                      widget.focusNode.unfocus();
-                    },
-                    onChanged: (value) {
-                      ref.read(discoverySearchProvider.notifier).onSearchQueryChanged(value);
-                      _debounceTimer?.cancel();
-                      _debounceTimer = Timer(const Duration(milliseconds: 600), () {
-                        if (mounted) {
+                child: VercelHoverButton(
+                  onTap: () {
+                    widget.controller.clear();
+                    ref.read(discoverySearchProvider.notifier).setSearchMode(SearchMode.songs);
+                  },
+                  borderRadius: 20,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.search_rounded, color: Colors.white, size: 14),
+                      SizedBox(width: 6),
+                      Text('SEARCH SONGS', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Container(
+                decoration: BoxDecoration(
+                  color: searchState.searchMode == SearchMode.spotifyImport ? Colors.lightGreenAccent.withValues(alpha: 0.18) : Colors.transparent,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: searchState.searchMode == SearchMode.spotifyImport ? Colors.lightGreenAccent.withValues(alpha: 0.4) : Colors.white.withValues(alpha: 0.08),
+                  ),
+                ),
+                child: VercelHoverButton(
+                  onTap: () {
+                    widget.controller.clear();
+                    ref.read(discoverySearchProvider.notifier).setSearchMode(SearchMode.spotifyImport);
+                  },
+                  borderRadius: 20,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.queue_music_rounded, color: Colors.lightGreenAccent, size: 14),
+                      SizedBox(width: 6),
+                      Text('SPOTIFY IMPORT', style: TextStyle(color: Colors.lightGreenAccent, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Search Box Input
+          SizedBox(
+            height: 60,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                gradient: isFocused
+                    ? const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          AetherColors.accentCyan,
+                          AetherColors.primaryAccent,
+                        ],
+                      )
+                    : null,
+                boxShadow: isFocused
+                    ? [
+                        BoxShadow(
+                          color: AetherColors.accentCyan.withValues(alpha: 0.3),
+                          blurRadius: 12,
+                          spreadRadius: 1,
+                        ),
+                        BoxShadow(
+                          color: AetherColors.primaryAccent.withValues(alpha: 0.3),
+                          blurRadius: 12,
+                          spreadRadius: 1,
+                        ),
+                      ]
+                    : [],
+              ),
+              padding: EdgeInsets.all(isFocused ? 1.5 : 0),
+              child: AetherGlass(
+                borderRadius: isFocused ? 14.5 : 16,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                child: Row(
+                  children: [
+                    AetherIconButton(
+                      tooltip: searchState.searchMode == SearchMode.spotifyImport
+                          ? 'Search by Name Mode'
+                          : 'Spotify Import Mode',
+                      icon: searchState.searchMode == SearchMode.spotifyImport
+                          ? Icons.queue_music_rounded
+                          : Icons.search_rounded,
+                      color: searchState.searchMode == SearchMode.spotifyImport
+                          ? AetherColors.success
+                          : (isFocused ? Colors.white : Colors.white70),
+                      size: 18,
+                      buttonSize: 40,
+                      onPressed: () {
+                        widget.controller.clear();
+                        ref.read(discoverySearchProvider.notifier).toggleSearchMode();
+                      },
+                    ),
+                    Expanded(
+                      child: TextField(
+                        controller: widget.controller,
+                        focusNode: widget.focusNode,
+                        textInputAction: TextInputAction.search,
+                        onSubmitted: (value) {
+                          _debounceTimer?.cancel();
+                          ref.read(discoverySearchProvider.notifier).onSearchQueryChanged(value);
                           widget.onSearchTriggered();
-                        }
-                      });
-                    },
-                    style: const TextStyle(color: Colors.white, fontSize: 14),
-                    decoration: InputDecoration(
-                      border: InputBorder.none,
-                      hintText: searchState.searchMode == SearchMode.spotifyImport
-                          ? l10n.pasteSpotifyLink
-                          : l10n.searchPlaceholder,
-                      hintStyle: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        fontSize: 12,
-                        letterSpacing: 2,
+                          widget.focusNode.unfocus();
+                        },
+                        onChanged: (value) {
+                          // Auto-detect Spotify playlist URL and switch mode automatically
+                          if (RegExp(r'https?://open\.spotify\.com/playlist/').hasMatch(value) || value.contains('spotify.com')) {
+                            if (searchState.searchMode != SearchMode.spotifyImport) {
+                              ref.read(discoverySearchProvider.notifier).setSearchMode(SearchMode.spotifyImport);
+                            }
+                          }
+                          ref.read(discoverySearchProvider.notifier).onSearchQueryChanged(value);
+                          _debounceTimer?.cancel();
+                          _debounceTimer = Timer(const Duration(milliseconds: 600), () {
+                            if (mounted) {
+                              widget.onSearchTriggered();
+                            }
+                          });
+                        },
+                        style: const TextStyle(color: Colors.white, fontSize: 14),
+                        decoration: InputDecoration(
+                          border: InputBorder.none,
+                          hintText: searchState.searchMode == SearchMode.spotifyImport
+                              ? l10n.pasteSpotifyLink
+                              : l10n.searchPlaceholder,
+                          hintStyle: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            fontSize: 12,
+                            letterSpacing: 2,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                    if (hasText)
+                      AetherIconButton(
+                        tooltip: 'Clear search',
+                        icon: Icons.close_rounded,
+                        color: Colors.white70,
+                        size: 18,
+                        buttonSize: 40,
+                        onPressed: () {
+                          _debounceTimer?.cancel();
+                          widget.controller.clear();
+                          ref.read(discoverySearchProvider.notifier).onSearchQueryChanged('');
+                        },
+                      ),
+                  ],
                 ),
-                if (hasText)
-                  AetherIconButton(
-                    tooltip: 'Clear search',
-                    icon: Icons.close_rounded,
-                    color: Colors.white70,
-                    size: 18,
-                    buttonSize: 40,
-                    onPressed: () {
-                      _debounceTimer?.cancel();
-                      widget.controller.clear();
-                      ref.read(discoverySearchProvider.notifier).onSearchQueryChanged('');
-                    },
-                  ),
-              ],
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }

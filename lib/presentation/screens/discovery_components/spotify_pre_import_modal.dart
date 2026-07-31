@@ -118,7 +118,6 @@ class _SpotifyPreImportModalState extends ConsumerState<SpotifyPreImportModal> {
                       // Header Card
                       AetherGlass(
                         borderRadius: 16,
-                        height: 104,
                         padding: const EdgeInsets.all(16),
                         child: Row(
                           children: [
@@ -141,6 +140,7 @@ class _SpotifyPreImportModalState extends ConsumerState<SpotifyPreImportModal> {
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text(
                                     _metadata?.title ?? _playlistData?.name ?? 'Spotify Playlist',
@@ -159,17 +159,19 @@ class _SpotifyPreImportModalState extends ConsumerState<SpotifyPreImportModal> {
                                   ),
                                   const SizedBox(height: 6),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                     decoration: BoxDecoration(
                                       color: Colors.lightGreenAccent.withValues(alpha: 0.15),
                                       borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(color: Colors.lightGreenAccent.withValues(alpha: 0.3)),
                                     ),
                                     child: Text(
                                       '${_playlistData?.trackQueries.length ?? 0} Tracks',
                                       style: const TextStyle(
                                         color: Colors.lightGreenAccent,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 0.5,
                                       ),
                                     ),
                                   ),
