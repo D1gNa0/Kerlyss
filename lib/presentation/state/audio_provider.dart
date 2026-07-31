@@ -649,20 +649,31 @@ class AudioNotifier extends StateNotifier<AudioState> {
       Log.w('AudioNotifier: Failed to lookup local path for ${song.id}: $e');
     }
 
-    // Fallback: Check local downloads library directly
+    // Fallback: Check local downloads library directly by ID or sanitized title
     if (localPath == null) {
-      String lookupId = song.id.startsWith('jamendo_') 
-          ? song.id.replaceFirst('jamendo_', '') 
-          : song.id;
-
-      DownloadedSong? localSong;
-      if (!lookupId.startsWith('file://') && !lookupId.contains(Platform.pathSeparator) && !lookupId.contains('/')) {
-        localSong = await _localDownloadLibrary.findDownloadedSongById(lookupId);
-        if (localSong != null) localPath = localSong.path;
+      try {
+        final sanitizedTitle = YoutubeService.sanitizeFilePart(song.title);
+        final downloadsDir = await AppStoragePaths.downloadsDirectory();
+        if (await downloadsDir.exists()) {
+          final rawId = song.id.replaceAll('deezer_', '').replaceAll('youtube_', '').replaceAll('jamendo_', '');
+          await for (final entity in downloadsDir.list(recursive: false)) {
+            if (entity is File) {
+              final fileName = p.basename(entity.path).toLowerCase();
+              if ((rawId.isNotEmpty && fileName.contains(rawId.toLowerCase())) ||
+                  (sanitizedTitle.length > 2 && fileName.contains(sanitizedTitle.toLowerCase()))) {
+                localPath = entity.path;
+                Log.i('AudioNotifier: Local downloaded file HIT for "${song.title}" → $localPath');
+                break;
+              }
+            }
+          }
+        }
+      } catch (e) {
+        Log.w('AudioNotifier: Downloads folder scan error for ${song.title}: $e');
       }
     }
     
-    if (localPath != null) {
+    if (localPath != null && File(localPath).existsSync()) {
       final normalizedPath = _normalizePath(localPath);
       return AudioSource.uri(Uri.file(normalizedPath), tag: song);
     }

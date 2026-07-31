@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:logger/logger.dart';
 import 'app_storage_paths.dart';
 
@@ -7,6 +8,8 @@ class _FlatLogPrinter extends LogPrinter {
 
   @override
   List<String> log(LogEvent event) {
+    if (kReleaseMode) return [];
+
     final color = switch (event.level) {
       Level.error || Level.fatal => '\x1b[31m', // Red
       Level.warning => '\x1b[33m',             // Yellow
@@ -15,7 +18,6 @@ class _FlatLogPrinter extends LogPrinter {
       _ => '',
     };
     const reset = '\x1b[0m';
-
 
     final levelStr = switch (event.level) {
       Level.trace => 'TRACE',
@@ -28,19 +30,18 @@ class _FlatLogPrinter extends LogPrinter {
     };
 
     final messageStr = event.message.toString();
-    final truncatedMessage = messageStr.length > 1000 ? '${messageStr.substring(0, 1000)}... [truncated]' : messageStr;
+    final truncatedMessage = messageStr.length > 500 ? '${messageStr.substring(0, 500)}...' : messageStr;
     final lines = <String>['$color$levelStr: $truncatedMessage$reset'];
 
     if (event.error != null) {
       final errorStr = event.error.toString();
-      final truncatedError = errorStr.length > 500 ? '${errorStr.substring(0, 500)}... [truncated]' : errorStr;
+      final truncatedError = errorStr.length > 300 ? '${errorStr.substring(0, 300)}...' : errorStr;
       lines.add('$color$levelStr ERROR: $truncatedError$reset');
     }
 
     if (event.stackTrace != null) {
       lines.add('$color$levelStr STACKTRACE:\n${event.stackTrace}$reset');
     }
-
 
     return lines;
   }
@@ -52,22 +53,28 @@ class _FileSysLogOutput extends LogOutput {
   _FileSysLogOutput();
 
   Future<void> init() async {
+    if (kReleaseMode) return;
     try {
       final logDir = await AppStoragePaths.appRootDirectory();
       file = File('${logDir.path}/kerlyss_runtime.log');
       
       if (await file!.exists()) {
-        await file!.writeAsString('\n--- NEW SESSION ---\n', mode: FileMode.append);
+        final length = await file!.length();
+        if (length > 500 * 1024) {
+          // Truncate log file if > 500KB to save disk space
+          await file!.writeAsString('--- LOG TRUNCATED ---\n', mode: FileMode.write);
+        } else {
+          await file!.writeAsString('\n--- NEW SESSION ---\n', mode: FileMode.append);
+        }
       }
     } catch (_) {}
   }
 
   @override
   void output(OutputEvent event) {
-    if (file == null) return;
+    if (kReleaseMode || file == null) return;
     
     try {
-      // Strip ANSI color codes for file logging
       final ansiRegex = RegExp(r'\x1B\[[0-9;]*m');
       final text = event.lines.map((l) => l.replaceAll(ansiRegex, '')).join('\n') + '\n';
       file!.writeAsString(text, mode: FileMode.append);
@@ -75,12 +82,14 @@ class _FileSysLogOutput extends LogOutput {
   }
 }
 
-
 class Log {
   static Logger? _logger;
   static _FileSysLogOutput? _fileOutput;
 
   static Logger get _instance {
+    if (kReleaseMode) {
+      return Logger(level: Level.off, printer: _FlatLogPrinter(), output: ConsoleOutput());
+    }
     _logger ??= Logger(
       level: Level.info,
       printer: _FlatLogPrinter(),
@@ -90,6 +99,11 @@ class Log {
   }
 
   static Future<void> init() async {
+    if (kReleaseMode) {
+      _logger = Logger(level: Level.off, printer: _FlatLogPrinter(), output: ConsoleOutput());
+      return;
+    }
+
     _fileOutput = _FileSysLogOutput();
     await _fileOutput!.init();
 
@@ -103,7 +117,6 @@ class Log {
     );
     
     i('Kerlyss Logger Initialized.');
-    i('Log file: ${_fileOutput?.file?.path ?? "File logging unavailable"}');
   }
 
   /// Log a message at level [Level.trace].
