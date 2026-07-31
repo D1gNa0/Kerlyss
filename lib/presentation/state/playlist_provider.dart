@@ -139,6 +139,71 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
       return [];
     }
   }
+
+  Future<void> updatePlaylistSyncSettings(
+    int playlistId, {
+    required bool isRealtimeSynced,
+    required bool autoDownloadNewTracks,
+  }) async {
+    try {
+      final playlist = await _playlistRepository.getPlaylistById(playlistId);
+      if (playlist == null) return;
+
+      final updated = playlist.copyWith(
+        isRealtimeSynced: isRealtimeSynced,
+        autoDownloadNewTracks: autoDownloadNewTracks,
+      );
+      await _playlistRepository.savePlaylist(updated);
+      await loadPlaylists();
+    } catch (e, stack) {
+      Log.e('PlaylistNotifier: updatePlaylistSyncSettings failed: $e', e, stack);
+    }
+  }
+
+  Future<void> syncSpotifyPlaylist(int playlistId) async {
+    try {
+      final playlist = await _playlistRepository.getPlaylistById(playlistId);
+      if (playlist == null ||
+          !playlist.isRealtimeSynced ||
+          playlist.spotifySourceUrl == null ||
+          playlist.spotifySourceUrl!.isEmpty) {
+        return;
+      }
+
+      Log.i('PlaylistNotifier: Live diffing Spotify playlist ${playlist.name}...');
+      final remoteData = await _songRepository.getPlaylistFromSpotifyUrl(playlist.spotifySourceUrl!);
+      
+      final currentIds = Set<String>.from(playlist.songIds);
+      final newSongIds = <String>[];
+
+      for (final query in remoteData.trackQueries) {
+        final song = await _songRepository.resolveQueryToSong(query);
+        if (song != null) {
+          await _songRepository.saveSong(song);
+          if (!currentIds.contains(song.id)) {
+            newSongIds.add(song.id);
+          }
+        }
+      }
+
+      if (newSongIds.isNotEmpty) {
+        Log.i('PlaylistNotifier: Found ${newSongIds.length} new tracks for ${playlist.name}');
+        final updatedIds = List<String>.from(playlist.songIds)..addAll(newSongIds);
+        final updated = playlist.copyWith(
+          songIds: updatedIds,
+          lastSyncedAt: DateTime.now(),
+        );
+        await _playlistRepository.savePlaylist(updated);
+        await loadPlaylists();
+      } else {
+        Log.i('PlaylistNotifier: Playlist ${playlist.name} is up to date.');
+        final updated = playlist.copyWith(lastSyncedAt: DateTime.now());
+        await _playlistRepository.savePlaylist(updated);
+      }
+    } catch (e, stack) {
+      Log.w('PlaylistNotifier: Live diffing failed for playlist $playlistId: $e');
+    }
+  }
 }
 
 final playlistProvider = StateNotifierProvider<PlaylistNotifier, PlaylistState>((ref) {

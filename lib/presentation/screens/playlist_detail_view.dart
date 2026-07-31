@@ -35,6 +35,15 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
   }
 
   Future<void> _loadSongs() async {
+    // Background live diffing for synced Spotify playlists
+    ref.read(playlistProvider.notifier).syncSpotifyPlaylist(widget.playlist.id!).then((_) {
+      if (mounted) _reloadSongsFromDb();
+    });
+
+    await _reloadSongsFromDb();
+  }
+
+  Future<void> _reloadSongsFromDb() async {
     final songs = await ref.read(playlistProvider.notifier).getPlaylistSongs(widget.playlist.id!);
     if (mounted) {
       // Sort: Newest First to match library sorting
@@ -44,6 +53,57 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
         _isLoading = false;
       });
     }
+  }
+
+  void _showSyncSettingsDialog(BuildContext context) {
+    bool isSynced = widget.playlist.isRealtimeSynced;
+    bool autoDownload = widget.playlist.autoDownloadNewTracks;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: AetherColors.ultraDarkGray,
+          title: const Text('SYNC SETTINGS', style: TextStyle(color: Colors.white, fontSize: 13, letterSpacing: 2)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SwitchListTile(
+                value: isSynced,
+                activeColor: Colors.lightGreenAccent,
+                title: const Text('Real-Time Sync', style: TextStyle(color: Colors.white, fontSize: 14)),
+                subtitle: const Text('Fetch new tracks on open', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                onChanged: (val) => setDialogState(() => isSynced = val),
+              ),
+              SwitchListTile(
+                value: autoDownload,
+                activeColor: Colors.lightGreenAccent,
+                title: const Text('Auto-Download', style: TextStyle(color: Colors.white, fontSize: 14)),
+                subtitle: const Text('Download new tracks offline', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                onChanged: (val) => setDialogState(() => autoDownload = val),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('CANCEL', style: TextStyle(color: Colors.white38)),
+            ),
+            TextButton(
+              onPressed: () async {
+                await ref.read(playlistProvider.notifier).updatePlaylistSyncSettings(
+                      widget.playlist.id!,
+                      isRealtimeSynced: isSynced,
+                      autoDownloadNewTracks: autoDownload,
+                    );
+                if (context.mounted) Navigator.pop(context);
+              },
+              child: const Text('SAVE', style: TextStyle(color: Colors.lightGreenAccent)),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -93,6 +153,18 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
           overflow: TextOverflow.ellipsis,
         ),
         actions: [
+          if (widget.playlist.spotifySourceUrl != null)
+            ExcludeFocus(
+              child: IconButton(
+                icon: Icon(
+                  Icons.bolt_rounded,
+                  color: widget.playlist.isRealtimeSynced ? Colors.amberAccent : Colors.white24,
+                  size: 20,
+                ),
+                onPressed: () => _showSyncSettingsDialog(context),
+                tooltip: 'Sync Settings',
+              ),
+            ),
           if (allDownloaded)
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 14.0, vertical: 16.0),
