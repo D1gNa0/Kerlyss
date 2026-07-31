@@ -1,75 +1,50 @@
-# Design Spec — Kerlyss Modern Minimalist UI Redesign (Burgundy & Khaki Theme)
+# Design Spec — Kerlyss 2.5D Dynamic Light & Glass UI System
 
 ## Goal & Overview
-Redesign the Kerlyss Flutter music player user interface to be sleek, modern, minimal, and crafted with a human touch (inspired by Linear and Apple dark minimalist design principles). The interface features a bespoke **Burgundy & Khaki** luxury color palette on a deep charcoal black canvas with refined 1px borders, crisp Google Fonts `Outfit` typography, and floating glass components.
+Redesign the Kerlyss Flutter music player and web user interface to feature a **2.5D Dynamic Light & Glass System** inspired by Vercel's lightning stroke glows, Raycast's warm crimson glassmorphism, and Family.co's technical luxury cards. 
+
+The system features:
+1. **2.5D Ambient Background Mesh/Rays**: Soft desaturated background radial light rays behind translucent glass cards (`BackdropFilter` blur 15px).
+2. **Vercel-Style Glowing Edge Beam**: Clicked/active buttons, mode chips, and focused search inputs feature an animated 1px glowing edge stroke (`#F43F5E`).
+3. **Cursor-Following Radial Light**: Desktop/web mouse movement creates a desaturated ambient radial light glow (`#F43F5E` at 8% opacity) that highlights card borders.
+4. **Unified Color Palette**: Single active accent color (**Warm Crimson Coral `#F43F5E`**) used across all active controls, eliminating mismatched button colors.
 
 ---
 
 ## Visual Design Tokens
 
-### Color Palette & Surfaces (Burgundy & Khaki)
-- **Primary Background**: Deep Charcoal Black (`#0A090A`)
-- **Card & Surface Fill**: Warm Dark Charcoal (`#131114`) & `Colors.white.withValues(alpha: 0.03)`
-- **Borders & Dividers**: Hairline Glass Border (`Colors.white.withValues(alpha: 0.08)`) & `Colors.white10`
-- **Accent Colors**:
-  - Primary Accent: **Velvet Burgundy** (`#8B1E3F`)
-  - Secondary Accent: **Warm Khaki** (`#C3B091`)
-  - Highlight Accent: **Soft Cream Khaki** (`#D4C5A9`)
-  - Real-Time Sync Amber: (`#F59E0B`)
-  - Success Green: Offline Downloaded (`#34D399`)
-
-### Typography System
-- **Font Family**: Google Fonts `Outfit`
-- **Primary Text**: Cream White (`#F5F2EB`)
-- **Secondary Text**: Soft Khaki Gray (`#9E978E`)
-- **Display Titles**: Bold 14px uppercase, 4.0 letter-spacing (`displayMedium`)
-- **Track Titles**: 14px SemiBold (`titleLarge`)
-- **Subtitles & Metadata**: 11px Medium, 1.0 letter-spacing (`bodyMedium`)
+### Color Palette & Surfaces
+- **Primary Background**: Dark Charcoal Obsidian (`AetherColors.deepMatteBlack` `#0A0A0E`)
+- **Card & Surface Fill**: Translucent Glass Slate (`AetherColors.ultraDarkGray` `#14141C`) with 10% white alpha
+- **Hairline Borders**: `AetherColors.glassBorder` (`Colors.white.withValues(alpha: 0.10)`)
+- **Unified Primary Accent**: Warm Crimson Coral (`AetherColors.primaryAccent` `#F43F5E`)
+- **Unified Secondary Accent**: Crimson Glow Highlight (`AetherColors.secondaryAccent` `#FB7185`)
+- **Text & Typography**:
+  - Primary Text: Cream Off-White (`#F9FAFB`)
+  - Secondary Text: Soft Slate Gray (`#9CA3AF`)
+  - Font Family: Google Fonts `Outfit`
 
 ---
 
 ## Component Specifications
 
-### 1. Floating Glass Dock Mini-Player & Bottom Navigation
-- **Structure**: Floating pill-shaped container positioned at the bottom of the viewport with 16px side margins and 12px bottom padding.
-- **Visual Style**:
-  - `BorderRadius.circular(20)`
-  - Background: `Color(0xFF0A090A).withValues(alpha: 0.85)` with `BackdropFilter` (blur 15x15)
-  - 1px hairline border: `Colors.white.withValues(alpha: 0.12)`
-- **Elements**:
-  - Left: 40x40px album thumbnail with rounded corners.
-  - Center: Track title in Cream White (`#F5F2EB`) & artist in Soft Khaki Gray (`#9E978E`).
-  - Right: Velvet Burgundy play/pause button (48x48px target), skip track icon, volume popover slider, and playlist queue toggle.
-  - Top Progress Line: Thin 2px Warm Khaki progress line along the top border of the dock.
+### 1. Cursor-Following Light Canvas (`AmbientLightCanvas`)
+- Wraps top-level scaffold views on Desktop & Web.
+- Tracks mouse pointer offset (`PointerHoverEvent`).
+- Renders a soft 150px radial gradient glow at 8% opacity centered at mouse position.
 
-### 2. Discovery View & Search Bar
-- **SearchBar**: 60px height container with dynamic Velvet Burgundy to Warm Khaki gradient focus border when focused (`focusNode.hasFocus`).
-- **Touch Targets**: 48x48px minimum touch targets for mode toggle chip (`[🎵 Songs]` / `[🟢 Spotify Link]`) and clear (`X`) button.
-- **Search Results**: Clean list tiles with 12px vertical spacing, album artwork, track duration, and single-tap playback / add-to-playlist actions.
+### 2. Vercel-Style Glowing Edge Follower (`GlowEdgeContainer`)
+- Wraps interactive buttons, focused search bar, and active playlist chips.
+- Renders a 1px gradient stroke border using `SweepGradient` or `LinearGradient` in `AetherColors.primaryAccent` (`#F43F5E`) and `AetherColors.secondaryAccent` (`#FB7185`).
 
-### 3. Playlists View & Playlist Detail View
-- **Playlist Cards**: Clean cards with 16px border radius, green `DOWNLOADED` status badge when all tracks are stored locally.
-- **Header Actions**:
-  - **`⚡` Sync & Download Settings**: Always visible on all playlists.
-  - **Delete Playlist**: Confirmation dialog before removal.
-- **Sync & Download Settings Modal**:
-  - Custom insets: `insetPadding: EdgeInsets.symmetric(horizontal: 24, vertical: 24)`, `contentPadding: EdgeInsets.fromLTRB(20, 16, 20, 16)`.
-  - Standing Toggles: **`⚡ Real-Time Sync`** and **`🔄 Auto-Download New Songs`**.
-  - Context-Aware Action Button:
-    - **`DOWNLOAD ALL TRACKS NOW`** (`OutlinedButton` with Warm Khaki border) when tracks are missing.
-    - **`STOP DOWNLOADING`** (`OutlinedButton` amber) when bulk download is active.
-    - **`REMOVE DOWNLOADED FILES`** (`OutlinedButton` red) when all tracks are downloaded offline.
-
----
-
-## State Management & Services
-- **`AudioNotifier` (`audioProvider`)**: Controls current track, playback state, and local file playback resolution.
-- **`DownloadStateNotifier` (`downloadStateProvider`)**: Tracks active downloads, progress percentages, and bulk status.
-- **`TrackDownloadService` (`trackDownloadServiceProvider`)**: Manages track downloads, candidate video fallbacks (`_getManifestWithFallback`), and `cancelBulkDownload()`.
-- **`PlaylistNotifier` (`playlistProvider`)**: Handles Isar DB persistence for playlists and real-time sync flags (`isRealtimeSynced`, `autoDownloadNewTracks`).
+### 3. Floating Glass Dock Mini-Player & Navigation (`MiniPlayer`)
+- Positioned floating pill container with 20px rounded corners.
+- Background: `Color(0xFF0A0A0E).withValues(alpha: 0.85)` with 15px backdrop blur.
+- Top Progress Line: 2px Warm Crimson progress bar (`#F43F5E`).
+- Play/Pause Button: Velvet Crimson circular container with 48x48px minimum touch target.
 
 ---
 
 ## Verification Plan
-1. **Automated Tests**: Run `flutter test` to ensure all 20 existing unit, widget, and state tests pass.
-2. **Visual & Touch Target Audit**: Verify that all buttons meet minimum 48x48px touch target constraints and no text or switch widgets overflow dialog boundaries.
+1. Run `flutter test` to ensure all unit and widget tests pass.
+2. Verify all interactive controls use unified Crimson Coral (`#F43F5E`) accents.

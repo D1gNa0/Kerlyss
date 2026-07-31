@@ -1,176 +1,172 @@
-# Modern & Minimal UI Redesign (Burgundy & Khaki Theme) Implementation Plan
+# 2.5D Dynamic Light & Glass System Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Refactor the Kerlyss user interface to a sleek, modern, dark minimalist aesthetic (inspired by Linear and Apple) with a floating glass dock mini-player, clean 1px hairline borders, refined Google Fonts `Outfit` typography, and a luxury Burgundy (`#8B1E3F`) & Khaki (`#C3B091`) color palette on a deep charcoal black canvas (`#0A090A`).
+**Goal:** Implement the Kerlyss **2.5D Dynamic Light & Glass System** with Vercel-style glowing edge stroke borders (`GlowEdgeContainer`), ambient cursor-following radial light (`AmbientLightCanvas`), and unified Warm Crimson Coral (`#F43F5E`) accent styling across all player and playlist UI components.
 
-**Architecture:** The redesign builds on existing Riverpod state management (`audioProvider`, `downloadStateProvider`, `playlistProvider`, `trackDownloadServiceProvider`) while replacing heavy container backgrounds and ad-hoc layouts with a central theme design system (`AetherColors` and `AetherTheme`).
+**Architecture:** A central design system with `AetherColors`, `GlowEdgeContainer`, and `AmbientLightCanvas` wrapped over Riverpod state management (`audioProvider`, `downloadStateProvider`, `playlistProvider`).
 
 **Architecture Diagram:**
 
 ```mermaid
 graph TD
-    subgraph "Theme System"
-        A[AetherColors (Burgundy & Khaki)] --> B[AetherTheme]
+    subgraph "Design System Layer"
+        A[AetherColors #F43F5E] --> B[GlowEdgeContainer]
+        A --> C[AmbientLightCanvas]
+        B --> D[AetherTheme]
     end
 
-    subgraph "Presentation Layer"
-        B --> C[Floating Glass MiniPlayer]
-        B --> D[DiscoverySearchBar]
-        B --> E[PlaylistsView & PlaylistDetailView]
-    end
-
-    subgraph "State & Services"
-        F[audioProvider] --> C
-        G[downloadStateProvider] --> E
-        H[trackDownloadServiceProvider] --> E
+    subgraph "Presentation Components"
+        D --> E[MiniPlayer Floating Dock]
+        D --> F[DiscoverySearchBar Vercel Glow]
+        D --> G[PlaylistsView & Detail View]
     end
 ```
 
 **Tech Stack:** Flutter 3.x, Riverpod 2.6.1, Google Fonts (`Outfit`), Isar DB.
 
 ## Global Constraints
-- **Primary Background**: `AetherColors.deepMatteBlack` (`Color(0xFF0A090A)`)
-- **Primary Accent**: Velvet Burgundy (`Color(0xFF8B1E3F)`)
-- **Secondary Accent**: Warm Khaki (`Color(0xFFC3B091)`)
-- **Primary Text**: Cream White (`Color(0xFFF5F2EB)`)
-- **Secondary Text**: Soft Khaki Gray (`Color(0xFF9E978E)`)
-- **Card Borders**: `AetherColors.glassBorder` (`Color(0x14FFFFFF)`) 1px border side
-- **Minimum Touch Target**: 48x48px for interactive icons and chips
-- **Dialog Layout Insets**: `insetPadding: EdgeInsets.symmetric(horizontal: 24, vertical: 24)`, `contentPadding: EdgeInsets.fromLTRB(20, 16, 20, 16)`
+- **Primary Canvas**: Dark Charcoal Obsidian (`Color(0xFF0A0A0E)`)
+- **Primary Accent**: Warm Crimson Coral (`Color(0xFFF43F5E)`)
+- **Secondary Accent**: Crimson Glow Highlight (`Color(0xFFFB7185)`)
+- **Primary Text**: Cream Off-White (`Color(0xFFF9FAFB)`)
+- **Secondary Text**: Soft Slate Gray (`Color(0xFF9CA3AF)`)
+- **Touch Target Minimum**: 48x48px for interactive buttons
 
 ---
 
-### Task 1: Refactor Design System Tokens & Typography (Burgundy & Khaki)
+### Task 1: Refactor Design System Tokens & Create GlowEdgeContainer Component
 
 **Files:**
 - Modify: `lib/presentation/theme/aether_colors.dart`
-- Modify: `lib/presentation/theme/aether_theme.dart`
-- Create: `test/presentation/theme_tokens_test.dart`
+- Create: `lib/presentation/common/glow_edge_container.dart`
+- Create: `test/presentation/glow_edge_container_test.dart`
 
 **Interfaces:**
-- Consumes: Google Fonts `Outfit` text styles
-- Produces: `AetherColors` static constants & `AetherTheme.darkTheme`
+- Consumes: Flutter `Container`, `CustomPainter`, `BoxDecoration`
+- Produces: `GlowEdgeContainer` widget for Vercel-style glowing border stroke
 
-- [ ] **Step 1: Write failing theme tokens test**
-
-```dart
-import 'package:flutter_test/flutter_test.dart';
-import 'package:kerlyss/presentation/theme/aether_colors.dart';
-import 'package:kerlyss/presentation/theme/aether_theme.dart';
-
-void main() {
-  test('AetherColors defines deep charcoal black backdrop, burgundy, khaki, and cream text', () {
-    expect(AetherColors.deepMatteBlack.value, equals(0xFF0A090A));
-    expect(AetherColors.primaryAccent.value, equals(0xFF8B1E3F)); // Velvet Burgundy
-    expect(AetherColors.secondaryAccent.value, equals(0xFFC3B091)); // Warm Khaki
-    expect(AetherColors.textPrimary.value, equals(0xFFF5F2EB)); // Cream White
-  });
-
-  test('AetherTheme builds darkTheme with Outfit textTheme and deepMatteBlack scaffold', () {
-    final theme = AetherTheme.darkTheme;
-    expect(theme.scaffoldBackgroundColor, equals(AetherColors.deepMatteBlack));
-    expect(theme.useMaterial3, isTrue);
-  });
-}
-```
-
-- [ ] **Step 2: Run test to verify it fails**
-
-Run: `flutter test test/presentation/theme_tokens_test.dart`
-
-- [ ] **Step 3: Update `aether_colors.dart` and `aether_theme.dart`**
-
-Set `AetherColors.deepMatteBlack = Color(0xFF0A090A)`, `ultraDarkGray = Color(0xFF131114)`, `primaryAccent = Color(0xFF8B1E3F)`, `secondaryAccent = Color(0xFFC3B091)`, `accentCyan = Color(0xFFD4C5A9)`, `textPrimary = Color(0xFFF5F2EB)`, `textSecondary = Color(0xFF9E978E)`.
-
-- [ ] **Step 4: Verify test passes**
-
-Run: `flutter test test/presentation/theme_tokens_test.dart`
-
-- [ ] **Step 5: Commit changes**
-
-```bash
-git add lib/presentation/theme/ test/presentation/theme_tokens_test.dart
-git commit -m "style: update AetherColors and AetherTheme to Burgundy & Khaki palette"
-```
-
----
-
-### Task 2: Implement Floating Glass Dock Mini-Player Component
-
-**Files:**
-- Modify: `lib/presentation/common/mini_player.dart`
-- Create: `test/presentation/floating_mini_player_test.dart`
-
-**Interfaces:**
-- Consumes: `audioProvider`, `downloadStateProvider`
-- Produces: Floating glass dock widget with 20px rounded corners, top khaki progress line, and burgundy play button
-
-- [ ] **Step 1: Write failing floating mini player widget test**
+- [ ] **Step 1: Write failing test for GlowEdgeContainer**
 
 ```dart
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kerlyss/presentation/common/mini_player.dart';
+import 'package:kerlyss/presentation/common/glow_edge_container.dart';
+import 'package:kerlyss/presentation/theme/aether_colors.dart';
 
 void main() {
-  testWidgets('MiniPlayer renders floating pill container with rounded corners', (tester) async {
+  testWidgets('GlowEdgeContainer renders child with gradient glow border', (tester) async {
     await tester.pumpWidget(
-      const ProviderScope(
-        child: MaterialApp(
-          home: Scaffold(
-            bottomNavigationBar: MiniPlayer(),
+      const MaterialApp(
+        home: Scaffold(
+          body: GlowEdgeContainer(
+            child: SizedBox(width: 100, height: 50),
           ),
         ),
       ),
     );
 
-    expect(find.byType(MiniPlayer), findsOneWidget);
+    expect(find.byType(GlowEdgeContainer), findsOneWidget);
   });
 }
 ```
 
-- [ ] **Step 2: Run test to verify initial state**
+- [ ] **Step 2: Run test to verify failure**
+
+Run: `flutter test test/presentation/glow_edge_container_test.dart`
+
+- [ ] **Step 3: Update `aether_colors.dart` and build `glow_edge_container.dart`**
+
+Set `primaryAccent = Color(0xFFF43F5E)`, `secondaryAccent = Color(0xFFFB7185)`, `deepMatteBlack = Color(0xFF0A0A0E)`, `ultraDarkGray = Color(0xFF14141C)`, `textPrimary = Color(0xFFF9FAFB)`, `textSecondary = Color(0xFF9CA3AF)`.
+
+Implement `GlowEdgeContainer` with gradient border and optional glow shadow.
+
+- [ ] **Step 4: Verify test passes**
+
+Run: `flutter test test/presentation/glow_edge_container_test.dart`
+
+- [ ] **Step 5: Commit changes**
+
+```bash
+git add lib/presentation/theme/aether_colors.dart lib/presentation/common/glow_edge_container.dart test/presentation/glow_edge_container_test.dart
+git commit -m "feat: implement GlowEdgeContainer and update AetherColors to Warm Crimson Coral"
+```
+
+---
+
+### Task 2: Implement AmbientLightCanvas & Refactor Floating Glass MiniPlayer
+
+**Files:**
+- Create: `lib/presentation/common/ambient_light_canvas.dart`
+- Modify: `lib/presentation/common/mini_player.dart`
+- Modify: `test/presentation/floating_mini_player_test.dart`
+
+**Interfaces:**
+- Consumes: Mouse pointer hover events (`MouseRegion`) & Riverpod audio state
+- Produces: `AmbientLightCanvas` cursor glow & floating glass dock player
+
+- [ ] **Step 1: Write test for AmbientLightCanvas**
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kerlyss/presentation/common/ambient_light_canvas.dart';
+
+void main() {
+  testWidgets('AmbientLightCanvas renders child and captures mouse pointer hover', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: AmbientLightCanvas(
+          child: Scaffold(
+            body: Text('Test Body'),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Test Body'), findsOneWidget);
+  });
+}
+```
+
+- [ ] **Step 2: Run test to verify build**
 
 Run: `flutter test test/presentation/floating_mini_player_test.dart`
 
-- [ ] **Step 3: Refactor `MiniPlayer` layout in `lib/presentation/common/mini_player.dart`**
+- [ ] **Step 3: Create `ambient_light_canvas.dart` and update `mini_player.dart`**
 
-Wrap `MiniPlayer` in `Padding(padding: EdgeInsets.fromLTRB(16, 0, 16, 12))` with `ClipRRect(borderRadius: BorderRadius.circular(20))` and `BackdropFilter(filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15))`. Add top hairline progress bar in `AetherColors.secondaryAccent`.
+Wrap `MiniPlayer` controls in `GlowEdgeContainer` with `AetherColors.primaryAccent` (`#F43F5E`).
 
-- [ ] **Step 4: Run test to verify pass**
+- [ ] **Step 4: Verify tests pass**
 
 Run: `flutter test test/presentation/floating_mini_player_test.dart`
 
 - [ ] **Step 5: Commit changes**
 
 ```bash
-git add lib/presentation/common/mini_player.dart test/presentation/floating_mini_player_test.dart
-git commit -m "style: implement Floating Glass Dock MiniPlayer with Burgundy accent"
+git add lib/presentation/common/ambient_light_canvas.dart lib/presentation/common/mini_player.dart test/presentation/floating_mini_player_test.dart
+git commit -m "feat: implement AmbientLightCanvas and update MiniPlayer with glowing edge controls"
 ```
 
 ---
 
-### Task 3: Apply Minimalist Burgundy & Khaki Card Layout & Verify Suite
+### Task 3: Apply Glowing Edge & Unified Crimson Styling across Views & Verify Suite
 
 **Files:**
 - Modify: `lib/presentation/screens/playlists_view.dart`
 - Modify: `lib/presentation/screens/playlist_detail_view.dart`
 
 **Interfaces:**
-- Consumes: `playlistProvider`, `downloadStateProvider`, `trackDownloadServiceProvider`
-- Produces: Minimalist playlist tiles with green offline badges, khaki highlights, and clean dialog insets
+- Consumes: `playlistProvider`, `downloadStateProvider`
+- Produces: Clean cards with glowing edge borders and high contrast typography
 
-- [ ] **Step 1: Run full test suite to ensure clean baseline**
+- [ ] **Step 1: Run full test suite baseline**
 
 Run: `flutter test`
 
-- [ ] **Step 2: Refactor `_PlaylistTile` and dialogs in `playlists_view.dart` and `playlist_detail_view.dart`**
+- [ ] **Step 2: Apply unified `AetherColors.primaryAccent` and `GlowEdgeContainer` to buttons and dialogs**
 
-Apply 16px border radius, 1px glass border, khaki highlights, cream text, green offline indicator badges, and 48x48px touch targets.
-
-- [ ] **Step 3: Run full test suite to verify all 20+ tests pass**
+- [ ] **Step 3: Verify all tests pass cleanly**
 
 Run: `flutter test`
 
@@ -178,5 +174,5 @@ Run: `flutter test`
 
 ```bash
 git add lib/presentation/screens/playlists_view.dart lib/presentation/screens/playlist_detail_view.dart
-git commit -m "style: apply sleek dark minimalist Burgundy & Khaki styling to PlaylistsView and PlaylistDetailView"
+git commit -m "style: finalize 2026 2.5D Dynamic Light & Glass UI redesign"
 ```
