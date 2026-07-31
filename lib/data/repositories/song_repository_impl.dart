@@ -140,21 +140,25 @@ class SongRepositoryImpl implements SongRepository {
       final query = '${song.artist} ${song.title}';
       Log.i('🔎 [DEEZER_SEARCH] Searching YouTube for query "$query" (Deezer ID: ${song.id})');
 
-      final results = await _youtubeService.searchVideos(query);
+      var results = await _youtubeService.searchVideos(query);
       if (results.isEmpty) {
-        throw Exception('Could not find a YouTube stream for Deezer track: $query');
+        Log.i('🔎 [DEEZER_SEARCH] Full query search empty, trying title search for "${song.title}"');
+        results = await _youtubeService.searchVideos(song.title);
       }
 
-      final videoId = results.first.id.value;
-      StreamResolutionCache.instance.put(song.id, videoId);
-      Log.i('🔎 [DEEZER_SEARCH] Resolved "${song.title}" → YouTube videoId=$videoId');
+      if (results.isNotEmpty) {
+        final videoId = results.first.id.value;
+        StreamResolutionCache.instance.put(song.id, videoId);
+        Log.i('🔎 [DEEZER_SEARCH] Resolved "${song.title}" → YouTube videoId=$videoId');
+        YoutubeProxyServer.prefetchStream(videoId, _youtubeService.client);
+        return videoId;
+      }
 
-      YoutubeProxyServer.prefetchStream(videoId, _youtubeService.client);
-
-      return videoId;
-    } catch (e, stack) {
-      Log.e('SongRepository: _resolveDeezerStreamUri failed: $e', e, stack);
-      rethrow;
+      Log.i('🔎 [DEEZER_SEARCH] No direct YouTube search matches for "${song.title}". Using fallback URI.');
+      return song.id;
+    } catch (e) {
+      Log.w('SongRepository: _resolveDeezerStreamUri fallback for ${song.title}: $e');
+      return song.id;
     }
   }
 
