@@ -123,19 +123,19 @@ class HomeView extends ConsumerWidget {
                       isActive: selectedCategory == _LibraryCategory.allTracks,
                       onTap: () => ref.read(_libraryCategoryProvider.notifier).state = _LibraryCategory.allTracks,
                     ),
-                    const SizedBox(width: 24),
+                    const SizedBox(width: 12),
                     _CategoryChip(
                       label: l10n.downloaded,
                       isActive: selectedCategory == _LibraryCategory.downloaded,
                       onTap: () => ref.read(_libraryCategoryProvider.notifier).state = _LibraryCategory.downloaded,
                     ),
-                    const SizedBox(width: 24),
+                    const SizedBox(width: 12),
                     _CategoryChip(
                       label: l10n.favorites,
                       isActive: selectedCategory == _LibraryCategory.favorites,
                       onTap: () => ref.read(_libraryCategoryProvider.notifier).state = _LibraryCategory.favorites,
                     ),
-                    const SizedBox(width: 24),
+                    const SizedBox(width: 16),
                   ],
                 ),
               ),
@@ -275,31 +275,28 @@ class _CategoryChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                  fontSize: 11,
-                  letterSpacing: 1.5,
-                  color: isActive ? Colors.white : AetherColors.textSecondary,
-                  fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
-                ),
-          ),
-          const SizedBox(height: 6),
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            height: 2,
-            width: isActive ? 20 : 0,
-            decoration: BoxDecoration(
-              color: isActive ? AetherColors.primaryAccent : Colors.transparent,
-              borderRadius: BorderRadius.circular(1),
-            ),
-          ),
-        ],
+    return Container(
+      decoration: BoxDecoration(
+        color: isActive ? AetherColors.glassWhite : Colors.transparent,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: isActive ? Colors.white.withValues(alpha: 0.28) : Colors.white.withValues(alpha: 0.08),
+          width: 1,
+        ),
+      ),
+      child: VercelHoverButton(
+        onTap: onTap,
+        borderRadius: 22,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        child: Text(
+          label,
+          style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                fontSize: 11,
+                letterSpacing: 1.5,
+                color: isActive ? Colors.white : AetherColors.textSecondary,
+                fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
+              ),
+        ),
       ),
     );
   }

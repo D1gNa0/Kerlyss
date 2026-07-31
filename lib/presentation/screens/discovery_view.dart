@@ -190,8 +190,7 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
 
           // Result Body
           if (RegExp(r'https?://open\.spotify\.com/playlist/[a-zA-Z0-9]+').hasMatch(searchState.query.trim()))
-            SliverFillRemaining(
-              hasScrollBody: false,
+            SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
                 child: SpotifyPreImportModal(spotifyUrl: searchState.query.trim()),

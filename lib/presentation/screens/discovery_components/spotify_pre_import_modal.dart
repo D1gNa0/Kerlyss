@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../common/aether_glass.dart';
 import '../../theme/aether_colors.dart';
 import '../../state/import_state_provider.dart';
+import '../../state/discovery_search_provider.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../data/models/spotify_metadata_model.dart';
 import '../../../data/models/spotify_playlist_model.dart';
@@ -60,31 +61,27 @@ class _SpotifyPreImportModalState extends ConsumerState<SpotifyPreImportModal> {
   }
 
   void _onImportPressed() {
-    Navigator.of(context).pop();
     ref.read(importStateProvider.notifier).importSpotifyPlaylist(
           widget.spotifyUrl,
           _downloadPlaylist,
           isRealtimeSynced: _isRealtimeSynced,
           autoDownloadNewTracks: _autoDownloadNewTracks,
         );
+    ref.read(discoverySearchProvider.notifier).clearSearch();
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-        top: 24,
-        left: 20,
-        right: 20,
-      ),
-      decoration: const BoxDecoration(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
         color: AetherColors.ultraDarkGray,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
       ),
       child: _isLoading
           ? const SizedBox(
-              height: 250,
+              height: 200,
               child: Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -105,7 +102,7 @@ class _SpotifyPreImportModalState extends ConsumerState<SpotifyPreImportModal> {
             )
           : _error != null
               ? SizedBox(
-                  height: 200,
+                  height: 160,
                   child: Center(
                     child: Text(
                       _error!,
@@ -113,23 +110,10 @@ class _SpotifyPreImportModalState extends ConsumerState<SpotifyPreImportModal> {
                     ),
                   ),
                 )
-              : SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Handle bar
-                      Center(
-                        child: Container(
-                          width: 40,
-                          height: 4,
-                          margin: const EdgeInsets.only(bottom: 20),
-                          decoration: BoxDecoration(
-                            color: Colors.white24,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                      ),
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
 
                       // Header Card
                       AetherGlass(
@@ -330,7 +314,6 @@ class _SpotifyPreImportModalState extends ConsumerState<SpotifyPreImportModal> {
                       ),
                     ],
                   ),
-                ),
     );
   }
 }
