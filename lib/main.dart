@@ -110,9 +110,7 @@ class KerlyssApp extends StatelessWidget {
       supportedLocales: const [
         Locale('en', ''),
       ],
-      home: const AmbientLightCanvas(
-        child: MainShellView(),
-      ),
+      home: const MainShellView(),
     );
   }
 }
