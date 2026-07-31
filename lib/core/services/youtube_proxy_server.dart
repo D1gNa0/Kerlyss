@@ -411,14 +411,18 @@ class YoutubeProxyServer {
             final remaining = expectedLength - bytesWritten;
             if (remaining <= 0) break;
 
-            if (chunk.length > remaining) {
-              request.response.add(chunk.sublist(0, remaining));
-              bytesWritten += remaining;
-              break;
-            }
+            try {
+              if (chunk.length > remaining) {
+                request.response.add(chunk.sublist(0, remaining));
+                bytesWritten += remaining;
+                break;
+              }
 
-            request.response.add(chunk);
-            bytesWritten += chunk.length;
+              request.response.add(chunk);
+              bytesWritten += chunk.length;
+            } catch (_) {
+              break; // Client disconnected or stream socket closed
+            }
           }
         }
 

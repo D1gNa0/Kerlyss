@@ -65,8 +65,13 @@ class YoutubeService {
 
   /// Searches for YouTube videos based on a query.
   Future<List<Video>> searchVideos(String query) async {
-    final searchList = await _yt.search.search(query);
-    return searchList.where((v) => (v.duration?.inMinutes ?? 0) < 10).take(10).toList();
+    try {
+      final searchList = await _yt.search.search(query);
+      return searchList.where((v) => (v.duration?.inMinutes ?? 0) < 10).take(10).toList();
+    } catch (e, stack) {
+      Log.w('YoutubeService: searchVideos failed for query "$query": $e');
+      return [];
+    }
   }
 
   /// Fetches related videos for a given video ID (Recommendations).
