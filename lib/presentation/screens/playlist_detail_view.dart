@@ -25,6 +25,7 @@ class PlaylistDetailView extends ConsumerStatefulWidget {
 class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
   List<SongEntity>? _loadedSongs;
   bool _isLoading = true;
+  bool _isSyncing = false;
   late String _playlistName;
 
   @override
@@ -55,16 +56,35 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
     }
   }
 
-  void _showSyncSettingsDialog(BuildContext context) {
-    bool isSynced = widget.playlist.isRealtimeSynced;
-    bool autoDownload = widget.playlist.autoDownloadNewTracks;
+  Future<void> _triggerManualSync() async {
+    if (_isSyncing) return;
+    setState(() => _isSyncing = true);
+
+    ToastService.show(context, 'Syncing with Spotify...');
+    final hasNew = await ref.read(playlistProvider.notifier).syncSpotifyPlaylist(widget.playlist.id!, isManual: true);
+
+    if (mounted) {
+      await _reloadSongsFromDb();
+      setState(() => _isSyncing = false);
+      if (hasNew) {
+        ToastService.show(context, 'Found and added new tracks!');
+      } else {
+        ToastService.show(context, 'Playlist is up to date.');
+      }
+    }
+  }
+
+  void _showSyncSettingsDialog(BuildContext context, PlaylistEntity currentPlaylist) {
+    bool isSynced = currentPlaylist.isRealtimeSynced;
+    bool autoDownload = currentPlaylist.autoDownloadNewTracks;
 
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           backgroundColor: AetherColors.ultraDarkGray,
-          title: const Text('SYNC SETTINGS', style: TextStyle(color: Colors.white, fontSize: 13, letterSpacing: 2)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('SYNC & DOWNLOAD SETTINGS', style: TextStyle(color: Colors.white, fontSize: 13, letterSpacing: 2, fontWeight: FontWeight.bold)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -72,15 +92,24 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
                 value: isSynced,
                 activeColor: Colors.lightGreenAccent,
                 title: const Text('Real-Time Sync', style: TextStyle(color: Colors.white, fontSize: 14)),
-                subtitle: const Text('Fetch new tracks on open', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                subtitle: const Text('Automatically fetch new tracks when opening', style: TextStyle(color: Colors.white38, fontSize: 11)),
                 onChanged: (val) => setDialogState(() => isSynced = val),
               ),
               SwitchListTile(
                 value: autoDownload,
-                activeColor: Colors.lightGreenAccent,
-                title: const Text('Auto-Download', style: TextStyle(color: Colors.white, fontSize: 14)),
-                subtitle: const Text('Download new tracks offline', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                activeColor: Colors.cyanAccent,
+                title: const Text('Auto-Download New Tracks', style: TextStyle(color: Colors.white, fontSize: 14)),
+                subtitle: const Text('Download newly added tracks for offline playback', style: TextStyle(color: Colors.white38, fontSize: 11)),
                 onChanged: (val) => setDialogState(() => autoDownload = val),
+              ),
+              const Divider(color: Colors.white10),
+              ListTile(
+                leading: const Icon(Icons.refresh_rounded, color: Colors.amberAccent, size: 20),
+                title: const Text('Sync / Refresh Now', style: TextStyle(color: Colors.amberAccent, fontSize: 13, fontWeight: FontWeight.w600)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _triggerManualSync();
+                },
               ),
             ],
           ),
@@ -110,7 +139,13 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
   Widget build(BuildContext context) {
     final downloadState = ref.watch(downloadStateProvider);
     final libraryState = ref.watch(libraryProvider);
+    final playlistState = ref.watch(playlistProvider);
     
+    final currentPlaylist = playlistState.playlists.firstWhere(
+      (p) => p.id == widget.playlist.id,
+      orElse: () => widget.playlist,
+    );
+
     int notDownloadedCount = 0;
     if (_loadedSongs != null) {
       for (final song in _loadedSongs!) {
@@ -130,9 +165,11 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
-        leading: ExcludeFocus(
+        toolbarHeight: 64,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 8.0),
           child: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
             onPressed: () {
               if (widget.onBack != null) {
                 widget.onBack!();
@@ -153,39 +190,46 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
           overflow: TextOverflow.ellipsis,
         ),
         actions: [
-          if (widget.playlist.spotifySourceUrl != null)
-            ExcludeFocus(
-              child: IconButton(
-                icon: Icon(
-                  Icons.bolt_rounded,
-                  color: widget.playlist.isRealtimeSynced ? Colors.amberAccent : Colors.white24,
-                  size: 20,
-                ),
-                onPressed: () => _showSyncSettingsDialog(context),
-                tooltip: 'Sync Settings',
-              ),
+          if (currentPlaylist.spotifySourceUrl != null) ...[
+            IconButton(
+              icon: _isSyncing
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.amberAccent),
+                    )
+                  : const Icon(Icons.refresh_rounded, color: Colors.white70, size: 20),
+              onPressed: _isSyncing ? null : _triggerManualSync,
+              tooltip: 'Sync / Refresh Now',
             ),
+            IconButton(
+              icon: Icon(
+                Icons.bolt_rounded,
+                color: currentPlaylist.isRealtimeSynced ? Colors.amberAccent : Colors.white24,
+                size: 20,
+              ),
+              onPressed: () => _showSyncSettingsDialog(context, currentPlaylist),
+              tooltip: 'Sync Settings',
+            ),
+          ],
           if (allDownloaded)
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 14.0, vertical: 16.0),
               child: Icon(Icons.check_circle_outline_rounded, color: Colors.greenAccent, size: 20),
             )
           else if (_loadedSongs != null && _loadedSongs!.isNotEmpty)
-            ExcludeFocus(
-              child: IconButton(
-                icon: const Icon(Icons.download_for_offline_rounded, color: AetherColors.primaryAccent, size: 20),
-                onPressed: () => ref.read(trackDownloadServiceProvider).downloadMultiple(_loadedSongs!),
-                tooltip: 'Download All',
-              ),
+            IconButton(
+              icon: const Icon(Icons.download_for_offline_rounded, color: AetherColors.primaryAccent, size: 20),
+              onPressed: () => ref.read(trackDownloadServiceProvider).downloadMultiple(_loadedSongs!),
+              tooltip: 'Download All',
             ),
-          ExcludeFocus(
-            child: IconButton(
-              icon: const Icon(Icons.edit_rounded, color: Colors.white24, size: 18),
-              onPressed: () => _showRenameDialog(context),
-              tooltip: 'Rename Playlist',
-            ),
+          IconButton(
+            icon: const Icon(Icons.edit_rounded, color: Colors.white24, size: 18),
+            onPressed: () => _showRenameDialog(context),
+            tooltip: 'Rename Playlist',
           ),
-          ExcludeFocus(
+          Padding(
+            padding: const EdgeInsets.only(right: 8.0),
             child: IconButton(
               icon: const Icon(Icons.delete_outline_rounded, color: Colors.white38, size: 20),
               onPressed: () => _confirmDeletePlaylist(context),

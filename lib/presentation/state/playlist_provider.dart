@@ -160,21 +160,25 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
     }
   }
 
-  Future<void> syncSpotifyPlaylist(int playlistId) async {
+  Future<bool> syncSpotifyPlaylist(int playlistId, {bool isManual = false}) async {
     try {
       final playlist = await _playlistRepository.getPlaylistById(playlistId);
       if (playlist == null ||
-          !playlist.isRealtimeSynced ||
+          (!isManual && !playlist.isRealtimeSynced) ||
           playlist.spotifySourceUrl == null ||
           playlist.spotifySourceUrl!.isEmpty) {
-        return;
+        return false;
       }
 
-      Log.i('PlaylistNotifier: Live diffing Spotify playlist ${playlist.name}...');
-      final remoteData = await _songRepository.getPlaylistFromSpotifyUrl(playlist.spotifySourceUrl!);
+      Log.i('PlaylistNotifier: Live diffing Spotify playlist ${playlist.name} (isManual=$isManual)...');
+      final remoteData = await _songRepository.getPlaylistFromSpotifyUrl(
+        playlist.spotifySourceUrl!,
+        forceRefresh: true,
+      );
       
       final currentIds = Set<String>.from(playlist.songIds);
       final newSongIds = <String>[];
+      final newSongEntities = <SongEntity>[];
 
       for (final query in remoteData.trackQueries) {
         final song = await _songRepository.resolveQueryToSong(query);
@@ -182,6 +186,7 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
           await _songRepository.saveSong(song);
           if (!currentIds.contains(song.id)) {
             newSongIds.add(song.id);
+            newSongEntities.add(song);
           }
         }
       }
@@ -195,13 +200,16 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
         );
         await _playlistRepository.savePlaylist(updated);
         await loadPlaylists();
+        return true;
       } else {
         Log.i('PlaylistNotifier: Playlist ${playlist.name} is up to date.');
         final updated = playlist.copyWith(lastSyncedAt: DateTime.now());
         await _playlistRepository.savePlaylist(updated);
+        return false;
       }
     } catch (e, stack) {
       Log.w('PlaylistNotifier: Live diffing failed for playlist $playlistId: $e');
+      return false;
     }
   }
 }

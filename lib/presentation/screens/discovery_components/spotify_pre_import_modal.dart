@@ -24,6 +24,7 @@ class _SpotifyPreImportModalState extends ConsumerState<SpotifyPreImportModal> {
   bool _autoDownloadNewTracks = false;
   bool _isLoading = true;
   String? _error;
+  bool _downloadPlaylist = false;
 
   SpotifyMetadataModel? _metadata;
   SpotifyPlaylistModel? _playlistData;
@@ -62,7 +63,7 @@ class _SpotifyPreImportModalState extends ConsumerState<SpotifyPreImportModal> {
     Navigator.of(context).pop();
     ref.read(importStateProvider.notifier).importSpotifyPlaylist(
           widget.spotifyUrl,
-          _autoDownloadNewTracks,
+          _downloadPlaylist,
           isRealtimeSynced: _isRealtimeSynced,
           autoDownloadNewTracks: _autoDownloadNewTracks,
         );
@@ -254,25 +255,53 @@ class _SpotifyPreImportModalState extends ConsumerState<SpotifyPreImportModal> {
                       ),
 
                       SwitchListTile(
-                        value: _autoDownloadNewTracks,
-                        activeColor: Colors.lightGreenAccent,
+                        value: _downloadPlaylist,
+                        activeColor: Colors.cyanAccent,
                         contentPadding: EdgeInsets.zero,
                         title: const Row(
                           children: [
                             Icon(Icons.download_for_offline_rounded, color: Colors.cyanAccent, size: 20),
                             SizedBox(width: 8),
                             Text(
-                              'Auto-Download New Tracks',
+                              'Download Playlist Songs',
                               style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
                             ),
                           ],
                         ),
                         subtitle: const Text(
-                          'Download audio files for offline playback automatically',
+                          'Download tracks for offline playback',
                           style: TextStyle(color: Colors.white38, fontSize: 11),
                         ),
-                        onChanged: (val) => setState(() => _autoDownloadNewTracks = val),
+                        onChanged: (val) => setState(() {
+                          _downloadPlaylist = val;
+                          if (!val) _autoDownloadNewTracks = false;
+                        }),
                       ),
+
+                      if (_downloadPlaylist)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 24.0),
+                          child: SwitchListTile(
+                            value: _autoDownloadNewTracks,
+                            activeColor: Colors.lightGreenAccent,
+                            contentPadding: EdgeInsets.zero,
+                            title: const Row(
+                              children: [
+                                Icon(Icons.autorenew_rounded, color: Colors.lightGreenAccent, size: 18),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Auto-Download Newly Added Songs',
+                                  style: TextStyle(color: Colors.white70, fontSize: 13),
+                                ),
+                              ],
+                            ),
+                            subtitle: const Text(
+                              'Automatically download newly added songs in real-time',
+                              style: TextStyle(color: Colors.white38, fontSize: 11),
+                            ),
+                            onChanged: (val) => setState(() => _autoDownloadNewTracks = val),
+                          ),
+                        ),
 
                       const SizedBox(height: 24),
 

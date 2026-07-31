@@ -19,15 +19,19 @@ class SpotifyPublicService {
 
   SpotifyPublicService(this._dio);
 
-  Future<SpotifyPlaylistModel> extractPlaylistData(String playlistUrl) async {
+  Future<SpotifyPlaylistModel> extractPlaylistData(String playlistUrl, {bool forceRefresh = false}) async {
     final playlistId = _extractId(playlistUrl, 'playlist');
     if (playlistId == null) {
       throw ServerException('Could not extract playlist ID from URL: $playlistUrl');
     }
 
-    final cached = _playlistCache[playlistId];
-    if (cached != null && !cached.isExpired) {
-      return cached.value;
+    if (forceRefresh) {
+      _playlistCache.remove(playlistId);
+    } else {
+      final cached = _playlistCache[playlistId];
+      if (cached != null && !cached.isExpired) {
+        return cached.value;
+      }
     }
 
     final inFlight = _playlistInFlight[playlistId];

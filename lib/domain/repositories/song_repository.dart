@@ -40,7 +40,7 @@ abstract class SongRepository {
   Future<List<SongEntity>> getSongsByIds(List<String> ids);
 
   /// Scrapes a Spotify playlist link for tracks.
-  Future<SpotifyPlaylistModel> getPlaylistFromSpotifyUrl(String url);
+  Future<SpotifyPlaylistModel> getPlaylistFromSpotifyUrl(String url, {bool forceRefresh = false});
 
   /// Resolves a single text query into a best-match SongEntity.
   Future<SongEntity?> resolveQueryToSong(String query);

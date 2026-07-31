@@ -222,8 +222,8 @@ class SongRepositoryImpl implements SongRepository {
   }
 
   @override
-  Future<SpotifyPlaylistModel> getPlaylistFromSpotifyUrl(String url) async {
-    return await _spotifyPublicService.extractPlaylistData(url);
+  Future<SpotifyPlaylistModel> getPlaylistFromSpotifyUrl(String url, {bool forceRefresh = false}) async {
+    return await _spotifyPublicService.extractPlaylistData(url, forceRefresh: forceRefresh);
   }
 
   @override
