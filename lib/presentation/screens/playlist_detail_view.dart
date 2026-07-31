@@ -12,6 +12,7 @@ import '../../domain/entities/song_entity.dart';
 import '../common/mini_player.dart';
 import '../../domain/entities/playlist_entity.dart';
 import '../common/app_dialogs.dart';
+import '../../core/services/toast_service.dart';
 
 class PlaylistDetailView extends ConsumerStatefulWidget {
   final PlaylistEntity playlist;
