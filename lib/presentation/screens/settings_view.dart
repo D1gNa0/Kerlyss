@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../theme/aether_colors.dart';
 import '../common/aether_glass.dart';
+import '../state/audio_provider.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../../core/services/update_service.dart';
 
@@ -39,6 +40,13 @@ class SettingsView extends ConsumerWidget {
               _ShortcutTile(label: 'Seek Backward 5s', value: '← Arrow'),
               _ShortcutTile(label: 'Next track', value: 'Ctrl + →'),
               _ShortcutTile(label: 'Previous track', value: 'Ctrl + ←'),
+            ],
+          ),
+          const SizedBox(height: 32),
+          _SettingsSection(
+            title: 'AUDIO FX & EQUALIZER',
+            children: [
+              _EqPresetTile(),
             ],
           ),
           const SizedBox(height: 32),
@@ -143,6 +151,36 @@ class _SettingsTile extends StatelessWidget {
         ],
       ),
       onTap: onTap,
+    );
+  }
+}
+
+class _EqPresetTile extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final audioState = ref.watch(audioProvider);
+    const presets = ['Flat', 'Bass Boost', 'Vocal', 'Electronic', 'Rock'];
+
+    return ListTile(
+      title: const Text('Equalizer Preset', style: TextStyle(color: Colors.white, fontSize: 13, letterSpacing: 0.5)),
+      trailing: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: presets.contains(audioState.eqPreset) ? audioState.eqPreset : 'Flat',
+          dropdownColor: AetherColors.ultraDarkGray,
+          style: const TextStyle(color: AetherColors.accentCyan, fontSize: 11, fontWeight: FontWeight.bold),
+          items: presets.map((p) {
+            return DropdownMenuItem<String>(
+              value: p,
+              child: Text(p),
+            );
+          }).toList(),
+          onChanged: (newPreset) {
+            if (newPreset != null) {
+              ref.read(audioProvider.notifier).setEqPreset(newPreset);
+            }
+          },
+        ),
+      ),
     );
   }
 }

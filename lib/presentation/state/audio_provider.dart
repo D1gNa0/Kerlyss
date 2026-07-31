@@ -790,8 +790,45 @@ class AudioNotifier extends StateNotifier<AudioState> {
     return p.normalize(path);
   }
 
+  Timer? _sleepTimer;
+
+  void setSleepTimer(Duration? duration) {
+    _sleepTimer?.cancel();
+    if (duration == null) {
+      state = state.copyWith(clearSleepTimer: true);
+      Log.i('AudioNotifier: Sleep timer cancelled.');
+      return;
+    }
+
+    final expireTime = DateTime.now().add(duration);
+    state = state.copyWith(sleepTimerRemaining: duration);
+    Log.i('AudioNotifier: Sleep timer set for ${duration.inMinutes}m.');
+
+    _sleepTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      final remaining = expireTime.difference(DateTime.now());
+      if (remaining.isNegative) {
+        timer.cancel();
+        pause();
+        state = state.copyWith(clearSleepTimer: true);
+        Log.i('AudioNotifier: Sleep timer expired, playback paused.');
+      } else {
+        state = state.copyWith(sleepTimerRemaining: remaining);
+      }
+    });
+  }
+
+  void setEqPreset(String preset) {
+    state = state.copyWith(eqPreset: preset);
+    Log.i('AudioNotifier: Equalizer preset changed to "$preset".');
+  }
+
   @override
   void dispose() {
+    _sleepTimer?.cancel();
     _sessionPersistDebounce?.cancel();
     unawaited(_persistPlaybackSession());
 

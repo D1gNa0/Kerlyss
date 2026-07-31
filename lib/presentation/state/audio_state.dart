@@ -80,6 +80,8 @@ class AudioState {
   final int currentIndex;
   final double volume;
   final String? errorMessage;
+  final Duration? sleepTimerRemaining;
+  final String eqPreset;
 
   const AudioState({
     required this.currentSong,
@@ -92,6 +94,8 @@ class AudioState {
     this.currentIndex = -1,
     this.volume = 1.0,
     this.errorMessage,
+    this.sleepTimerRemaining,
+    this.eqPreset = 'Flat',
   });
 
   AudioState copyWith({
@@ -106,6 +110,9 @@ class AudioState {
     double? volume,
     String? errorMessage,
     bool clearError = false,
+    Duration? sleepTimerRemaining,
+    bool clearSleepTimer = false,
+    String? eqPreset,
   }) {
     return AudioState(
       currentSong: currentSong ?? this.currentSong,
@@ -118,6 +125,8 @@ class AudioState {
       currentIndex: currentIndex ?? this.currentIndex,
       volume: volume ?? this.volume,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
+      sleepTimerRemaining: clearSleepTimer ? null : (sleepTimerRemaining ?? this.sleepTimerRemaining),
+      eqPreset: eqPreset ?? this.eqPreset,
     );
   }
 }

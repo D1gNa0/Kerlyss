@@ -77,6 +77,17 @@ class FullPlayerView extends ConsumerWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           IconButton(
+                            onPressed: () => _showSleepTimerDialog(context, ref, audioState),
+                            icon: Icon(
+                              Icons.timer_outlined,
+                              color: audioState.sleepTimerRemaining != null ? Colors.amberAccent : Colors.white70,
+                              size: 22,
+                            ),
+                            tooltip: audioState.sleepTimerRemaining != null
+                                ? 'Sleep timer: ${audioState.sleepTimerRemaining!.inMinutes}m'
+                                : 'Set Sleep Timer',
+                          ),
+                          IconButton(
                             onPressed: () {
                               showGeneralDialog(
                                 context: context,
@@ -98,10 +109,6 @@ class FullPlayerView extends ConsumerWidget {
                               );
                             },
                             icon: const Icon(Icons.queue_music_rounded, size: 24),
-                          ),
-                          IconButton(
-                            onPressed: () {},
-                            icon: const Icon(Icons.more_horiz_rounded, size: 24),
                           ),
                         ],
                       ),
@@ -389,7 +396,71 @@ class FullPlayerView extends ConsumerWidget {
         ],
       ),
     );
+    void _showSleepTimerDialog(BuildContext context, WidgetRef ref, AudioState audioState) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AetherColors.ultraDarkGray,
+        title: const Text('SLEEP TIMER', style: TextStyle(color: Colors.white, fontSize: 13, letterSpacing: 2)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (audioState.sleepTimerRemaining != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Text(
+                  'Active: ${audioState.sleepTimerRemaining!.inMinutes}m remaining',
+                  style: const TextStyle(color: Colors.amberAccent, fontSize: 12),
+                ),
+              ),
+            ListTile(
+              title: const Text('15 Minutes', style: TextStyle(color: Colors.white, fontSize: 14)),
+              onTap: () {
+                ref.read(audioProvider.notifier).setSleepTimer(const Duration(minutes: 15));
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              title: const Text('30 Minutes', style: TextStyle(color: Colors.white, fontSize: 14)),
+              onTap: () {
+                ref.read(audioProvider.notifier).setSleepTimer(const Duration(minutes: 30));
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              title: const Text('45 Minutes', style: TextStyle(color: Colors.white, fontSize: 14)),
+              onTap: () {
+                ref.read(audioProvider.notifier).setSleepTimer(const Duration(minutes: 45));
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              title: const Text('60 Minutes', style: TextStyle(color: Colors.white, fontSize: 14)),
+              onTap: () {
+                ref.read(audioProvider.notifier).setSleepTimer(const Duration(minutes: 60));
+                Navigator.pop(context);
+              },
+            ),
+            if (audioState.sleepTimerRemaining != null)
+              ListTile(
+                title: const Text('Turn Off Timer', style: TextStyle(color: Colors.redAccent, fontSize: 14)),
+                onTap: () {
+                  ref.read(audioProvider.notifier).setSleepTimer(null);
+                  Navigator.pop(context);
+                },
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('CANCEL', style: TextStyle(color: Colors.white38)),
+          ),
+        ],
+      ),
+    );
   }
+}
 
   String _formatDuration(Duration duration) {
     String twoDigits(int n) => n.toString().padLeft(2, '0');
