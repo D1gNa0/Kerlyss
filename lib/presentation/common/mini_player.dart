@@ -102,7 +102,7 @@ class MiniPlayer extends ConsumerWidget {
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
                                   letterSpacing: 1,
-                                  color: hasSong ? Colors.white : Colors.white24,
+                                  color: hasSong ? AetherColors.textPrimary : AetherColors.textSecondary,
                                 ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -141,7 +141,7 @@ class MiniPlayer extends ConsumerWidget {
                                     hasSong ? currentSong.artist : 'Select a song to start',
                                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                       fontSize: 10,
-                                      color: Colors.white38,
+                                      color: AetherColors.textSecondary,
                                     ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -154,13 +154,13 @@ class MiniPlayer extends ConsumerWidget {
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(4),
                                       border: Border.all(
-                                        color: AetherColors.accentCyan.withValues(alpha: 0.3)
+                                        color: AetherColors.secondaryAccent.withValues(alpha: 0.4)
                                       ),
                                     ),
                                     child: Text(
                                       '${currentSong.bpm} BPM',
                                       style: const TextStyle(
-                                        color: AetherColors.accentCyan,
+                                        color: AetherColors.secondaryAccent,
                                         fontSize: 8,
                                         fontWeight: FontWeight.bold,
                                         letterSpacing: 0.5,
@@ -183,7 +183,7 @@ class MiniPlayer extends ConsumerWidget {
                             icon: Icon(
                               isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
                               color: hasSong
-                                  ? (isFavorite ? Colors.redAccent : Colors.white54)
+                                  ? (isFavorite ? AetherColors.primaryAccent : Colors.white54)
                                   : Colors.white12,
                               size: 22,
                             ),
@@ -204,7 +204,7 @@ class MiniPlayer extends ConsumerWidget {
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2.5,
                                       value: downloadProgress > 0 ? downloadProgress.clamp(0.0, 1.0) : null,
-                                      color: AetherColors.primaryAccent,
+                                      color: AetherColors.secondaryAccent,
                                       backgroundColor: Colors.white12,
                                     ),
                                   )
@@ -221,23 +221,29 @@ class MiniPlayer extends ConsumerWidget {
                       Tooltip(
                         message: 'Play/Pause',
                         child: ExcludeFocus(
-                          child: IconButton(
-                            onPressed: hasSong 
-                                ? () => ref.read(audioProvider.notifier).togglePlay() 
-                                : null,
-                            icon: audioState.status == PlaybackStatus.loading || audioState.status == PlaybackStatus.buffering
-                                ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(color: Colors.white54, strokeWidth: 2),
-                                  )
-                                : Icon(
-                                    audioState.status == PlaybackStatus.playing
-                                        ? Icons.pause_rounded
-                                        : Icons.play_arrow_rounded,
-                                    color: hasSong ? Colors.white : Colors.white12,
-                                    size: 28,
-                                  ),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: hasSong ? AetherColors.primaryAccent.withValues(alpha: 0.2) : Colors.transparent,
+                            ),
+                            child: IconButton(
+                              onPressed: hasSong 
+                                  ? () => ref.read(audioProvider.notifier).togglePlay() 
+                                  : null,
+                              icon: audioState.status == PlaybackStatus.loading || audioState.status == PlaybackStatus.buffering
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(color: Colors.white54, strokeWidth: 2),
+                                    )
+                                  : Icon(
+                                      audioState.status == PlaybackStatus.playing
+                                          ? Icons.pause_rounded
+                                          : Icons.play_arrow_rounded,
+                                      color: hasSong ? AetherColors.textPrimary : Colors.white12,
+                                      size: 26,
+                                    ),
+                            ),
                           ),
                         ),
                       ),
@@ -273,21 +279,21 @@ class MiniPlayer extends ConsumerWidget {
                 ),
               ),
               
-              // Progress Bar (Spotify Style: Thin line at absolute bottom)
+              // Top Hairline Progress Bar (Warm Khaki Accent)
               if (hasSong)
                 Positioned(
-                  bottom: 0,
-                  left: 20, // Align with clinical precision
+                  top: 0,
+                  left: 20,
                   right: 20,
                   child: ClipRRect(
-                    borderRadius: const BorderRadius.vertical(bottom: Radius.circular(2)),
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(2)),
                     child: LinearProgressIndicator(
                       value: currentSong.duration.inMilliseconds > 0
                           ? audioState.position.inMilliseconds / currentSong.duration.inMilliseconds
                           : 0.0,
-                      minHeight: 2, // Hair-thin Spotify aesthetic
+                      minHeight: 2,
                       backgroundColor: Colors.white.withValues(alpha: 0.03),
-                      valueColor: const AlwaysStoppedAnimation<Color>(Colors.white54),
+                      valueColor: const AlwaysStoppedAnimation<Color>(AetherColors.secondaryAccent),
                     ),
                   ),
                 ),
