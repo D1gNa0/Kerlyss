@@ -5,6 +5,7 @@ import '../state/audio_state.dart';
 import '../../domain/entities/song_entity.dart';
 import '../../domain/entities/audio_source_type.dart';
 import 'aether_glass.dart';
+import 'glow_edge_container.dart';
 import '../theme/aether_colors.dart';
 import '../screens/full_player_view.dart';
 import '../screens/queue_view.dart';
@@ -221,11 +222,9 @@ class MiniPlayer extends ConsumerWidget {
                       Tooltip(
                         message: 'Play/Pause',
                         child: ExcludeFocus(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: hasSong ? AetherColors.primaryAccent.withValues(alpha: 0.2) : Colors.transparent,
-                            ),
+                          child: GlowEdgeContainer(
+                            isGlowing: hasSong,
+                            borderRadius: 24,
                             child: IconButton(
                               onPressed: hasSong 
                                   ? () => ref.read(audioProvider.notifier).togglePlay() 
@@ -241,7 +240,7 @@ class MiniPlayer extends ConsumerWidget {
                                           ? Icons.pause_rounded
                                           : Icons.play_arrow_rounded,
                                       color: hasSong ? AetherColors.textPrimary : Colors.white12,
-                                      size: 26,
+                                      size: 24,
                                     ),
                             ),
                           ),
