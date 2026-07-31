@@ -30,22 +30,17 @@ class AetherBottomNav extends ConsumerWidget {
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             _NavIcon(
-              icon: Icons.grid_view_rounded,
-              isActive: currentIndex == 0,
-              onTap: () => ref.read(navigationProvider.notifier).setIndex(0),
-            ),
-            _NavIcon(
+              tooltip: 'Discover',
               icon: Icons.explore_rounded,
               isActive: currentIndex == 1,
               onTap: () => ref.read(navigationProvider.notifier).setIndex(1),
             ),
             _NavIcon(
+              tooltip: 'Playlists',
               icon: Icons.playlist_play_rounded,
               isActive: currentIndex == 2,
               onTap: () => ref.read(navigationProvider.notifier).setIndex(2),
             ),
-
-
           ],
         ),
       ),
@@ -54,18 +49,20 @@ class AetherBottomNav extends ConsumerWidget {
 }
 
 class _NavIcon extends StatelessWidget {
+  final String tooltip;
   final IconData icon;
   final bool isActive;
   final VoidCallback onTap;
 
-  const _NavIcon({required this.icon, required this.isActive, required this.onTap});
+  const _NavIcon({required this.tooltip, required this.icon, required this.isActive, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return AetherIconButton(
+      tooltip: tooltip,
       icon: icon,
-      size: 20,
-      buttonSize: 44,
+      size: 24,
+      buttonSize: 52,
       color: isActive ? Colors.white : Colors.white54,
       onPressed: onTap,
     );

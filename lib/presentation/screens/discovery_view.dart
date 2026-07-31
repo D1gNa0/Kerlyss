@@ -13,6 +13,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../common/aether_glass.dart';
 import '../common/aether_source_bottom_sheet.dart';
+import '../common/vercel_hover_button.dart';
+import '../state/navigation_provider.dart';
 
 import '../state/discovery_search_provider.dart';
 import '../state/keyboard_shortcuts_provider.dart';
@@ -166,6 +168,18 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
             backgroundColor: Colors.transparent,
             pinned: true,
             automaticallyImplyLeading: false,
+            leading: Padding(
+              padding: const EdgeInsets.only(left: 12.0),
+              child: Center(
+                child: AetherIconButton(
+                  tooltip: 'Home',
+                  icon: Icons.grid_view_rounded,
+                  size: 18,
+                  buttonSize: 36,
+                  onPressed: () => ref.read(navigationProvider.notifier).setIndex(0),
+                ),
+              ),
+            ),
             flexibleSpace: FlexibleSpaceBar(
               centerTitle: true,
               title: Text(

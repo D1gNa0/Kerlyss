@@ -100,10 +100,10 @@ class AetherSongTile extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 // Download Indicator / Button
-                if (showDownloadStatus) 
+                if (showDownloadStatus) ...[
                   if (isDownloaded)
                     const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 10),
+                      padding: EdgeInsets.symmetric(horizontal: 6),
                       child: Icon(Icons.check_circle_outline_rounded, color: AetherColors.success, size: 16),
                     )
                   else if (onDownload != null)
@@ -115,6 +115,8 @@ class AetherSongTile extends ConsumerWidget {
                       buttonSize: 36,
                       onPressed: isDownloading ? null : onDownload,
                     ),
+                  const SizedBox(width: 6),
+                ],
 
                 // Heart/Favorite Toggle (Tier 1: Crimson Red)
                 AetherIconButton(
@@ -125,6 +127,7 @@ class AetherSongTile extends ConsumerWidget {
                   buttonSize: 36,
                   onPressed: () => ref.read(libraryProvider.notifier).toggleFavorite(song),
                 ),
+                const SizedBox(width: 6),
 
                 // More Options
                 _buildMoreMenu(context, ref, isDownloaded),
@@ -139,17 +142,19 @@ class AetherSongTile extends ConsumerWidget {
   Widget _buildMoreMenu(BuildContext context, WidgetRef ref, bool isDownloaded) {
     return PopupMenuButton<String>(
       tooltip: 'Show menu',
-      child: const AetherIconButton(
-        tooltip: 'Show menu',
-        icon: Icons.more_vert_rounded,
-        size: 18,
-        buttonSize: 36,
-        color: Colors.white70,
-      ),
       padding: EdgeInsets.zero,
       color: AetherColors.ultraDarkGray,
       offset: const Offset(0, 40),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: const IgnorePointer(
+        child: AetherIconButton(
+          tooltip: 'Show menu',
+          icon: Icons.more_vert_rounded,
+          size: 18,
+          buttonSize: 36,
+          color: Colors.white70,
+        ),
+      ),
       onSelected: (value) {
         if (value == 'add_to_playlist') {
           _showAddToPlaylistDialog(context, ref);
