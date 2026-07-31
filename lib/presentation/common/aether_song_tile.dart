@@ -4,6 +4,8 @@ import '../../domain/entities/song_entity.dart';
 import '../state/library_provider.dart';
 import '../state/playlist_provider.dart';
 import '../theme/aether_colors.dart';
+import 'aether_glass.dart';
+import 'vercel_hover_button.dart';
 import 'aether_network_image.dart';
 import '../state/download_state_provider.dart';
 import '../state/track_download_provider.dart';
@@ -102,36 +104,24 @@ class AetherSongTile extends ConsumerWidget {
                     child: Icon(Icons.check_circle_outline_rounded, color: AetherColors.success, size: 16),
                   )
                 else if (onDownload != null)
-                  IconButton(
-                    icon: isDownloading 
-                        ? SizedBox(
-                            width: 20, 
-                            height: 20, 
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              value: downloadProgress > 0 ? downloadProgress : null,
-                              color: AetherColors.success,
-                              backgroundColor: Colors.white10,
-                            ),
-                          )
-                        : const Icon(Icons.download_rounded, color: Colors.white38, size: 20),
-                    onPressed: isDownloading ? null : onDownload,
+                  AetherIconButton(
                     tooltip: 'Download song',
+                    icon: Icons.download_rounded,
+                    color: Colors.white70,
+                    size: 18,
+                    buttonSize: 36,
+                    onPressed: isDownloading ? null : onDownload,
                   ),
 
               // Heart/Favorite Toggle (Tier 1: Crimson Red)
-              IconButton(
-                icon: Icon(
-                  isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                  color: isFav ? AetherColors.error : Colors.white24,
-                  size: 18,
-                ),
-                onPressed: () {
-                  ref.read(libraryProvider.notifier).toggleFavorite(song);
-                },
+              AetherIconButton(
                 tooltip: isFav ? 'Remove from favorites' : 'Add to favorites',
+                icon: isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                color: isFav ? AetherColors.error : Colors.white70,
+                size: 18,
+                buttonSize: 36,
+                onPressed: () => ref.read(libraryProvider.notifier).toggleFavorite(song),
               ),
-
 
               // More Options
               _buildMoreMenu(context, ref, isDownloaded),
@@ -144,7 +134,7 @@ class AetherSongTile extends ConsumerWidget {
 
   Widget _buildMoreMenu(BuildContext context, WidgetRef ref, bool isDownloaded) {
     return PopupMenuButton<String>(
-      icon: const Icon(Icons.more_vert_rounded, color: Colors.white24, size: 20),
+      icon: const Icon(Icons.more_vert_rounded, color: Colors.white70, size: 18),
       padding: EdgeInsets.zero,
       color: AetherColors.ultraDarkGray,
       offset: const Offset(0, 40),

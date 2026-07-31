@@ -84,16 +84,18 @@ class HomeView extends ConsumerWidget {
               actions: [
                 Padding(
                   padding: const EdgeInsets.only(right: 16.0),
-                  child: ExcludeFocus(
-                    child: IconButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const SettingsView()),
-                        );
-                      },
-                      icon: const Icon(Icons.settings_outlined, size: 22, color: AetherColors.textSecondary),
-                    ),
+                  child: AetherIconButton(
+                    tooltip: 'Settings',
+                    icon: Icons.settings_outlined,
+                    size: 18,
+                    buttonSize: 36,
+                    color: Colors.white70,
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const SettingsView()),
+                      );
+                    },
                   ),
                 ),
               ],

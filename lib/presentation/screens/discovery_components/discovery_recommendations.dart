@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../domain/entities/song_entity.dart';
 import '../../state/recommendations_provider.dart';
 import '../../common/aether_song_tile.dart';
+import '../../common/vercel_hover_button.dart';
 
 import '../../state/audio_state.dart';
 import '../../state/audio_provider.dart';
@@ -174,14 +175,13 @@ class _DiscoveryRecommendationsViewState extends ConsumerState<DiscoveryRecommen
               ),
             ),
             if (onRefresh != null)
-              ExcludeFocus(
-                child: IconButton(
-                  iconSize: 18,
-                  visualDensity: VisualDensity.compact,
-                  tooltip: 'Refresh recommendations',
-                  onPressed: onRefresh,
-                  icon: const Icon(Icons.refresh_rounded, color: Colors.white54),
-                ),
+              AetherIconButton(
+                tooltip: 'Refresh recommendations',
+                icon: Icons.refresh_rounded,
+                size: 16,
+                buttonSize: 34,
+                color: Colors.white70,
+                onPressed: onRefresh,
               ),
           ],
         ),

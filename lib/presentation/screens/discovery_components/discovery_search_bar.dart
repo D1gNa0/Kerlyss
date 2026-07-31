@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../common/aether_glass.dart';
+import '../../common/vercel_hover_button.dart';
 import '../../state/discovery_search_provider.dart';
 import '../../theme/aether_colors.dart';
 import 'package:kerlyss/l10n/app_localizations.dart';
@@ -105,25 +106,20 @@ class _DiscoverySearchBarState extends ConsumerState<DiscoverySearchBar> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             child: Row(
               children: [
-                IconButton(
-                  icon: Icon(
-                    searchState.searchMode == SearchMode.spotifyImport
-                        ? Icons.queue_music_rounded
-                        : Icons.search_rounded,
-                    color: searchState.searchMode == SearchMode.spotifyImport
-                        ? Colors.lightGreenAccent
-                        : (isFocused ? AetherColors.accentCyan : Colors.white24),
-                    size: 20,
-                  ),
-                  constraints: const BoxConstraints(
-                    minWidth: 48,
-                    minHeight: 48,
-                  ),
+                AetherIconButton(
+                  tooltip: l10n.toggleSpotifyMode,
+                  icon: searchState.searchMode == SearchMode.spotifyImport
+                      ? Icons.queue_music_rounded
+                      : Icons.search_rounded,
+                  color: searchState.searchMode == SearchMode.spotifyImport
+                      ? AetherColors.success
+                      : (isFocused ? Colors.white : Colors.white70),
+                  size: 18,
+                  buttonSize: 40,
                   onPressed: () {
                     widget.controller.clear();
                     ref.read(discoverySearchProvider.notifier).toggleSearchMode();
                   },
-                  tooltip: l10n.toggleSpotifyMode,
                 ),
                 Expanded(
                   child: TextField(
@@ -160,22 +156,17 @@ class _DiscoverySearchBarState extends ConsumerState<DiscoverySearchBar> {
                   ),
                 ),
                 if (hasText)
-                  IconButton(
-                    icon: const Icon(
-                      Icons.close_rounded,
-                      color: Colors.white54,
-                      size: 20,
-                    ),
-                    constraints: const BoxConstraints(
-                      minWidth: 48,
-                      minHeight: 48,
-                    ),
+                  AetherIconButton(
+                    tooltip: 'Clear search',
+                    icon: Icons.close_rounded,
+                    color: Colors.white70,
+                    size: 18,
+                    buttonSize: 40,
                     onPressed: () {
                       _debounceTimer?.cancel();
                       widget.controller.clear();
                       ref.read(discoverySearchProvider.notifier).onSearchQueryChanged('');
                     },
-                    tooltip: 'Clear',
                   ),
                 if (searchState.searchMode == SearchMode.spotifyImport)
                   Row(

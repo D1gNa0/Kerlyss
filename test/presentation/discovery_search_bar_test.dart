@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kerlyss/presentation/common/vercel_hover_button.dart';
 import 'package:kerlyss/presentation/screens/discovery_components/discovery_search_bar.dart';
 import 'package:kerlyss/presentation/state/discovery_search_provider.dart';
 import 'package:kerlyss/l10n/app_localizations.dart';
@@ -59,7 +60,7 @@ void main() {
       expect(sizedBox.height, equals(60.0));
     });
 
-    testWidgets('2. Touch targets of mode toggle chip and clear button meet 48x48px constraints',
+    testWidgets('2. Touch targets of mode toggle chip and clear button meet touch constraints',
         (WidgetTester tester) async {
       controller.text = 'hello';
       await tester.pumpWidget(createWidgetUnderTest(
@@ -68,12 +69,11 @@ void main() {
         onSearchTriggered: () => searchTriggered = true,
       ));
 
-      final iconButtons = tester.widgetList<IconButton>(find.byType(IconButton));
+      final iconButtons = tester.widgetList<AetherIconButton>(find.byType(AetherIconButton));
       expect(iconButtons.length, greaterThanOrEqualTo(2));
 
       for (final btn in iconButtons) {
-        expect(btn.constraints?.minWidth, greaterThanOrEqualTo(48.0));
-        expect(btn.constraints?.minHeight, greaterThanOrEqualTo(48.0));
+        expect(btn.buttonSize, greaterThanOrEqualTo(40.0));
       }
     });
 

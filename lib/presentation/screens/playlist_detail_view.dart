@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../common/aether_song_tile.dart';
+import '../common/mini_player.dart';
+import '../common/vercel_hover_button.dart';
 import '../state/audio_state.dart';
 import '../theme/aether_colors.dart';
 import '../state/playlist_provider.dart';
@@ -292,15 +294,19 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
         toolbarHeight: 64,
         leading: Padding(
           padding: const EdgeInsets.only(left: 8.0),
-          child: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
-            onPressed: () {
-              if (widget.onBack != null) {
-                widget.onBack!();
-              } else {
-                Navigator.pop(context);
-              }
-            },
+          child: Center(
+            child: AetherIconButton(
+              icon: Icons.arrow_back_ios_new_rounded,
+              size: 16,
+              buttonSize: 36,
+              onPressed: () {
+                if (widget.onBack != null) {
+                  widget.onBack!();
+                } else {
+                  Navigator.pop(context);
+                }
+              },
+            ),
           ),
         ),
         title: Text(
@@ -315,42 +321,42 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
         ),
         actions: [
           if (currentPlaylist.spotifySourceUrl != null)
-            IconButton(
-              icon: _isSyncing
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: AetherColors.primaryAccent),
-                    )
-                  : const Icon(Icons.refresh_rounded, color: Colors.white70, size: 20),
-              onPressed: _isSyncing ? null : _triggerManualSync,
+            AetherIconButton(
               tooltip: 'Sync / Refresh Now',
+              icon: Icons.refresh_rounded,
+              size: 18,
+              buttonSize: 36,
+              onPressed: _isSyncing ? null : _triggerManualSync,
             ),
-          IconButton(
-            icon: Icon(
-              Icons.bolt_rounded,
-              color: currentPlaylist.isRealtimeSynced ? AetherColors.primaryAccent : Colors.white54,
-              size: 20,
-            ),
-            onPressed: () => _showSyncSettingsDialog(context, currentPlaylist),
+          AetherIconButton(
             tooltip: 'Sync & Download Settings',
+            icon: Icons.bolt_rounded,
+            color: currentPlaylist.isRealtimeSynced ? AetherColors.primaryAccent : Colors.white70,
+            size: 18,
+            buttonSize: 36,
+            onPressed: () => _showSyncSettingsDialog(context, currentPlaylist),
           ),
           if (allDownloaded)
             const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 14.0, vertical: 16.0),
-              child: Icon(Icons.check_circle_outline_rounded, color: AetherColors.success, size: 20),
+              padding: EdgeInsets.symmetric(horizontal: 10.0),
+              child: Icon(Icons.check_circle_outline_rounded, color: AetherColors.success, size: 18),
             ),
-          IconButton(
-            icon: const Icon(Icons.edit_rounded, color: Colors.white24, size: 18),
-            onPressed: () => _showRenameDialog(context),
+          AetherIconButton(
             tooltip: 'Rename Playlist',
+            icon: Icons.edit_rounded,
+            size: 16,
+            buttonSize: 36,
+            onPressed: () => _showRenameDialog(context),
           ),
           Padding(
             padding: const EdgeInsets.only(right: 8.0),
-            child: IconButton(
-              icon: const Icon(Icons.delete_outline_rounded, color: Colors.white38, size: 20),
-              onPressed: () => _confirmDeletePlaylist(context),
+            child: AetherIconButton(
               tooltip: 'Delete Playlist',
+              icon: Icons.delete_outline_rounded,
+              color: AetherColors.error,
+              size: 18,
+              buttonSize: 36,
+              onPressed: () => _confirmDeletePlaylist(context),
             ),
           ),
         ],
