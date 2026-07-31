@@ -10,11 +10,22 @@ class PlaylistRepositoryImpl implements PlaylistRepository {
   PlaylistRepositoryImpl(this._dbService);
 
   @override
-  Future<void> createPlaylist(String name, List<String> songIds) async {
+  Future<void> createPlaylist(
+    String name,
+    List<String> songIds, {
+    bool isRealtimeSynced = false,
+    bool autoDownloadNewTracks = false,
+    String? spotifySourceUrl,
+    String? coverArtUrl,
+  }) async {
     try {
       final playlist = PlaylistModel()
         ..name = name
-        ..songIds = songIds;
+        ..songIds = songIds
+        ..isRealtimeSynced = isRealtimeSynced
+        ..autoDownloadNewTracks = autoDownloadNewTracks
+        ..spotifySourceUrl = spotifySourceUrl
+        ..coverArtUrl = coverArtUrl;
       await _dbService.savePlaylist(playlist);
     } catch (e, stack) {
       Log.e('PlaylistRepositoryImpl: createPlaylist failed: $e', e, stack);

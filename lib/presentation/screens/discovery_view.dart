@@ -1,5 +1,6 @@
 import 'discovery_components/discovery_results_list.dart';
 import 'discovery_components/spotify_import_panel.dart';
+import 'discovery_components/spotify_pre_import_modal.dart';
 import 'discovery_components/discovery_search_bar.dart';
 import 'discovery_components/discovery_recommendations.dart';
 import 'discovery_components/discovery_error_state.dart';
@@ -134,6 +135,21 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
     ref.listen(discoverySearchProvider, (previous, next) {
       if (previous?.results.length != next.results.length || next.results.isNotEmpty) {
         _updateExistingDownloads();
+      }
+
+      // Detect Spotify playlist URL paste
+      if (next.query.isNotEmpty &&
+          next.query != previous?.query &&
+          RegExp(r'https?://open\.spotify\.com/playlist/[a-zA-Z0-9]+').hasMatch(next.query)) {
+        final url = next.query.trim();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          showModalBottomSheet(
+            context: context,
+            backgroundColor: Colors.transparent,
+            isScrollControlled: true,
+            builder: (context) => SpotifyPreImportModal(spotifyUrl: url),
+          );
+        });
       }
     });
 

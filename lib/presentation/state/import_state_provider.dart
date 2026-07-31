@@ -57,7 +57,12 @@ class ImportStateNotifier extends StateNotifier<ImportState> {
   void reset() {
     state = const ImportState();
   }
-  Future<void> importSpotifyPlaylist(String url, bool download) async {
+  Future<void> importSpotifyPlaylist(
+    String url,
+    bool download, {
+    bool isRealtimeSynced = false,
+    bool autoDownloadNewTracks = false,
+  }) async {
     if (url.isEmpty || !url.startsWith('http')) {
       Log.w('Spotify Import: Invalid URL provided: $url');
       setStatus(ImportStatus.error, errorMessage: 'Invalid URL.');
@@ -119,8 +124,14 @@ class ImportStateNotifier extends StateNotifier<ImportState> {
 
         // Create the playlist in DB
         if (resolvedSongIds.isNotEmpty) {
-          Log.i('Spotify Import: Creating playlist "${playlistData.name}" with ${resolvedSongIds.length} tracks');
-          await _playlistRepo.createPlaylist(playlistData.name, resolvedSongIds);
+          Log.i('Spotify Import: Creating playlist "${playlistData.name}" with ${resolvedSongIds.length} tracks (synced: $isRealtimeSynced)');
+          await _playlistRepo.createPlaylist(
+            playlistData.name,
+            resolvedSongIds,
+            isRealtimeSynced: isRealtimeSynced,
+            autoDownloadNewTracks: autoDownloadNewTracks,
+            spotifySourceUrl: url,
+          );
 
           Log.i('Spotify Import: Successfully completed import of "${playlistData.name}"');
           setStatus(ImportStatus.complete);
