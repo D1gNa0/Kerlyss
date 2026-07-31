@@ -400,25 +400,119 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
   }
 
   Widget _buildSongList() {
-    return ListView.builder(
-      padding: const EdgeInsets.only(left: 20, right: 20, top: 12, bottom: 140),
-      itemCount: _loadedSongs!.length,
-      itemBuilder: (context, index) {
-        final song = _loadedSongs![index];
-        return AetherSongTile(
-          song: song,
-          onDownload: () => ref.read(trackDownloadServiceProvider).downloadTrack(song),
-          onRemove: () async {
-            await ref.read(playlistProvider.notifier).removeSongFromPlaylist(widget.playlist.id!, song.id);
-            _loadSongs();
-          },
-           onTap: () {
-            final playlist = _loadedSongs!.map(SongMetadata.fromEntity).toList();
-            
-            ref.read(audioProvider.notifier).playPlaylist(playlist, index);
-          },
-        );
-      },
+    final currentPlaylist = ref.watch(playlistProvider).playlists.where((p) => p.id == widget.playlist.id).firstOrNull ?? widget.playlist;
+
+    return ListView(
+      padding: const EdgeInsets.only(left: 20, right: 20, top: 16, bottom: 140),
+      children: [
+        // Rich Hero Editorial Header
+        Container(
+          padding: const EdgeInsets.all(20),
+          margin: const EdgeInsets.only(bottom: 24),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.03),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 90,
+                height: 90,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                ),
+                child: const Icon(Icons.playlist_play_rounded, color: Colors.white, size: 48),
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'PLAYLIST',
+                      style: TextStyle(color: AetherColors.textSecondary, fontSize: 10, letterSpacing: 2, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      currentPlaylist.name,
+                      style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Text(
+                          '${_loadedSongs!.length} TRACKS',
+                          style: const TextStyle(color: Colors.white54, fontSize: 11, letterSpacing: 1),
+                        ),
+                        if (currentPlaylist.isRealtimeSynced) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.amber.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text('AUTO SYNC', style: TextStyle(color: Colors.amber, fontSize: 8, fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        VercelHoverButton(
+                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                          borderRadius: 20,
+                          onTap: _loadedSongs!.isNotEmpty
+                              ? () => ref.read(audioProvider.notifier).playPlaylist(_loadedSongs!.map(SongMetadata.fromEntity).toList(), 0)
+                              : null,
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.play_arrow_rounded, color: Colors.white, size: 18),
+                              SizedBox(width: 6),
+                              Text('PLAY ALL', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Section Header
+        const Padding(
+          padding: EdgeInsets.only(left: 4, bottom: 12),
+          child: Text(
+            'TRACKLIST',
+            style: TextStyle(color: Colors.white38, fontSize: 10, letterSpacing: 2, fontWeight: FontWeight.bold),
+          ),
+        ),
+
+        // Song Tiles
+        ..._loadedSongs!.asMap().entries.map((entry) {
+          final index = entry.key;
+          final song = entry.value;
+          return AetherSongTile(
+            song: song,
+            onDownload: () => ref.read(trackDownloadServiceProvider).downloadTrack(song),
+            onTap: () => ref.read(audioProvider.notifier).playPlaylist(_loadedSongs!.map(SongMetadata.fromEntity).toList(), index),
+            onRemove: () async {
+              await ref.read(playlistProvider.notifier).removeSongFromPlaylist(widget.playlist.id!, song.id);
+              _reloadSongsFromDb();
+            },
+          );
+        }),
+      ],
     );
   }
 
