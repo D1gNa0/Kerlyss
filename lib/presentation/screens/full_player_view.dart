@@ -392,11 +392,12 @@ class FullPlayerView extends ConsumerWidget {
                 ],
               ),
             ),
-          ),
-        ],
+          )        ],
       ),
     );
-    void _showSleepTimerDialog(BuildContext context, WidgetRef ref, AudioState audioState) {
+  }
+
+  void _showSleepTimerDialog(BuildContext context, WidgetRef ref, AudioState audioState) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -460,7 +461,6 @@ class FullPlayerView extends ConsumerWidget {
       ),
     );
   }
-}
 
   String _formatDuration(Duration duration) {
     String twoDigits(int n) => n.toString().padLeft(2, '0');

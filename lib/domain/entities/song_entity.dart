@@ -27,6 +27,34 @@ class SongEntity {
     required this.dateAdded,
   });
 
+  SongEntity copyWith({
+    String? id,
+    String? title,
+    String? artist,
+    String? album,
+    String? albumArtUrl,
+    Duration? duration,
+    String? sourceUrl,
+    AudioSourceType? sourceType,
+    String? localPath,
+    int? bpm,
+    DateTime? dateAdded,
+  }) {
+    return SongEntity(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      artist: artist ?? this.artist,
+      album: album ?? this.album,
+      albumArtUrl: albumArtUrl ?? this.albumArtUrl,
+      duration: duration ?? this.duration,
+      sourceUrl: sourceUrl ?? this.sourceUrl,
+      sourceType: sourceType ?? this.sourceType,
+      localPath: localPath ?? this.localPath,
+      bpm: bpm ?? this.bpm,
+      dateAdded: dateAdded ?? this.dateAdded,
+    );
+  }
+
 
   @override
   bool operator ==(Object other) =>

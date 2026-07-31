@@ -812,7 +812,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
       final remaining = expireTime.difference(DateTime.now());
       if (remaining.isNegative) {
         timer.cancel();
-        pause();
+        _audioService.pause();
         state = state.copyWith(clearSleepTimer: true);
         Log.i('AudioNotifier: Sleep timer expired, playback paused.');
       } else {

@@ -167,9 +167,9 @@ class _SpotifyPreImportModalState extends ConsumerState<SpotifyPreImportModal> {
                                     ),
                                   ),
                                   const SizedBox(height: 4),
-                                  Text(
-                                    _metadata?.authorName ?? 'Spotify User',
-                                    style: const TextStyle(color: Colors.white54, fontSize: 12),
+                                  const Text(
+                                    'Spotify Playlist',
+                                    style: TextStyle(color: Colors.white54, fontSize: 12),
                                   ),
                                   const SizedBox(height: 6),
                                   Container(
@@ -219,7 +219,7 @@ class _SpotifyPreImportModalState extends ConsumerState<SpotifyPreImportModal> {
                                   track,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(color: Colors.white87, fontSize: 13),
+                                  style: const TextStyle(color: Colors.white70, fontSize: 13),
                                 ),
                               ),
                             ],
