@@ -1,27 +1,30 @@
-# Design Spec — Kerlyss Modern Minimalist UI Redesign
+# Design Spec — Kerlyss Modern Minimalist UI Redesign (Burgundy & Khaki Theme)
 
 ## Goal & Overview
-Redesign the Kerlyss Flutter music player user interface to be sleek, modern, minimal, and crafted with a human touch (inspired by Linear and Apple dark minimalist design principles). The interface avoids generic AI-template tropes by using refined dark matte surfaces, subtle 1px borders, crisp typography, and floating glass components.
+Redesign the Kerlyss Flutter music player user interface to be sleek, modern, minimal, and crafted with a human touch (inspired by Linear and Apple dark minimalist design principles). The interface features a bespoke **Burgundy & Khaki** luxury color palette on a deep charcoal black canvas with refined 1px borders, crisp Google Fonts `Outfit` typography, and floating glass components.
 
 ---
 
 ## Visual Design Tokens
 
-### Color Palette & Surfaces
-- **Primary Background**: `AetherColors.deepMatteBlack` (`#0C0C0C`)
-- **Card & Surface Fill**: `AetherColors.ultraDarkGray` (`#121212`) & `Colors.white.withValues(alpha: 0.03)`
-- **Borders & Dividers**: `AetherColors.glassBorder` (`Colors.white.withValues(alpha: 0.08)`) & `Colors.white10`
+### Color Palette & Surfaces (Burgundy & Khaki)
+- **Primary Background**: Deep Charcoal Black (`#0A090A`)
+- **Card & Surface Fill**: Warm Dark Charcoal (`#131114`) & `Colors.white.withValues(alpha: 0.03)`
+- **Borders & Dividers**: Hairline Glass Border (`Colors.white.withValues(alpha: 0.08)`) & `Colors.white10`
 - **Accent Colors**:
-  - Primary Accent: Lucid Purple (`#A855F7`)
-  - Accent Cyan: Vibrant Cyan (`#22D3EE`)
-  - Accent Amber: Real-Time Sync Amber (`#F59E0B`)
+  - Primary Accent: **Velvet Burgundy** (`#8B1E3F`)
+  - Secondary Accent: **Warm Khaki** (`#C3B091`)
+  - Highlight Accent: **Soft Cream Khaki** (`#D4C5A9`)
+  - Real-Time Sync Amber: (`#F59E0B`)
   - Success Green: Offline Downloaded (`#34D399`)
 
 ### Typography System
 - **Font Family**: Google Fonts `Outfit`
+- **Primary Text**: Cream White (`#F5F2EB`)
+- **Secondary Text**: Soft Khaki Gray (`#9E978E`)
 - **Display Titles**: Bold 14px uppercase, 4.0 letter-spacing (`displayMedium`)
 - **Track Titles**: 14px SemiBold (`titleLarge`)
-- **Subtitles & Metadata**: 11px Medium, 1.0 letter-spacing (`bodyMedium`) in `Colors.white38` / `textSecondary`
+- **Subtitles & Metadata**: 11px Medium, 1.0 letter-spacing (`bodyMedium`)
 
 ---
 
@@ -31,16 +34,16 @@ Redesign the Kerlyss Flutter music player user interface to be sleek, modern, mi
 - **Structure**: Floating pill-shaped container positioned at the bottom of the viewport with 16px side margins and 12px bottom padding.
 - **Visual Style**:
   - `BorderRadius.circular(20)`
-  - Background: `Colors.black.withValues(alpha: 0.75)` with `BackdropFilter` (blur 15x15)
+  - Background: `Color(0xFF0A090A).withValues(alpha: 0.85)` with `BackdropFilter` (blur 15x15)
   - 1px hairline border: `Colors.white.withValues(alpha: 0.12)`
 - **Elements**:
   - Left: 40x40px album thumbnail with rounded corners.
-  - Center: Track title & artist with smooth scrolling marqee/overflow.
-  - Right: Play/Pause toggle (48x48px target), skip track icon, volume popover slider, and playlist queue toggle.
-  - Top Progress Line: Thin 2px cyan progress line along the top border of the dock.
+  - Center: Track title in Cream White (`#F5F2EB`) & artist in Soft Khaki Gray (`#9E978E`).
+  - Right: Velvet Burgundy play/pause button (48x48px target), skip track icon, volume popover slider, and playlist queue toggle.
+  - Top Progress Line: Thin 2px Warm Khaki progress line along the top border of the dock.
 
 ### 2. Discovery View & Search Bar
-- **SearchBar**: 60px height container with dynamic cyan/purple gradient focus border when focused (`focusNode.hasFocus`).
+- **SearchBar**: 60px height container with dynamic Velvet Burgundy to Warm Khaki gradient focus border when focused (`focusNode.hasFocus`).
 - **Touch Targets**: 48x48px minimum touch targets for mode toggle chip (`[🎵 Songs]` / `[🟢 Spotify Link]`) and clear (`X`) button.
 - **Search Results**: Clean list tiles with 12px vertical spacing, album artwork, track duration, and single-tap playback / add-to-playlist actions.
 
@@ -49,12 +52,11 @@ Redesign the Kerlyss Flutter music player user interface to be sleek, modern, mi
 - **Header Actions**:
   - **`⚡` Sync & Download Settings**: Always visible on all playlists.
   - **Delete Playlist**: Confirmation dialog before removal.
-  - *No redundant "Download All" icon buttons on cards or app bars.*
 - **Sync & Download Settings Modal**:
   - Custom insets: `insetPadding: EdgeInsets.symmetric(horizontal: 24, vertical: 24)`, `contentPadding: EdgeInsets.fromLTRB(20, 16, 20, 16)`.
   - Standing Toggles: **`⚡ Real-Time Sync`** and **`🔄 Auto-Download New Songs`**.
   - Context-Aware Action Button:
-    - **`DOWNLOAD ALL TRACKS NOW`** (`OutlinedButton` cyan) when tracks are missing.
+    - **`DOWNLOAD ALL TRACKS NOW`** (`OutlinedButton` with Warm Khaki border) when tracks are missing.
     - **`STOP DOWNLOADING`** (`OutlinedButton` amber) when bulk download is active.
     - **`REMOVE DOWNLOADED FILES`** (`OutlinedButton` red) when all tracks are downloaded offline.
 
