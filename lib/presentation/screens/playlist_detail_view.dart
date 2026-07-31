@@ -314,7 +314,7 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
           overflow: TextOverflow.ellipsis,
         ),
         actions: [
-          if (currentPlaylist.spotifySourceUrl != null) ...[
+          if (currentPlaylist.spotifySourceUrl != null)
             IconButton(
               icon: _isSyncing
                   ? const SizedBox(
@@ -326,26 +326,19 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
               onPressed: _isSyncing ? null : _triggerManualSync,
               tooltip: 'Sync / Refresh Now',
             ),
-            IconButton(
-              icon: Icon(
-                Icons.bolt_rounded,
-                color: currentPlaylist.isRealtimeSynced ? Colors.amberAccent : Colors.white24,
-                size: 20,
-              ),
-              onPressed: () => _showSyncSettingsDialog(context, currentPlaylist),
-              tooltip: 'Sync Settings',
+          IconButton(
+            icon: Icon(
+              Icons.bolt_rounded,
+              color: currentPlaylist.isRealtimeSynced ? Colors.amberAccent : Colors.white54,
+              size: 20,
             ),
-          ],
+            onPressed: () => _showSyncSettingsDialog(context, currentPlaylist),
+            tooltip: 'Sync & Download Settings',
+          ),
           if (allDownloaded)
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 14.0, vertical: 16.0),
               child: Icon(Icons.check_circle_outline_rounded, color: Colors.greenAccent, size: 20),
-            )
-          else if (_loadedSongs != null && _loadedSongs!.isNotEmpty)
-            IconButton(
-              icon: const Icon(Icons.download_for_offline_rounded, color: AetherColors.primaryAccent, size: 20),
-              onPressed: () => ref.read(trackDownloadServiceProvider).downloadMultiple(_loadedSongs!),
-              tooltip: 'Download All',
             ),
           IconButton(
             icon: const Icon(Icons.edit_rounded, color: Colors.white24, size: 18),
