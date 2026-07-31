@@ -185,9 +185,11 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
               ),
             )
           else if (searchState.searchMode == SearchMode.spotifyImport)
-            const SliverFillRemaining(
-              hasScrollBody: false,
-              child: SpotifyImportPanel(),
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+                child: SpotifyImportPanel(),
+              ),
             )
           else if (searchState.isLoading)
             const SliverFillRemaining(
