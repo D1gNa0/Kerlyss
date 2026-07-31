@@ -140,106 +140,108 @@ class AetherSongTile extends ConsumerWidget {
   }
 
   Widget _buildMoreMenu(BuildContext context, WidgetRef ref, bool isDownloaded) {
-    return PopupMenuButton<String>(
-      tooltip: 'Show menu',
-      padding: EdgeInsets.zero,
-      color: AetherColors.ultraDarkGray,
-      offset: const Offset(0, 40),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: const IgnorePointer(
-        child: AetherIconButton(
+    return Builder(
+      builder: (btnContext) {
+        return AetherIconButton(
           tooltip: 'Show menu',
           icon: Icons.more_vert_rounded,
           size: 18,
           buttonSize: 36,
           color: Colors.white70,
-        ),
-      ),
-      onSelected: (value) {
-        if (value == 'add_to_playlist') {
-          _showAddToPlaylistDialog(context, ref);
-        } else if (value == 'fix_match') {
-          _showFixTrackMatchDialog(context);
-        } else if (value == 'uninstall') {
-          _showUninstallDialog(context, ref);
-        } else if (value == 'remove') {
-          onRemove?.call();
-        } else if (value == 'play_next' || value == 'add_to_queue') {
-          final metadata = SongMetadata.fromEntity(song);
-          if (value == 'play_next') {
-            ref.read(audioProvider.notifier).addNext(metadata);
-            ToastService.show(context, 'Will play next: ${song.title}');
-          } else {
-            ref.read(audioProvider.notifier).addLast(metadata);
-            ToastService.show(context, 'Added to queue: ${song.title}');
-          }
-        }
+          onPressed: () async {
+            final renderBox = btnContext.findRenderObject() as RenderBox?;
+            final offset = renderBox?.localToGlobal(Offset.zero) ?? Offset.zero;
+            final size = renderBox?.size ?? Size.zero;
+
+            final value = await showMenu<String>(
+              context: context,
+              position: RelativeRect.fromLTRB(
+                offset.dx,
+                offset.dy + size.height,
+                offset.dx + size.width,
+                offset.dy + size.height + 200,
+              ),
+              color: AetherColors.ultraDarkGray,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              items: [
+                const PopupMenuItem(
+                  value: 'play_next',
+                  child: Row(
+                    children: [
+                      Icon(Icons.playlist_play_rounded, color: Colors.white70, size: 18),
+                      SizedBox(width: 10),
+                      Text('Play Next', style: TextStyle(color: Colors.white, fontSize: 13)),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'add_to_queue',
+                  child: Row(
+                    children: [
+                      Icon(Icons.queue_music_rounded, color: Colors.white70, size: 18),
+                      SizedBox(width: 10),
+                      Text('Add to Queue', style: TextStyle(color: Colors.white, fontSize: 13)),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'add_to_playlist',
+                  child: Row(
+                    children: [
+                      Icon(Icons.playlist_add_rounded, color: Colors.white70, size: 18),
+                      SizedBox(width: 10),
+                      Text('Add to Playlist', style: TextStyle(color: Colors.white, fontSize: 13)),
+                    ],
+                  ),
+                ),
+                if (isDownloaded)
+                  const PopupMenuItem(
+                    value: 'uninstall',
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete_outline_rounded, color: AetherColors.error, size: 18),
+                        SizedBox(width: 10),
+                        Text('Delete Download', style: TextStyle(color: AetherColors.error, fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                if (onRemove != null)
+                  const PopupMenuItem(
+                    value: 'remove',
+                    child: Row(
+                      children: [
+                        Icon(Icons.remove_circle_outline_rounded, color: AetherColors.error, size: 18),
+                        SizedBox(width: 10),
+                        Text('Remove from Playlist', style: TextStyle(color: AetherColors.error, fontSize: 13)),
+                      ],
+                    ),
+                  ),
+              ],
+            );
+
+            if (value != null) {
+              if (value == 'add_to_playlist') {
+                _showAddToPlaylistDialog(context, ref);
+              } else if (value == 'fix_match') {
+                _showFixTrackMatchDialog(context);
+              } else if (value == 'uninstall') {
+                _showUninstallDialog(context, ref);
+              } else if (value == 'remove') {
+                onRemove?.call();
+              } else if (value == 'play_next' || value == 'add_to_queue') {
+                final metadata = SongMetadata.fromEntity(song);
+                if (value == 'play_next') {
+                  ref.read(audioProvider.notifier).addNext(metadata);
+                  ToastService.show(context, 'Will play next: ${song.title}');
+                } else {
+                  ref.read(audioProvider.notifier).addLast(metadata);
+                  ToastService.show(context, 'Added to queue: ${song.title}');
+                }
+              }
+            }
+          },
+        );
       },
-      itemBuilder: (context) => [
-        const PopupMenuItem(
-          value: 'play_next',
-          child: Row(
-            children: [
-              Icon(Icons.queue_play_next_rounded, color: Colors.white70, size: 18),
-              SizedBox(width: 8),
-              Text('Play Next', style: TextStyle(color: Colors.white, fontSize: 13)),
-            ],
-          ),
-        ),
-        const PopupMenuItem(
-          value: 'add_to_queue',
-          child: Row(
-            children: [
-              Icon(Icons.playlist_add_rounded, color: Colors.white70, size: 18),
-              SizedBox(width: 8),
-              Text('Add to Queue', style: TextStyle(color: Colors.white, fontSize: 13)),
-            ],
-          ),
-        ),
-        const PopupMenuDivider(height: 1),
-        const PopupMenuItem(
-          value: 'add_to_playlist',
-          child: Row(
-            children: [
-              Icon(Icons.playlist_add_rounded, color: Colors.white70, size: 18),
-              SizedBox(width: 8),
-              Text('Add to Playlist', style: TextStyle(color: Colors.white, fontSize: 13)),
-            ],
-          ),
-        ),
-        const PopupMenuItem(
-          value: 'fix_match',
-          child: Row(
-            children: [
-              Icon(Icons.youtube_searched_for_rounded, color: Colors.lightBlueAccent, size: 18),
-              SizedBox(width: 8),
-              Text('Fix Track Match', style: TextStyle(color: Colors.white, fontSize: 13)),
-            ],
-          ),
-        ),
-        if (onRemove != null)
-          const PopupMenuItem(
-            value: 'remove',
-            child: Row(
-              children: [
-                Icon(Icons.remove_circle_outline_rounded, color: Colors.white54, size: 18),
-                SizedBox(width: 8),
-                Text('Remove from list', style: TextStyle(color: Colors.white70, fontSize: 13)),
-              ],
-            ),
-          ),
-        if (isDownloaded)
-          const PopupMenuItem(
-            value: 'uninstall',
-            child: Row(
-              children: [
-                Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 18),
-                SizedBox(width: 8),
-                Text('Uninstall', style: TextStyle(color: Colors.redAccent, fontSize: 13)),
-              ],
-            ),
-          ),
-      ],
     );
   }
 

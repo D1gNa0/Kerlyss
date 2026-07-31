@@ -59,29 +59,39 @@ class HomeView extends ConsumerWidget {
               backgroundColor: Colors.transparent,
               elevation: 0,
               pinned: true,
+              automaticallyImplyLeading: false,
               leading: Padding(
-                padding: const EdgeInsets.only(left: 16.0),
-                child: ExcludeFocus(
-                  child: IconButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const ProfileView()),
-                      );
-                    },
-                    icon: CircleAvatar(
-                      radius: 14,
-                      backgroundColor: AetherColors.glassWhite,
-                      child: const Icon(Icons.person_outline_rounded, size: 18, color: Colors.white),
-                    ),
+                padding: const EdgeInsets.only(left: 12.0),
+                child: Center(
+                  child: AetherIconButton(
+                    tooltip: 'Home (Current Screen)',
+                    icon: Icons.grid_view_rounded,
+                    size: 20,
+                    buttonSize: 38,
+                    color: AetherColors.primaryAccent,
+                    onPressed: () {},
                   ),
                 ),
               ),
               flexibleSpace: FlexibleSpaceBar(
                 centerTitle: true,
-                title: Text(l10n.appTitle, style: Theme.of(context).textTheme.displayMedium),
+                title: Text('HOME LIBRARY', style: Theme.of(context).textTheme.displayMedium),
               ),
               actions: [
+                AetherIconButton(
+                  tooltip: 'Profile',
+                  icon: Icons.person_outline_rounded,
+                  size: 18,
+                  buttonSize: 36,
+                  color: Colors.white70,
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const ProfileView()),
+                    );
+                  },
+                ),
+                const SizedBox(width: 4),
                 Padding(
                   padding: const EdgeInsets.only(right: 16.0),
                   child: AetherIconButton(

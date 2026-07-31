@@ -170,23 +170,6 @@ class _DiscoverySearchBarState extends ConsumerState<DiscoverySearchBar> {
                       ref.read(discoverySearchProvider.notifier).onSearchQueryChanged('');
                     },
                   ),
-                if (searchState.searchMode == SearchMode.spotifyImport)
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Checkbox(
-                        value: searchState.downloadOnImport,
-                        activeColor: Colors.lightGreenAccent,
-                        checkColor: Colors.black,
-                        onChanged: (val) {
-                          if (val != null) {
-                            ref.read(discoverySearchProvider.notifier).toggleDownloadOnImport(val);
-                          }
-                        },
-                      ),
-                      Text(l10n.download, style: const TextStyle(color: Colors.white70, fontSize: 10)),
-                    ],
-                  ),
               ],
             ),
           ),

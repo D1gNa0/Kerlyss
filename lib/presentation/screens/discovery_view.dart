@@ -139,30 +139,13 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
         _updateExistingDownloads();
       }
 
-      // Detect Spotify playlist URL paste
-      if (next.query.isNotEmpty &&
-          next.query != previous?.query &&
-          RegExp(r'https?://open\.spotify\.com/playlist/[a-zA-Z0-9]+').hasMatch(next.query)) {
-        final url = next.query.trim();
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          showModalBottomSheet(
-            context: context,
-            backgroundColor: Colors.transparent,
-            isScrollControlled: true,
-            builder: (context) => SpotifyPreImportModal(spotifyUrl: url),
-          ).then((_) {
-            _searchController.clear();
-            ref.read(discoverySearchProvider.notifier).clearSearch();
-          });
-        });
-      }
     });
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: CustomScrollView(
         slivers: [
-          // Header — no actions, clean
+          // Header — clean with top-left Home button
           SliverAppBar(
             expandedHeight: 100,
             backgroundColor: Colors.transparent,
@@ -205,9 +188,16 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
             ),
           ),
 
-          
           // Result Body
-          if (searchState.searchMode == SearchMode.spotifyImport)
+          if (RegExp(r'https?://open\.spotify\.com/playlist/[a-zA-Z0-9]+').hasMatch(searchState.query.trim()))
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+                child: SpotifyPreImportModal(spotifyUrl: searchState.query.trim()),
+              ),
+            )
+          else if (searchState.searchMode == SearchMode.spotifyImport)
             const SliverFillRemaining(
               hasScrollBody: false,
               child: SpotifyImportPanel(),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../common/aether_song_tile.dart';
 import '../common/mini_player.dart';
 import '../common/vercel_hover_button.dart';
+import '../state/navigation_provider.dart';
 import '../state/audio_state.dart';
 import '../theme/aether_colors.dart';
 import '../state/playlist_provider.dart';
@@ -292,21 +293,36 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
         elevation: 0,
         centerTitle: true,
         toolbarHeight: 64,
+        leadingWidth: 96,
         leading: Padding(
-          padding: const EdgeInsets.only(left: 8.0),
-          child: Center(
-            child: AetherIconButton(
-              icon: Icons.arrow_back_ios_new_rounded,
-              size: 16,
-              buttonSize: 36,
-              onPressed: () {
-                if (widget.onBack != null) {
-                  widget.onBack!();
-                } else {
-                  Navigator.pop(context);
-                }
-              },
-            ),
+          padding: const EdgeInsets.only(left: 12.0),
+          child: Row(
+            children: [
+              AetherIconButton(
+                tooltip: 'Back',
+                icon: Icons.arrow_back_ios_new_rounded,
+                size: 16,
+                buttonSize: 36,
+                onPressed: () {
+                  if (widget.onBack != null) {
+                    widget.onBack!();
+                  } else {
+                    Navigator.pop(context);
+                  }
+                },
+              ),
+              const SizedBox(width: 6),
+              AetherIconButton(
+                tooltip: 'Home',
+                icon: Icons.grid_view_rounded,
+                size: 18,
+                buttonSize: 36,
+                onPressed: () {
+                  if (widget.onBack != null) widget.onBack!();
+                  ref.read(navigationProvider.notifier).setIndex(0);
+                },
+              ),
+            ],
           ),
         ),
         title: Text(
@@ -319,47 +335,7 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        actions: [
-          if (currentPlaylist.spotifySourceUrl != null)
-            AetherIconButton(
-              tooltip: 'Sync / Refresh Now',
-              icon: Icons.refresh_rounded,
-              size: 18,
-              buttonSize: 36,
-              onPressed: _isSyncing ? null : _triggerManualSync,
-            ),
-          AetherIconButton(
-            tooltip: 'Sync & Download Settings',
-            icon: Icons.bolt_rounded,
-            color: currentPlaylist.isRealtimeSynced ? AetherColors.primaryAccent : Colors.white70,
-            size: 18,
-            buttonSize: 36,
-            onPressed: () => _showSyncSettingsDialog(context, currentPlaylist),
-          ),
-          if (allDownloaded)
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 10.0),
-              child: Icon(Icons.check_circle_outline_rounded, color: AetherColors.success, size: 18),
-            ),
-          AetherIconButton(
-            tooltip: 'Rename Playlist',
-            icon: Icons.edit_rounded,
-            size: 16,
-            buttonSize: 36,
-            onPressed: () => _showRenameDialog(context),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: 8.0),
-            child: AetherIconButton(
-              tooltip: 'Delete Playlist',
-              icon: Icons.delete_outline_rounded,
-              color: AetherColors.error,
-              size: 18,
-              buttonSize: 36,
-              onPressed: () => _confirmDeletePlaylist(context),
-            ),
-          ),
-        ],
+        actions: const [],
       ),
       body: Stack(
         children: [
@@ -479,6 +455,38 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
                               Text('PLAY ALL', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1)),
                             ],
                           ),
+                        ),
+                        const Spacer(),
+                        if (currentPlaylist.spotifySourceUrl != null)
+                          AetherIconButton(
+                            tooltip: 'Sync / Refresh Now',
+                            icon: Icons.refresh_rounded,
+                            size: 16,
+                            buttonSize: 34,
+                            onPressed: _isSyncing ? null : _triggerManualSync,
+                          ),
+                        AetherIconButton(
+                          tooltip: 'Sync & Download Settings',
+                          icon: Icons.bolt_rounded,
+                          color: currentPlaylist.isRealtimeSynced ? AetherColors.primaryAccent : Colors.white70,
+                          size: 16,
+                          buttonSize: 34,
+                          onPressed: () => _showSyncSettingsDialog(context, currentPlaylist),
+                        ),
+                        AetherIconButton(
+                          tooltip: 'Rename Playlist',
+                          icon: Icons.edit_rounded,
+                          size: 16,
+                          buttonSize: 34,
+                          onPressed: () => _showRenameDialog(context),
+                        ),
+                        AetherIconButton(
+                          tooltip: 'Delete Playlist',
+                          icon: Icons.delete_outline_rounded,
+                          color: AetherColors.error,
+                          size: 16,
+                          buttonSize: 34,
+                          onPressed: () => _confirmDeletePlaylist(context),
                         ),
                       ],
                     ),
