@@ -52,6 +52,40 @@ class AetherTheme {
         ),
         elevation: 0,
       ),
+      iconTheme: const IconThemeData(
+        color: AetherColors.textPrimary,
+        size: 24,
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(
+          foregroundColor: AetherColors.textPrimary,
+          minimumSize: const Size(48, 48),
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AetherColors.primaryAccent,
+          foregroundColor: AetherColors.textPrimary,
+          minimumSize: const Size(48, 48),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          elevation: 4,
+          shadowColor: AetherColors.primaryAccent.withValues(alpha: 0.4),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AetherColors.primaryAccent,
+          minimumSize: const Size(48, 48),
+          side: const BorderSide(color: AetherColors.primaryAccent, width: 1.5),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: AetherColors.textPrimary,
+          minimumSize: const Size(48, 48),
+        ),
+      ),
       useMaterial3: true,
     );
   }
