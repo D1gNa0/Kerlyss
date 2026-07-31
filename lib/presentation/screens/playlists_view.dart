@@ -243,39 +243,14 @@ class _PlaylistTile extends ConsumerWidget {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (playlist.spotifySourceUrl != null || playlist.isRealtimeSynced)
-              IconButton(
-                icon: Icon(
-                  Icons.bolt_rounded,
-                  color: playlist.isRealtimeSynced ? Colors.amberAccent : Colors.white24,
-                  size: 20,
-                ),
-                onPressed: () => _showSyncSettings(context, ref, allDownloaded),
-                tooltip: 'Sync & Download Settings',
-              ),
             IconButton(
               icon: Icon(
-                allDownloaded ? Icons.check_circle_rounded : Icons.download_for_offline_rounded,
-                color: allDownloaded ? Colors.greenAccent : Colors.white54,
+                Icons.bolt_rounded,
+                color: playlist.isRealtimeSynced ? Colors.amberAccent : Colors.white54,
                 size: 20,
               ),
-              onPressed: () async {
-                if (allDownloaded) {
-                  ToastService.show(context, '${playlist.name} is already downloaded.');
-                } else {
-                  final songs = await ref.read(playlistProvider.notifier).getPlaylistSongs(playlist.id!);
-                  if (songs.isNotEmpty) {
-                    await ref.read(trackDownloadServiceProvider).downloadMultiple(songs);
-                    await ref.read(playlistProvider.notifier).updatePlaylistSyncSettings(
-                      playlist.id!,
-                      isRealtimeSynced: playlist.isRealtimeSynced,
-                      autoDownloadNewTracks: true,
-                    );
-                    ToastService.show(context, 'Downloading ${songs.length} tracks for ${playlist.name}...');
-                  }
-                }
-              },
-              tooltip: allDownloaded ? 'Downloaded Offline' : 'Download All Tracks',
+              onPressed: () => _showSyncSettings(context, ref, allDownloaded),
+              tooltip: 'Sync & Download Settings',
             ),
             IconButton(
               icon: const Icon(Icons.delete_outline_rounded, color: Colors.white24, size: 20),
@@ -296,122 +271,155 @@ class _PlaylistTile extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: AetherColors.ultraDarkGray,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-          contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-          title: const Text('SYNC & DOWNLOAD SETTINGS', style: TextStyle(color: Colors.white, fontSize: 13, letterSpacing: 2, fontWeight: FontWeight.bold)),
-          content: SizedBox(
-            width: MediaQuery.of(context).size.width > 420 ? 380 : MediaQuery.of(context).size.width * 0.85,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 1. Real-Time Sync Toggle
-                  SwitchListTile(
-                    value: isSynced,
-                    activeColor: Colors.lightGreenAccent,
-                    contentPadding: EdgeInsets.zero,
-                    title: const Row(
-                      children: [
-                        Icon(Icons.bolt_rounded, color: Colors.amberAccent, size: 20),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text('Real-Time Sync', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
-                        ),
-                      ],
+        builder: (context, setDialogState) {
+          final downloadState = ref.watch(downloadStateProvider);
+          final isBulkDownloading = downloadState.isBulkActive || downloadState.downloadingTrackIds.isNotEmpty;
+
+          return AlertDialog(
+            backgroundColor: AetherColors.ultraDarkGray,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+            contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+            title: const Text('SYNC & DOWNLOAD SETTINGS', style: TextStyle(color: Colors.white, fontSize: 13, letterSpacing: 2, fontWeight: FontWeight.bold)),
+            content: SizedBox(
+              width: MediaQuery.of(context).size.width > 420 ? 380 : MediaQuery.of(context).size.width * 0.85,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 1. Real-Time Sync Toggle
+                    SwitchListTile(
+                      value: isSynced,
+                      activeColor: Colors.lightGreenAccent,
+                      contentPadding: EdgeInsets.zero,
+                      title: const Row(
+                        children: [
+                          Icon(Icons.bolt_rounded, color: Colors.amberAccent, size: 20),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text('Real-Time Sync', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+                          ),
+                        ],
+                      ),
+                      subtitle: const Text('Automatically fetch new tracks when opening', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                      onChanged: (val) => setDialogState(() => isSynced = val),
                     ),
-                    subtitle: const Text('Automatically fetch new tracks when opening', style: TextStyle(color: Colors.white38, fontSize: 11)),
-                    onChanged: (val) => setDialogState(() => isSynced = val),
-                  ),
 
-                  // 2. Auto-Download New Tracks Toggle
-                  SwitchListTile(
-                    value: autoDownload,
-                    activeColor: Colors.cyanAccent,
-                    contentPadding: EdgeInsets.zero,
-                    title: const Row(
-                      children: [
-                        Icon(Icons.autorenew_rounded, color: Colors.cyanAccent, size: 18),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text('Auto-Download New Songs', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
-                        ),
-                      ],
+                    // 2. Auto-Download New Tracks Toggle
+                    SwitchListTile(
+                      value: autoDownload,
+                      activeColor: Colors.cyanAccent,
+                      contentPadding: EdgeInsets.zero,
+                      title: const Row(
+                        children: [
+                          Icon(Icons.autorenew_rounded, color: Colors.cyanAccent, size: 18),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text('Auto-Download New Songs', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+                          ),
+                        ],
+                      ),
+                      subtitle: const Text('Automatically download newly added songs when synced', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                      onChanged: (val) => setDialogState(() => autoDownload = val),
                     ),
-                    subtitle: const Text('Automatically download newly added songs when synced', style: TextStyle(color: Colors.white38, fontSize: 11)),
-                    onChanged: (val) => setDialogState(() => autoDownload = val),
-                  ),
 
-                  const Divider(color: Colors.white10, height: 24),
+                    const Divider(color: Colors.white10, height: 24),
 
-                  // 3. Action Button: Download / Remove Offline Tracks
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(
-                          color: allDownloaded ? Colors.redAccent.withValues(alpha: 0.5) : AetherColors.accentCyan.withValues(alpha: 0.5),
-                        ),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      icon: Icon(
-                        allDownloaded ? Icons.delete_sweep_rounded : Icons.download_for_offline_rounded,
-                        color: allDownloaded ? Colors.redAccent : AetherColors.accentCyan,
-                        size: 18,
-                      ),
-                      label: Text(
-                        allDownloaded ? 'REMOVE DOWNLOADED FILES' : 'DOWNLOAD ALL TRACKS NOW',
-                        style: TextStyle(
-                          color: allDownloaded ? Colors.redAccent : AetherColors.accentCyan,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1,
-                        ),
-                      ),
-                      onPressed: () async {
-                        final messenger = ScaffoldMessenger.maybeOf(context);
-                        Navigator.pop(context);
-                        final songs = await ref.read(playlistProvider.notifier).getPlaylistSongs(playlist.id!);
-                        if (songs.isNotEmpty) {
-                          if (allDownloaded) {
-                            for (final song in songs) {
-                              await ref.read(trackDownloadServiceProvider).deleteDownloadedTrack(song);
+                    // 3. Action Button: Download / Stop / Remove Offline Tracks
+                    if (isBulkDownloading)
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.amberAccent),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          icon: const Icon(Icons.stop_rounded, color: Colors.amberAccent, size: 18),
+                          label: const Text(
+                            'STOP DOWNLOADING',
+                            style: TextStyle(
+                              color: Colors.amberAccent,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                          onPressed: () {
+                            ref.read(trackDownloadServiceProvider).cancelBulkDownload();
+                            Navigator.pop(context);
+                            if (context.mounted) {
+                              ToastService.show(context, 'Stopping download. Downloaded songs kept.');
                             }
-                            if (context.mounted) ToastService.show(context, 'Removed downloads for ${playlist.name}');
-                          } else {
-                            ref.read(trackDownloadServiceProvider).downloadMultiple(songs);
-                            if (context.mounted) ToastService.show(context, 'Downloading ${songs.length} tracks for ${playlist.name}...');
-                          }
-                        }
-                      },
-                    ),
-                  ),
-                ],
+                          },
+                        ),
+                      )
+                    else
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(
+                              color: allDownloaded ? Colors.redAccent.withValues(alpha: 0.5) : AetherColors.accentCyan.withValues(alpha: 0.5),
+                            ),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          icon: Icon(
+                            allDownloaded ? Icons.delete_sweep_rounded : Icons.download_for_offline_rounded,
+                            color: allDownloaded ? Colors.redAccent : AetherColors.accentCyan,
+                            size: 18,
+                          ),
+                          label: Text(
+                            allDownloaded ? 'REMOVE DOWNLOADED FILES' : 'DOWNLOAD ALL TRACKS NOW',
+                            style: TextStyle(
+                              color: allDownloaded ? Colors.redAccent : AetherColors.accentCyan,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                          onPressed: () async {
+                            Navigator.pop(context);
+                            final songs = await ref.read(playlistProvider.notifier).getPlaylistSongs(playlist.id!);
+                            if (songs.isNotEmpty) {
+                              if (allDownloaded) {
+                                for (final song in songs) {
+                                  await ref.read(trackDownloadServiceProvider).deleteDownloadedTrack(song);
+                                }
+                                if (context.mounted) ToastService.show(context, 'Removed downloads for ${playlist.name}');
+                              } else {
+                                ref.read(trackDownloadServiceProvider).downloadMultiple(songs);
+                                if (context.mounted) ToastService.show(context, 'Downloading ${songs.length} tracks for ${playlist.name}...');
+                              }
+                            }
+                          },
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('CANCEL', style: TextStyle(color: Colors.white38)),
-            ),
-            TextButton(
-              onPressed: () async {
-                await ref.read(playlistProvider.notifier).updatePlaylistSyncSettings(
-                      playlist.id!,
-                      isRealtimeSynced: isSynced,
-                      autoDownloadNewTracks: autoDownload,
-                    );
-                if (context.mounted) Navigator.pop(context);
-              },
-              child: const Text('SAVE', style: TextStyle(color: Colors.lightGreenAccent)),
-            ),
-          ],
-        ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('CANCEL', style: TextStyle(color: Colors.white38)),
+              ),
+              TextButton(
+                onPressed: () async {
+                  await ref.read(playlistProvider.notifier).updatePlaylistSyncSettings(
+                        playlist.id!,
+                        isRealtimeSynced: isSynced,
+                        autoDownloadNewTracks: autoDownload,
+                      );
+                  if (context.mounted) Navigator.pop(context);
+                },
+                child: const Text('SAVE', style: TextStyle(color: Colors.lightGreenAccent)),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

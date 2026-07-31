@@ -146,48 +146,75 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
 
                   const Divider(color: Colors.white10, height: 24),
 
-                  // 3. Action Button: Download / Remove Offline Tracks
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(
-                          color: allDownloaded ? Colors.redAccent.withValues(alpha: 0.5) : AetherColors.accentCyan.withValues(alpha: 0.5),
+                  // 3. Action Button: Download / Stop / Remove Offline Tracks
+                  if (ref.watch(downloadStateProvider).isBulkActive || ref.watch(downloadStateProvider).downloadingTrackIds.isNotEmpty)
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Colors.amberAccent),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        icon: const Icon(Icons.stop_rounded, color: Colors.amberAccent, size: 18),
+                        label: const Text(
+                          'STOP DOWNLOADING',
+                          style: TextStyle(
+                            color: Colors.amberAccent,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                        onPressed: () {
+                          ref.read(trackDownloadServiceProvider).cancelBulkDownload();
+                          Navigator.pop(context);
+                          if (mounted) ToastService.show(context, 'Stopping download. Downloaded songs kept.');
+                        },
                       ),
-                      icon: Icon(
-                        allDownloaded ? Icons.delete_sweep_rounded : Icons.download_for_offline_rounded,
-                        color: allDownloaded ? Colors.redAccent : AetherColors.accentCyan,
-                        size: 18,
-                      ),
-                      label: Text(
-                        allDownloaded ? 'REMOVE DOWNLOADED FILES' : 'DOWNLOAD ALL TRACKS NOW',
-                        style: TextStyle(
+                    )
+                  else
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(
+                            color: allDownloaded ? Colors.redAccent.withValues(alpha: 0.5) : AetherColors.accentCyan.withValues(alpha: 0.5),
+                          ),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        icon: Icon(
+                          allDownloaded ? Icons.delete_sweep_rounded : Icons.download_for_offline_rounded,
                           color: allDownloaded ? Colors.redAccent : AetherColors.accentCyan,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1,
+                          size: 18,
                         ),
-                      ),
-                      onPressed: () async {
-                        final songs = _loadedSongs;
-                        Navigator.pop(context);
-                        if (songs != null && songs.isNotEmpty) {
-                          if (allDownloaded) {
-                            for (final song in songs) {
-                              await ref.read(trackDownloadServiceProvider).deleteDownloadedTrack(song);
+                        label: Text(
+                          allDownloaded ? 'REMOVE DOWNLOADED FILES' : 'DOWNLOAD ALL TRACKS NOW',
+                          style: TextStyle(
+                            color: allDownloaded ? Colors.redAccent : AetherColors.accentCyan,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                        onPressed: () async {
+                          final songs = _loadedSongs;
+                          Navigator.pop(context);
+                          if (songs != null && songs.isNotEmpty) {
+                            if (allDownloaded) {
+                              for (final song in songs) {
+                                await ref.read(trackDownloadServiceProvider).deleteDownloadedTrack(song);
+                              }
+                              if (mounted) ToastService.show(context, 'Removed downloads for ${currentPlaylist.name}');
+                            } else {
+                              ref.read(trackDownloadServiceProvider).downloadMultiple(songs);
+                              if (mounted) ToastService.show(context, 'Downloading ${songs.length} tracks...');
                             }
-                            if (mounted) ToastService.show(context, 'Removed downloads for ${currentPlaylist.name}');
-                          } else {
-                            ref.read(trackDownloadServiceProvider).downloadMultiple(songs);
-                            if (mounted) ToastService.show(context, 'Downloading ${songs.length} tracks...');
                           }
-                        }
-                      },
+                        },
+                      ),
                     ),
-                  ),
 
                   const SizedBox(height: 8),
 

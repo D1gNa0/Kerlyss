@@ -112,12 +112,22 @@ class TrackDownloadService {
   }
 
   /// Downloads a list of songs with configurable parallelism.
+  bool _isCancelled = false;
+
+  void cancelBulkDownload() {
+    _isCancelled = true;
+    ref.read(downloadStateProvider.notifier).clearBulk();
+    Log.i('Bulk download: Cancel requested. Current downloads will finish and remaining will be stopped.');
+  }
+
+  /// Downloads a list of songs with configurable parallelism.
   /// Skips already downloaded or currently downloading tracks.
   /// Uses [parallelism] to control concurrent downloads (default: 2).
   Future<void> downloadMultiple(
     List<SongEntity> songs, {
     int parallelism = 2,
   }) async {
+    _isCancelled = false;
     final notifier = ref.read(downloadStateProvider.notifier);
     final state = ref.read(downloadStateProvider);
 
@@ -147,13 +157,18 @@ class TrackDownloadService {
 
     // Download each chunk in parallel, but chunks sequentially
     for (final chunk in chunks) {
+      if (_isCancelled) {
+        Log.i('Bulk download: Stopped by user request.');
+        notifier.clearBulk();
+        break;
+      }
       await Future.wait(
         chunk.map((song) async {
+          if (_isCancelled) return;
           try {
             await downloadTrack(song);
           } catch (e) {
             Log.e('Bulk download: Failed for ${song.id}: $e');
-            // Continue with next song despite error
           } finally {
             notifier.incrementBulk();
           }
