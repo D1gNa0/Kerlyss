@@ -67,6 +67,11 @@ class DiscoverySearchNotifier extends StateNotifier<DiscoverySearchState> {
     state = state.copyWith(downloadOnImport: value);
   }
 
+  void clearSearch() {
+    _debounce?.cancel();
+    state = state.copyWith(query: '', isLoading: false, results: [], error: null);
+  }
+
   void onSearchQueryChanged(String query) {
     if (state.searchMode == SearchMode.spotifyImport) {
       // In import mode, we do not auto-search as they type. They must press an explicit import button
