@@ -120,7 +120,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
     }));
 
     _subs.add(_audioService.currentIndexStream.listen((index) {
-      if (!mounted || index == null) return;
+      if (!mounted || index == null || _isNavigatingQueue || _isRestoringSession) return;
       if (index != state.currentIndex && index >= 0 && index < state.playlist.length) {
         final nextSong = state.playlist[index];
         Log.i('▶️ [ENGINE_PLAYING] Audio engine switched active track to index $index -> "${nextSong.title}" by "${nextSong.artist}" (ID: ${nextSong.id})');
@@ -422,6 +422,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
       if (index < 0 || index >= playlist.length) return;
       final requestId = ++_playRequestId;
       _isRestoringSession = false;
+      _isNavigatingQueue = true;
       final clickedSong = playlist[index];
       Log.i('🎵 [USER_CLICK] User clicked song "${clickedSong.title}" by "${clickedSong.artist}" (ID: ${clickedSong.id}, source: ${clickedSong.source}) at index $index of ${playlist.length}');
 
@@ -434,25 +435,24 @@ class AudioNotifier extends StateNotifier<AudioState> {
         final existingIndex = state.playlist.indexWhere((song) => song.id == clickedSong.id);
         if (existingIndex >= 0) {
           state = state.copyWith(
+            currentIndex: existingIndex,
+            currentSong: clickedSong,
             status: PlaybackStatus.loading, clearError: true,
           );
+          globalAudioHandler.setMediaFromSong(clickedSong);
 
           await _audioService.seek(Duration.zero, index: existingIndex);
-          if (!mounted || requestId != _playRequestId) return;
+          if (!mounted || requestId != _playRequestId) {
+            _isNavigatingQueue = false;
+            return;
+          }
           await _ensurePlaybackStarted();
+          _isNavigatingQueue = false;
           if (!mounted || requestId != _playRequestId) return;
-          final resolvedIndex = _audioService.currentIndex ?? existingIndex;
-          if (resolvedIndex < 0 || resolvedIndex >= state.playlist.length) return;
-          final resolvedSong = state.playlist[resolvedIndex];
-          state = state.copyWith(
-            currentIndex: resolvedIndex,
-            currentSong: resolvedSong,
-          );
-          globalAudioHandler.setMediaFromSong(resolvedSong);
           _syncStatusFromEngine();
           _schedulePersistSession();
-          _checkAndFetchBpm(resolvedSong);
-          _prefetchUpcomingSongs(resolvedIndex, count: 1);
+          _checkAndFetchBpm(clickedSong);
+          _prefetchUpcomingSongs(existingIndex, count: 1);
           return;
         }
       }
@@ -460,32 +460,35 @@ class AudioNotifier extends StateNotifier<AudioState> {
       // Maintain exact 1-to-1 playlist order without rotation: [0, 1, 2, 3...]
       state = state.copyWith(
         playlist: playlist,
+        currentIndex: index,
+        currentSong: clickedSong,
         isShuffleEnabled: false,
         status: PlaybackStatus.loading, clearError: true,
       );
+      globalAudioHandler.setMediaFromSong(clickedSong);
 
       final sources = await Future.wait(
         playlist.map((song) => _buildAudioSource(song)),
       );
-      if (!mounted || requestId != _playRequestId) return;
+      if (!mounted || requestId != _playRequestId) {
+        _isNavigatingQueue = false;
+        return;
+      }
 
       await _audioService.setAudioQueue(sources, initialIndex: index, play: true);
-      if (!mounted || requestId != _playRequestId) return;
+      if (!mounted || requestId != _playRequestId) {
+        _isNavigatingQueue = false;
+        return;
+      }
       await _ensurePlaybackStarted();
+      _isNavigatingQueue = false;
       if (!mounted || requestId != _playRequestId) return;
-      final resolvedIndex = _audioService.currentIndex ?? index;
-      if (resolvedIndex < 0 || resolvedIndex >= playlist.length) return;
-      final resolvedSong = playlist[resolvedIndex];
-      state = state.copyWith(
-        currentIndex: resolvedIndex,
-        currentSong: resolvedSong,
-      );
-      globalAudioHandler.setMediaFromSong(resolvedSong);
       _syncStatusFromEngine();
       _schedulePersistSession();
-      _checkAndFetchBpm(resolvedSong);
-      _prefetchUpcomingSongs(resolvedIndex, count: 1);
+      _checkAndFetchBpm(clickedSong);
+      _prefetchUpcomingSongs(index, count: 1);
     } catch (e) {
+      _isNavigatingQueue = false;
       _setPlaybackError('playPlaylist', e);
     }
   }
