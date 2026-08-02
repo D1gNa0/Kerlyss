@@ -40,16 +40,7 @@ class MiniPlayer extends ConsumerWidget {
     final currentSong = audioState.currentSong;
     final hasSong = currentSong.id.isNotEmpty;
     final library = ref.watch(libraryProvider);
-    final downloadState = ref.watch(downloadStateProvider);
-
     final isFavorite = hasSong && library.favoriteSongIds.contains(currentSong.id);
-    final isDownloading = hasSong && downloadState.downloadingTrackIds.contains(currentSong.id);
-    final downloadProgress = hasSong ? (downloadState.downloadProgress[currentSong.id] ?? 0.0) : 0.0;
-    final isDownloaded = hasSong && (
-      currentSong.source == AudioSourceType.local ||
-      downloadState.alreadyDownloadedIds.contains(currentSong.id) ||
-      library.allSongs.any((s) => s.id == currentSong.id && s.localPath != null)
-    );
 
     return GestureDetector(
       onTap: () {
@@ -185,16 +176,14 @@ class MiniPlayer extends ConsumerWidget {
                             ? () => ref.read(libraryProvider.notifier).toggleFavorite(_toSongEntity(currentSong))
                             : null,
                       ),
-                      const SizedBox(width: 4),
+                      const SizedBox(width: 2),
                       AetherIconButton(
-                        tooltip: isDownloading ? 'Downloading...' : (isDownloaded ? 'Downloaded' : 'Download'),
-                        icon: isDownloaded ? Icons.check_circle_outline_rounded : Icons.download_rounded,
-                        color: hasSong ? (isDownloaded ? AetherColors.success : Colors.white70) : Colors.white24,
-                        onPressed: (hasSong && !isDownloaded && !isDownloading)
-                            ? () => ref.read(trackDownloadServiceProvider).downloadTrack(_toSongEntity(currentSong))
-                            : null,
+                        tooltip: 'Previous Track',
+                        icon: Icons.skip_previous_rounded,
+                        color: hasSong ? Colors.white70 : Colors.white24,
+                        onPressed: hasSong ? () => ref.read(audioProvider.notifier).previous() : null,
                       ),
-                      const SizedBox(width: 4),
+                      const SizedBox(width: 2),
                       AetherIconButton(
                         tooltip: 'Play/Pause',
                         icon: audioState.status == PlaybackStatus.playing
@@ -204,6 +193,13 @@ class MiniPlayer extends ConsumerWidget {
                         buttonSize: 44,
                         color: hasSong ? Colors.white : Colors.white24,
                         onPressed: hasSong ? () => ref.read(audioProvider.notifier).togglePlay() : null,
+                      ),
+                      const SizedBox(width: 2),
+                      AetherIconButton(
+                        tooltip: 'Next Track',
+                        icon: Icons.skip_next_rounded,
+                        color: hasSong ? Colors.white70 : Colors.white24,
+                        onPressed: hasSong ? () => ref.read(audioProvider.notifier).next() : null,
                       ),
                       const SizedBox(width: 4),
                       const AetherVolumeButton(),
@@ -252,22 +248,6 @@ class MiniPlayer extends ConsumerWidget {
                       minHeight: 2,
                       backgroundColor: Colors.white.withValues(alpha: 0.03),
                       valueColor: const AlwaysStoppedAnimation<Color>(AetherColors.secondaryAccent),
-                    ),
-                  ),
-                ),
-
-              if (hasSong && isDownloading && !isDownloaded)
-                Positioned(
-                  bottom: 4,
-                  left: 20,
-                  right: 20,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(2),
-                    child: LinearProgressIndicator(
-                      value: downloadProgress.clamp(0.0, 1.0),
-                      minHeight: 2,
-                      backgroundColor: Colors.white.withValues(alpha: 0.05),
-                      valueColor: const AlwaysStoppedAnimation<Color>(AetherColors.primaryAccent),
                     ),
                   ),
                 ),
