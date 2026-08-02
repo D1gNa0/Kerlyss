@@ -221,11 +221,11 @@ class _DiscoverySearchBarState extends ConsumerState<DiscoverySearchBar> {
                       ),
                     ),
                   ),
-                  if (!hasText)
+                  if (searchState.searchMode == SearchMode.spotifyImport && !hasText)
                     AetherIconButton(
                       tooltip: 'Paste from clipboard',
                       icon: Icons.content_paste_rounded,
-                      color: searchState.searchMode == SearchMode.spotifyImport ? Colors.lightGreenAccent : Colors.white54,
+                      color: Colors.lightGreenAccent,
                       size: 18,
                       buttonSize: 40,
                       onPressed: () async {
@@ -238,7 +238,7 @@ class _DiscoverySearchBarState extends ConsumerState<DiscoverySearchBar> {
                         }
                       },
                     )
-                  else
+                  else if (hasText)
                     AetherIconButton(
                       tooltip: 'Clear search',
                       icon: Icons.close_rounded,

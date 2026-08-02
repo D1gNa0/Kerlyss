@@ -36,7 +36,7 @@ void main() async {
     config: const AudioServiceConfig(
       androidNotificationChannelId: 'com.unexpectedd0.kerlyss.channel.audio',
       androidNotificationChannelName: 'Music Playback',
-      androidNotificationOngoing: true,
+      androidNotificationOngoing: false,
       androidShowNotificationBadge: true,
       androidStopForegroundOnPause: true,
     ),

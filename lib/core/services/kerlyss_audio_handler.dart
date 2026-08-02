@@ -59,6 +59,12 @@ class KerlyssAudioHandler extends BaseAudioHandler with SeekHandler {
   }
 
   @override
+  Future<void> onTaskRemoved() async {
+    await stop();
+    await super.onTaskRemoved();
+  }
+
+  @override
   Future<void> skipToNext() => super.skipToNext(); // Logic handled by AudioNotifier
 
   @override
