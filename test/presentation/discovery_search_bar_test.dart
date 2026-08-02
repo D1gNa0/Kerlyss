@@ -143,7 +143,7 @@ void main() {
         find.ancestor(of: find.byType(TextField), matching: find.byType(AnimatedContainer)),
       );
       final decoration = animatedContainer.decoration as BoxDecoration;
-      expect(decoration.gradient, isNotNull);
+      expect(decoration.border, isNotNull);
       expect(decoration.boxShadow, isNotEmpty);
     });
   });

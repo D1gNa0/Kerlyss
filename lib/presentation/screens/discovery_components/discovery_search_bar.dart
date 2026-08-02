@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../common/aether_glass.dart';
 import '../../common/vercel_hover_button.dart';
@@ -66,6 +67,10 @@ class _DiscoverySearchBarState extends ConsumerState<DiscoverySearchBar> {
     final l10n = AppLocalizations.of(context)!;
     final isFocused = widget.focusNode.hasFocus;
     final hasText = widget.controller.text.isNotEmpty;
+
+    final activeAccentColor = searchState.searchMode == SearchMode.spotifyImport
+        ? Colors.lightGreenAccent
+        : AetherColors.accentCyan;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -137,101 +142,116 @@ class _DiscoverySearchBarState extends ConsumerState<DiscoverySearchBar> {
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               decoration: BoxDecoration(
+                color: const Color(0xFF121216),
                 borderRadius: BorderRadius.circular(16),
-                gradient: isFocused
-                    ? const LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          AetherColors.accentCyan,
-                          AetherColors.primaryAccent,
-                        ],
-                      )
-                    : null,
+                border: Border.all(
+                  color: isFocused ? activeAccentColor : Colors.white.withValues(alpha: 0.12),
+                  width: isFocused ? 1.5 : 1.0,
+                ),
                 boxShadow: isFocused
                     ? [
                         BoxShadow(
-                          color: AetherColors.accentCyan.withValues(alpha: 0.3),
-                          blurRadius: 12,
-                          spreadRadius: 1,
-                        ),
-                        BoxShadow(
-                          color: AetherColors.primaryAccent.withValues(alpha: 0.3),
+                          color: activeAccentColor.withValues(alpha: 0.25),
                           blurRadius: 12,
                           spreadRadius: 1,
                         ),
                       ]
                     : [],
               ),
-              padding: EdgeInsets.all(isFocused ? 1.5 : 0),
-              child: AetherGlass(
-                borderRadius: isFocused ? 14.5 : 16,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                child: Row(
-                  children: [
-                    const Padding(
-                      padding: EdgeInsets.only(left: 4, right: 10),
-                      child: Icon(
-                        Icons.search_rounded,
-                        color: Colors.white70,
-                        size: 20,
-                      ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              child: Row(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4, right: 10),
+                    child: Icon(
+                      searchState.searchMode == SearchMode.spotifyImport
+                          ? Icons.link_rounded
+                          : Icons.search_rounded,
+                      color: searchState.searchMode == SearchMode.spotifyImport
+                          ? Colors.lightGreenAccent
+                          : (isFocused ? AetherColors.accentCyan : Colors.white70),
+                      size: 20,
                     ),
-                    Expanded(
-                      child: TextField(
-                        controller: widget.controller,
-                        focusNode: widget.focusNode,
-                        textInputAction: TextInputAction.search,
-                        onSubmitted: (value) {
-                          _debounceTimer?.cancel();
-                          ref.read(discoverySearchProvider.notifier).onSearchQueryChanged(value);
-                          widget.onSearchTriggered();
-                          widget.focusNode.unfocus();
-                        },
-                        onChanged: (value) {
-                          // Auto-detect Spotify playlist URL and switch mode automatically
-                          if (RegExp(r'https?://open\.spotify\.com/playlist/').hasMatch(value) || value.contains('spotify.com')) {
-                            if (searchState.searchMode != SearchMode.spotifyImport) {
-                              ref.read(discoverySearchProvider.notifier).setSearchMode(SearchMode.spotifyImport);
-                            }
+                  ),
+                  Expanded(
+                    child: TextField(
+                      controller: widget.controller,
+                      focusNode: widget.focusNode,
+                      textInputAction: TextInputAction.search,
+                      enableInteractiveSelection: true,
+                      selectionControls: materialTextSelectionControls,
+                      contextMenuBuilder: (context, editableTextState) {
+                        return AdaptiveTextSelectionToolbar.buttonItems(
+                          anchors: editableTextState.contextMenuAnchors,
+                          buttonItems: editableTextState.contextMenuButtonItems,
+                        );
+                      },
+                      onSubmitted: (value) {
+                        _debounceTimer?.cancel();
+                        ref.read(discoverySearchProvider.notifier).onSearchQueryChanged(value);
+                        widget.onSearchTriggered();
+                        widget.focusNode.unfocus();
+                      },
+                      onChanged: (value) {
+                        // Auto-detect Spotify playlist URL and switch mode automatically
+                        if (RegExp(r'https?://open\.spotify\.com/playlist/').hasMatch(value) || value.contains('spotify.com')) {
+                          if (searchState.searchMode != SearchMode.spotifyImport) {
+                            ref.read(discoverySearchProvider.notifier).setSearchMode(SearchMode.spotifyImport);
                           }
-                          ref.read(discoverySearchProvider.notifier).onSearchQueryChanged(value);
-                          _debounceTimer?.cancel();
-                          _debounceTimer = Timer(const Duration(milliseconds: 600), () {
-                            if (mounted) {
-                              widget.onSearchTriggered();
-                            }
-                          });
-                        },
-                        style: const TextStyle(color: Colors.white, fontSize: 14),
-                        decoration: InputDecoration(
-                          border: InputBorder.none,
-                          hintText: searchState.searchMode == SearchMode.spotifyImport
-                              ? l10n.pasteSpotifyLink
-                              : l10n.searchPlaceholder,
-                          hintStyle: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.2),
-                            fontSize: 12,
-                            letterSpacing: 1.5,
-                          ),
+                        }
+                        ref.read(discoverySearchProvider.notifier).onSearchQueryChanged(value);
+                        _debounceTimer?.cancel();
+                        _debounceTimer = Timer(const Duration(milliseconds: 600), () {
+                          if (mounted) {
+                            widget.onSearchTriggered();
+                          }
+                        });
+                      },
+                      style: const TextStyle(color: Colors.white, fontSize: 14),
+                      decoration: InputDecoration(
+                        border: InputBorder.none,
+                        hintText: searchState.searchMode == SearchMode.spotifyImport
+                            ? l10n.pasteSpotifyLink
+                            : l10n.searchPlaceholder,
+                        hintStyle: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.3),
+                          fontSize: 12,
+                          letterSpacing: 1.5,
                         ),
                       ),
                     ),
-                    if (hasText)
-                      AetherIconButton(
-                        tooltip: 'Clear search',
-                        icon: Icons.close_rounded,
-                        color: Colors.white70,
-                        size: 18,
-                        buttonSize: 40,
-                        onPressed: () {
-                          _debounceTimer?.cancel();
-                          widget.controller.clear();
-                          ref.read(discoverySearchProvider.notifier).onSearchQueryChanged('');
-                        },
-                      ),
-                  ],
-                ),
+                  ),
+                  if (!hasText)
+                    AetherIconButton(
+                      tooltip: 'Paste from clipboard',
+                      icon: Icons.content_paste_rounded,
+                      color: searchState.searchMode == SearchMode.spotifyImport ? Colors.lightGreenAccent : Colors.white54,
+                      size: 18,
+                      buttonSize: 40,
+                      onPressed: () async {
+                        final data = await Clipboard.getData(Clipboard.kTextPlain);
+                        if (data?.text != null && data!.text!.isNotEmpty) {
+                          widget.controller.text = data.text!;
+                          widget.controller.selection = TextSelection.collapsed(offset: data.text!.length);
+                          ref.read(discoverySearchProvider.notifier).onSearchQueryChanged(data.text!);
+                          widget.onSearchTriggered();
+                        }
+                      },
+                    )
+                  else
+                    AetherIconButton(
+                      tooltip: 'Clear search',
+                      icon: Icons.close_rounded,
+                      color: Colors.white70,
+                      size: 18,
+                      buttonSize: 40,
+                      onPressed: () {
+                        _debounceTimer?.cancel();
+                        widget.controller.clear();
+                        ref.read(discoverySearchProvider.notifier).onSearchQueryChanged('');
+                      },
+                    ),
+                ],
               ),
             ),
           ),
