@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../theme/aether_colors.dart';
 import '../common/aether_glass.dart';
 import '../state/audio_provider.dart';
+import '../../core/services/app_storage_paths.dart';
 import '../../core/services/update_service.dart';
 
 class SettingsView extends ConsumerWidget {
@@ -56,20 +57,35 @@ class SettingsView extends ConsumerWidget {
               _EqPresetTile(),
             ],
           ),
-          if (!kIsWeb && (Platform.isWindows || Platform.isMacOS)) ...[
+          if (!kIsWeb) ...[
             const SizedBox(height: 28),
             _SettingsSection(
               title: 'APPLICATION',
               children: [
-                _SettingsTile(
-                  label: 'Window Style', 
-                  value: 'Shadow Glass',
-                  onTap: () {},
-                ),
-                _SettingsTile(
-                  label: 'Downloads Folder', 
-                  value: 'User/Documents/Kerlyss',
-                  onTap: () {},
+                if (Platform.isWindows || Platform.isMacOS)
+                  _SettingsTile(
+                    label: 'Window Style', 
+                    value: 'Shadow Glass',
+                    onTap: () {},
+                  ),
+                FutureBuilder<Directory>(
+                  future: AppStoragePaths.downloadsDirectory(),
+                  builder: (context, snapshot) {
+                    final path = snapshot.data?.path ?? 'Loading...';
+                    return _SettingsTile(
+                      label: 'Downloads Folder', 
+                      value: path,
+                      icon: Icons.folder_open_rounded,
+                      onTap: () async {
+                        if (snapshot.hasData) {
+                          try {
+                            final uri = Uri.directory(snapshot.data!.path);
+                            await launchUrl(uri);
+                          } catch (_) {}
+                        }
+                      },
+                    );
+                  },
                 ),
               ],
             ),
