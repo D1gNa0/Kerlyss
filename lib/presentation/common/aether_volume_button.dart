@@ -64,7 +64,7 @@ class _AetherVolumeButtonState extends ConsumerState<AetherVolumeButton> {
             CompositedTransformFollower(
               link: _layerLink,
               showWhenUnlinked: false,
-              offset: const Offset(-80, -64),
+              offset: const Offset(-110, -64),
               child: Material(
                 color: Colors.transparent,
                 child: MouseRegion(
@@ -77,6 +77,7 @@ class _AetherVolumeButtonState extends ConsumerState<AetherVolumeButton> {
                     child: AetherGlass(
                       borderRadius: 16,
                       opacity: 0.18,
+                      padding: const EdgeInsets.fromLTRB(10, 4, 14, 4),
                       child: Consumer(
                         builder: (context, ref, child) {
                           final audioState = ref.watch(audioProvider);
@@ -127,7 +128,7 @@ class _AetherVolumeButtonState extends ConsumerState<AetherVolumeButton> {
                                 ),
                               ),
                               SizedBox(
-                                width: 36,
+                                width: 34,
                                 child: Text(
                                   '${(volume * 100).round()}%',
                                   textAlign: TextAlign.right,
@@ -138,6 +139,7 @@ class _AetherVolumeButtonState extends ConsumerState<AetherVolumeButton> {
                                   ),
                                 ),
                               ),
+                              const SizedBox(width: 4),
                             ],
                           );
                         },
