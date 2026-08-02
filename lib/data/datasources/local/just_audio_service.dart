@@ -124,6 +124,9 @@ class JustAudioService implements AudioServiceInterface {
       if (token != _queueLoadToken) {
         return;
       }
+      if (initialIndex > 0 && _player.currentIndex != initialIndex) {
+        await _player.seek(Duration.zero, index: initialIndex);
+      }
       if (play) {
         await _player.play();
       }
