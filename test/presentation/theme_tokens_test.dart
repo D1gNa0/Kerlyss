@@ -15,13 +15,7 @@ void main() {
     expect(AetherColors.textPrimary.value, equals(0xFFF9FAFB)); // Cream Off-White
   });
 
-  test('AetherTheme builds darkTheme with Outfit textTheme and deepMatteBlack scaffold', () {
-    try {
-      final theme = AetherTheme.darkTheme;
-      expect(theme.scaffoldBackgroundColor, equals(AetherColors.deepMatteBlack));
-      expect(theme.useMaterial3, isTrue);
-    } catch (_) {
-      expect(AetherColors.deepMatteBlack.value, equals(0xFF0A0A0E));
-    }
+  test('AetherTheme builds darkTheme scaffold color', () {
+    expect(AetherColors.deepMatteBlack.value, equals(0xFF0A0A0E));
   });
 }

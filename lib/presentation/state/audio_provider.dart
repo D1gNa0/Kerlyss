@@ -714,7 +714,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
       // We pass the deezer_id to bypass the ID check, and pass the query to trigger lazy search
       final proxyUrl = 'http://127.0.0.1:$port/?query=$queryStr&deezer_id=${song.id}';
       
-      return AudioSource.uri(Uri.parse(proxyUrl), headers: headers, tag: song);
+      return AudioSource.uri(Uri.parse(proxyUrl), tag: song);
     }
 
     // 5. Resolve YouTube if needed
@@ -731,7 +731,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
       try {
         final port = await YoutubeProxyServer.start(_youtubeService.client);
         final proxyUrl = 'http://127.0.0.1:$port/?id=$videoId';
-        return AudioSource.uri(Uri.parse(proxyUrl), headers: headers, tag: song);
+        return AudioSource.uri(Uri.parse(proxyUrl), tag: song);
       } catch (e) {
         Log.w('AudioNotifier: Proxy failed for YouTube video "$videoId": $e. Trying direct stream.');
         try {
