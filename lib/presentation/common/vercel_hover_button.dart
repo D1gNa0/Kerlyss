@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../theme/aether_colors.dart';
 
@@ -27,6 +28,13 @@ class VercelHoverButton extends StatefulWidget {
 class _VercelHoverButtonState extends State<VercelHoverButton> {
   bool _isHovered = false;
   bool _isPressed = false;
+  Timer? _pressTimer;
+
+  @override
+  void dispose() {
+    _pressTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,35 +46,51 @@ class _VercelHoverButtonState extends State<VercelHoverButton> {
       onExit: (_) => setState(() => _isHovered = false),
       child: GestureDetector(
         onTapDown: widget.onTap != null ? (_) => setState(() => _isPressed = true) : null,
-        onTapUp: widget.onTap != null ? (_) => setState(() => _isPressed = false) : null,
-        onTapCancel: () => setState(() => _isPressed = false),
+        onTapUp: widget.onTap != null
+            ? (_) {
+                setState(() => _isPressed = true);
+                _pressTimer?.cancel();
+                _pressTimer = Timer(const Duration(milliseconds: 120), () {
+                  if (mounted) setState(() => _isPressed = false);
+                });
+              }
+            : null,
+        onTapCancel: () {
+          _pressTimer?.cancel();
+          if (mounted) setState(() => _isPressed = false);
+        },
         onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+        child: AnimatedScale(
+          scale: _isPressed ? 0.97 : 1.0,
+          duration: const Duration(milliseconds: 100),
           curve: Curves.easeOutCubic,
-          padding: widget.padding,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(widget.borderRadius),
-            border: Border.all(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            curve: Curves.easeOutCubic,
+            padding: widget.padding,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(widget.borderRadius),
+              border: Border.all(
+                color: isActive
+                    ? widget.accentColor.withValues(alpha: 0.28)
+                    : Colors.white.withValues(alpha: 0.06),
+                width: isActive ? 1.5 : 1.0,
+              ),
               color: isActive
-                  ? widget.accentColor.withValues(alpha: 0.28)
-                  : Colors.white.withValues(alpha: 0.06),
-              width: isActive ? 1.5 : 1.0,
+                  ? Colors.white.withValues(alpha: 0.08)
+                  : Colors.white.withValues(alpha: 0.02),
+              boxShadow: isActive
+                  ? [
+                      BoxShadow(
+                        color: widget.accentColor.withValues(alpha: 0.08),
+                        blurRadius: 16,
+                        spreadRadius: -2,
+                      ),
+                    ]
+                  : [],
             ),
-            color: isActive
-                ? Colors.white.withValues(alpha: 0.06)
-                : Colors.white.withValues(alpha: 0.02),
-            boxShadow: isActive
-                ? [
-                    BoxShadow(
-                      color: widget.accentColor.withValues(alpha: 0.08),
-                      blurRadius: 16,
-                      spreadRadius: -2,
-                    ),
-                  ]
-                : [],
+            child: widget.child,
           ),
-          child: widget.child,
         ),
       ),
     );

@@ -82,23 +82,13 @@ class SettingsView extends ConsumerWidget {
                 label: 'Official Website',
                 value: 'unexpectedd0.github.io/Kerlyss-Release',
                 icon: Icons.language_rounded,
-                onTap: () async {
-                  final url = Uri.parse('https://unexpectedd0.github.io/Kerlyss-Release/');
-                  if (await canLaunchUrl(url)) {
-                    await launchUrl(url, mode: LaunchMode.externalApplication);
-                  }
-                },
+                onTap: () => _openUrl('https://unexpectedd0.github.io/Kerlyss-Release/'),
               ),
               _SettingsTile(
                 label: 'Developer Instagram',
                 value: '@melihkerema',
                 icon: Icons.camera_alt_rounded,
-                onTap: () async {
-                  final url = Uri.parse('https://www.instagram.com/melihkerema/');
-                  if (await canLaunchUrl(url)) {
-                    await launchUrl(url, mode: LaunchMode.externalApplication);
-                  }
-                },
+                onTap: () => _openUrl('https://www.instagram.com/melihkerema/'),
               ),
               FutureBuilder<PackageInfo>(
                 future: PackageInfo.fromPlatform(),
@@ -123,6 +113,15 @@ class SettingsView extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _openUrl(String urlString) async {
+    try {
+      final uri = Uri.parse(urlString);
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      debugPrint('Failed to launch URL $urlString: $e');
+    }
   }
 }
 

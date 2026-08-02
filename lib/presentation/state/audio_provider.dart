@@ -458,6 +458,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
       // Maintain exact 1-to-1 playlist order without rotation: [0, 1, 2, 3...]
       state = state.copyWith(
         playlist: playlist,
+        isShuffleEnabled: false,
         status: PlaybackStatus.loading, clearError: true,
       );
 

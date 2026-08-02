@@ -113,6 +113,10 @@ class JustAudioService implements AudioServiceInterface {
       useLazyPreparation: true,
     );
     try {
+      // Ensure shuffle mode is disabled when setting a explicit queue so initialIndex maps 1-to-1 to clicked song
+      if (_player.shuffleModeEnabled) {
+        await _player.setShuffleModeEnabled(false);
+      }
       await _player.setAudioSource(
         _activeQueue!,
         initialIndex: initialIndex,
@@ -120,7 +124,7 @@ class JustAudioService implements AudioServiceInterface {
       if (token != _queueLoadToken) {
         return;
       }
-      if (initialIndex > 0 && _player.currentIndex != initialIndex) {
+      if (initialIndex >= 0 && _player.currentIndex != initialIndex) {
         await _player.seek(Duration.zero, index: initialIndex);
       }
       if (play) {

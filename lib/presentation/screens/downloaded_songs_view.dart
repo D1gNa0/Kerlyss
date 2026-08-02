@@ -209,15 +209,21 @@ class _DownloadedSongsViewState extends ConsumerState<DownloadedSongsView> {
                           ref.invalidate(downloadedSongsProvider);
                         },
                         onTap: () {
-                          // Load all downloaded songs into the playlist
-                          final playlist = songs.map((s) => SongMetadata(
-                            id: s.path,
-                            title: s.title,
-                            artist: 'Local File',
-                            album: 'Downloaded Songs',
-                            duration: Duration.zero, // Resolved during playback
-                            source: AudioSourceType.local,
-                          )).toList();
+                          // Load all downloaded songs into the playlist with rich metadata
+                          final playlist = songs.map((s) {
+                            final matchingLibSong = libraryState.allSongs.where((ls) => ls.localPath == s.path || ls.id == s.path).firstOrNull;
+                            if (matchingLibSong != null) {
+                              return SongMetadata.fromEntity(matchingLibSong);
+                            }
+                            return SongMetadata(
+                              id: s.path,
+                              title: s.title,
+                              artist: 'Local File',
+                              album: 'Downloads',
+                              duration: Duration.zero,
+                              source: AudioSourceType.local,
+                            );
+                          }).toList();
                           
                           ref.read(audioProvider.notifier).playPlaylist(playlist, index);
                         },

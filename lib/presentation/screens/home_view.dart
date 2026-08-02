@@ -17,6 +17,7 @@ import '../common/aether_song_tile.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:kerlyss/l10n/app_localizations.dart';
 import '../state/downloaded_songs_provider.dart';
+import '../state/download_state_provider.dart';
 import '../state/track_download_provider.dart';
 
 
@@ -177,10 +178,11 @@ class HomeView extends ConsumerWidget {
       );
     }
 
+    final downloadState = ref.watch(downloadStateProvider);
     final songs = category == _LibraryCategory.favorites
         ? libraryState.favoriteSongs
         : category == _LibraryCategory.downloaded
-            ? libraryState.allSongs.where((s) => s.localPath != null).toList()
+            ? libraryState.allSongs.where((s) => s.localPath != null || downloadState.alreadyDownloadedIds.contains(s.id)).toList()
             : libraryState.allSongs;
 
     if (songs.isEmpty) {
