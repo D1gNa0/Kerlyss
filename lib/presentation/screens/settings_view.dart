@@ -14,6 +14,8 @@ class SettingsView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final bottomPadding = MediaQuery.of(context).padding.bottom + 100;
+
     return Scaffold(
       backgroundColor: AetherColors.deepMatteBlack,
       appBar: AppBar(
@@ -33,7 +35,7 @@ class SettingsView extends ConsumerWidget {
         centerTitle: true,
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+        padding: EdgeInsets.fromLTRB(20, 8, 20, bottomPadding),
         children: [
           if (!kIsWeb && Platform.isWindows) ...[
             const _SettingsSection(
@@ -46,7 +48,7 @@ class SettingsView extends ConsumerWidget {
                 _ShortcutTile(label: 'Previous track', value: 'Ctrl + ←'),
               ],
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 28),
           ],
           _SettingsSection(
             title: 'AUDIO FX & EQUALIZER',
@@ -54,29 +56,32 @@ class SettingsView extends ConsumerWidget {
               _EqPresetTile(),
             ],
           ),
-          const SizedBox(height: 32),
-          _SettingsSection(
-            title: 'APPLICATION',
-            children: [
-              _SettingsTile(
-                label: 'Window Style', 
-                value: 'Shadow Glass',
-                onTap: () {},
-              ),
-              _SettingsTile(
-                label: 'Downloads Folder', 
-                value: 'User/Documents/Kerlyss',
-                onTap: () {},
-              ),
-            ],
-          ),
-          const SizedBox(height: 32),
+          if (!kIsWeb && (Platform.isWindows || Platform.isMacOS)) ...[
+            const SizedBox(height: 28),
+            _SettingsSection(
+              title: 'APPLICATION',
+              children: [
+                _SettingsTile(
+                  label: 'Window Style', 
+                  value: 'Shadow Glass',
+                  onTap: () {},
+                ),
+                _SettingsTile(
+                  label: 'Downloads Folder', 
+                  value: 'User/Documents/Kerlyss',
+                  onTap: () {},
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 28),
           _SettingsSection(
             title: 'ABOUT',
             children: [
               _SettingsTile(
                 label: 'Official Website',
                 value: 'unexpectedd0.github.io/Kerlyss-Release',
+                icon: Icons.language_rounded,
                 onTap: () async {
                   final url = Uri.parse('https://unexpectedd0.github.io/Kerlyss-Release/');
                   if (await canLaunchUrl(url)) {
@@ -87,6 +92,7 @@ class SettingsView extends ConsumerWidget {
               _SettingsTile(
                 label: 'Developer Instagram',
                 value: '@melihkerema',
+                icon: Icons.camera_alt_rounded,
                 onTap: () async {
                   final url = Uri.parse('https://www.instagram.com/melihkerema/');
                   if (await canLaunchUrl(url)) {
@@ -100,7 +106,8 @@ class SettingsView extends ConsumerWidget {
                   final version = snapshot.data?.version ?? '...';
                   return _SettingsTile(
                     label: 'Version', 
-                    value: version, 
+                    value: version,
+                    icon: Icons.info_outline_rounded,
                     onTap: () {},
                   );
                 },
@@ -108,6 +115,7 @@ class SettingsView extends ConsumerWidget {
               _SettingsTile(
                 label: 'Check for Updates',
                 value: 'Tap to check',
+                icon: Icons.system_update_rounded,
                 onTap: () => UpdateService().checkForUpdates(context),
               ),
             ],
@@ -129,19 +137,21 @@ class _SettingsSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.3),
-            fontSize: 10,
-            letterSpacing: 2,
-            fontWeight: FontWeight.bold,
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 10),
+          child: Text(
+            title,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.35),
+              fontSize: 10,
+              letterSpacing: 2,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
-        const SizedBox(height: 16),
         AetherGlass(
-          borderRadius: 20,
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          borderRadius: 16,
+          padding: const EdgeInsets.symmetric(vertical: 4),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: children,
@@ -156,22 +166,62 @@ class _SettingsTile extends StatelessWidget {
   final String label;
   final String value;
   final VoidCallback onTap;
+  final IconData? icon;
 
-  const _SettingsTile({required this.label, required this.value, required this.onTap});
+  const _SettingsTile({
+    required this.label,
+    required this.value,
+    required this.onTap,
+    this.icon,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      title: Text(label, style: const TextStyle(color: Colors.white, fontSize: 13, letterSpacing: 0.5)),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(value, style: const TextStyle(color: AetherColors.textSecondary, fontSize: 11)),
-          const SizedBox(width: 8),
-          const Icon(Icons.chevron_right_rounded, color: Colors.white24, size: 16),
-        ],
-      ),
+    final isLongText = value.length > 18;
+
+    return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            if (icon != null) ...[
+              Icon(icon, color: Colors.white70, size: 18),
+              const SizedBox(width: 12),
+            ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
+                  ),
+                  if (isLongText) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      value,
+                      style: const TextStyle(color: AetherColors.textSecondary, fontSize: 11),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (!isLongText) ...[
+              Text(
+                value,
+                style: const TextStyle(color: AetherColors.textSecondary, fontSize: 11),
+              ),
+              const SizedBox(width: 6),
+            ],
+            const Icon(Icons.chevron_right_rounded, color: Colors.white24, size: 16),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -182,25 +232,37 @@ class _EqPresetTile extends ConsumerWidget {
     final audioState = ref.watch(audioProvider);
     const presets = ['Flat', 'Bass Boost', 'Vocal', 'Electronic', 'Rock'];
 
-    return ListTile(
-      title: const Text('Equalizer Preset', style: TextStyle(color: Colors.white, fontSize: 13, letterSpacing: 0.5)),
-      trailing: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: presets.contains(audioState.eqPreset) ? audioState.eqPreset : 'Flat',
-          dropdownColor: AetherColors.ultraDarkGray,
-          style: const TextStyle(color: AetherColors.accentCyan, fontSize: 11, fontWeight: FontWeight.bold),
-          items: presets.map((p) {
-            return DropdownMenuItem<String>(
-              value: p,
-              child: Text(p),
-            );
-          }).toList(),
-          onChanged: (newPreset) {
-            if (newPreset != null) {
-              ref.read(audioProvider.notifier).setEqPreset(newPreset);
-            }
-          },
-        ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Row(
+        children: [
+          const Icon(Icons.tune_rounded, color: Colors.white70, size: 18),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Text(
+              'Equalizer Preset',
+              style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
+            ),
+          ),
+          DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: presets.contains(audioState.eqPreset) ? audioState.eqPreset : 'Flat',
+              dropdownColor: AetherColors.ultraDarkGray,
+              style: const TextStyle(color: AetherColors.accentCyan, fontSize: 11, fontWeight: FontWeight.bold),
+              items: presets.map((p) {
+                return DropdownMenuItem<String>(
+                  value: p,
+                  child: Text(p),
+                );
+              }).toList(),
+              onChanged: (newPreset) {
+                if (newPreset != null) {
+                  ref.read(audioProvider.notifier).setEqPreset(newPreset);
+                }
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -214,24 +276,34 @@ class _ShortcutTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      title: Text(label, style: const TextStyle(color: Colors.white, fontSize: 13, letterSpacing: 0.5)),
-      trailing: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-        ),
-        child: Text(
-          value, 
-          style: const TextStyle(
-            color: AetherColors.accentCyan, 
-            fontSize: 10, 
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
+            ),
           ),
-        ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+            ),
+            child: Text(
+              value, 
+              style: const TextStyle(
+                color: AetherColors.accentCyan, 
+                fontSize: 10, 
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
