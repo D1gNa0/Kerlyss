@@ -80,6 +80,16 @@ class SettingsView extends ConsumerWidget {
                   }
                 },
               ),
+              _SettingsTile(
+                label: 'Developer Instagram',
+                value: '@melihkerema',
+                onTap: () async {
+                  final url = Uri.parse('https://www.instagram.com/melihkerema/');
+                  if (await canLaunchUrl(url)) {
+                    await launchUrl(url, mode: LaunchMode.externalApplication);
+                  }
+                },
+              ),
               FutureBuilder<PackageInfo>(
                 future: PackageInfo.fromPlatform(),
                 builder: (context, snapshot) {
