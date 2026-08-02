@@ -119,13 +119,10 @@ class JustAudioService implements AudioServiceInterface {
       }
       await _player.setAudioSource(
         _activeQueue!,
-        initialIndex: initialIndex,
+        initialIndex: initialIndex >= 0 && initialIndex < queue.length ? initialIndex : 0,
       );
       if (token != _queueLoadToken) {
         return;
-      }
-      if (initialIndex >= 0 && _player.currentIndex != initialIndex) {
-        await _player.seek(Duration.zero, index: initialIndex);
       }
       if (play) {
         await _player.play();

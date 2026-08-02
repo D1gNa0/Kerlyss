@@ -318,7 +318,9 @@ class AudioNotifier extends StateNotifier<AudioState> {
         return;
       }
 
-      await _audioService.seek(snapshot.position, index: clampedIndex);
+      if (snapshot.position > const Duration(milliseconds: 500)) {
+        await _audioService.seek(snapshot.position, index: clampedIndex);
+      }
 
       if (!mounted || requestId != _playRequestId) {
         _isRestoringSession = false;
