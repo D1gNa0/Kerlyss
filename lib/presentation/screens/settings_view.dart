@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../theme/aether_colors.dart';
 import '../common/aether_glass.dart';
 import '../state/audio_provider.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 import '../../core/services/update_service.dart';
 
 class SettingsView extends ConsumerWidget {
@@ -69,6 +70,16 @@ class SettingsView extends ConsumerWidget {
           _SettingsSection(
             title: 'ABOUT',
             children: [
+              _SettingsTile(
+                label: 'Official Website',
+                value: 'unexpectedd0.github.io/Kerlyss-Release',
+                onTap: () async {
+                  final url = Uri.parse('https://unexpectedd0.github.io/Kerlyss-Release/');
+                  if (await canLaunchUrl(url)) {
+                    await launchUrl(url, mode: LaunchMode.externalApplication);
+                  }
+                },
+              ),
               FutureBuilder<PackageInfo>(
                 future: PackageInfo.fromPlatform(),
                 builder: (context, snapshot) {
@@ -117,15 +128,11 @@ class _SettingsSection extends StatelessWidget {
         AetherGlass(
           borderRadius: 20,
           padding: const EdgeInsets.symmetric(vertical: 8),
-          height: (children.length * 60.0) + 16.0,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: children,
           ),
         ),
-
-
-
       ],
     );
   }

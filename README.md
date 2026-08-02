@@ -1,6 +1,8 @@
 # Kerlyss - Official Releases
 
-This is the official distribution repository for the Kerlyss music application. It contains signed build artifacts, release notes, and installation guidance for all supported platforms.
+🌐 **Official Website:** [unexpectedd0.github.io/Kerlyss-Release](https://unexpectedd0.github.io/Kerlyss-Release/)
+
+This is the official distribution repository for the Kerlyss music application. It contains signed build artifacts, release notes, web streaming apps, and installation guidance for all supported platforms.
 
 **Our private development repository is not public.** Please use the [Issues Tab](https://github.com/UnExpectedd0/Kerlyss-Release/issues) in this repository to report bugs or request features.
 
