@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -33,17 +35,19 @@ class SettingsView extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
         children: [
-          const _SettingsSection(
-            title: 'PLAYBACK CONTROLS',
-            children: [
-              _ShortcutTile(label: 'Play / Pause', value: 'Space'),
-              _ShortcutTile(label: 'Seek Forward 5s', value: '→ Arrow'),
-              _ShortcutTile(label: 'Seek Backward 5s', value: '← Arrow'),
-              _ShortcutTile(label: 'Next track', value: 'Ctrl + →'),
-              _ShortcutTile(label: 'Previous track', value: 'Ctrl + ←'),
-            ],
-          ),
-          const SizedBox(height: 32),
+          if (!kIsWeb && Platform.isWindows) ...[
+            const _SettingsSection(
+              title: 'PLAYBACK CONTROLS',
+              children: [
+                _ShortcutTile(label: 'Play / Pause', value: 'Space'),
+                _ShortcutTile(label: 'Seek Forward 5s', value: '→ Arrow'),
+                _ShortcutTile(label: 'Seek Backward 5s', value: '← Arrow'),
+                _ShortcutTile(label: 'Next track', value: 'Ctrl + →'),
+                _ShortcutTile(label: 'Previous track', value: 'Ctrl + ←'),
+              ],
+            ),
+            const SizedBox(height: 32),
+          ],
           _SettingsSection(
             title: 'AUDIO FX & EQUALIZER',
             children: [
