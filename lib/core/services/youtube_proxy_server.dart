@@ -342,7 +342,7 @@ class YoutubeProxyServer {
           }
         }
 
-        final isPartialRequest = start > 0 || end < totalBytes - 1;
+        final isPartialRequest = rangeHeader != null;
 
         // User-Agent selection logic
         String userAgentForStreamUrl(Uri url) {
