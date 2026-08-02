@@ -317,32 +317,49 @@ class FullPlayerView extends ConsumerWidget {
                   ),
                   const SizedBox(height: 20),
 
-                  // Windows Volume Control
-                  if (!kIsWeb && Platform.isWindows)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.volume_up_rounded, color: AetherColors.textSecondary, size: 16),
-                          Expanded(
-                            child: SliderTheme(
-                              data: SliderTheme.of(context).copyWith(
-                                trackHeight: 1.5,
-                                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 4),
-                                overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
-                                activeTrackColor: Colors.white54,
-                                inactiveTrackColor: Colors.white.withValues(alpha: 0.05),
-                                thumbColor: Colors.white70,
-                              ),
-                              child: Slider(
-                                value: audioState.volume,
-                                onChanged: (v) => ref.read(audioProvider.notifier).setVolume(v),
-                              ),
+                  // Volume Control
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                    child: Row(
+                      children: [
+                        Icon(
+                          audioState.volume == 0.0
+                              ? Icons.volume_off_rounded
+                              : (audioState.volume < 0.5 ? Icons.volume_down_rounded : Icons.volume_up_rounded),
+                          color: AetherColors.textSecondary,
+                          size: 16,
+                        ),
+                        Expanded(
+                          child: SliderTheme(
+                            data: SliderTheme.of(context).copyWith(
+                              trackHeight: 1.5,
+                              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 4),
+                              overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
+                              activeTrackColor: Colors.white54,
+                              inactiveTrackColor: Colors.white.withValues(alpha: 0.05),
+                              thumbColor: Colors.white70,
+                            ),
+                            child: Slider(
+                              value: audioState.volume.clamp(0.0, 1.0),
+                              onChanged: (v) => ref.read(audioProvider.notifier).setVolume(v),
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                        SizedBox(
+                          width: 32,
+                          child: Text(
+                            '${(audioState.volume * 100).round()}%',
+                            style: const TextStyle(
+                              color: AetherColors.textSecondary,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.right,
+                          ),
+                        ),
+                      ],
                     ),
+                  ),
 
                   const SizedBox(height: 24),
                 ],

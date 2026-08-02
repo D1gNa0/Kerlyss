@@ -7,6 +7,7 @@ import '../../domain/entities/audio_source_type.dart';
 import 'aether_glass.dart';
 import 'glow_edge_container.dart';
 import 'vercel_hover_button.dart';
+import 'aether_volume_button.dart';
 import '../theme/aether_colors.dart';
 import '../screens/full_player_view.dart';
 import '../screens/queue_view.dart';
@@ -204,6 +205,8 @@ class MiniPlayer extends ConsumerWidget {
                         color: hasSong ? Colors.white : Colors.white24,
                         onPressed: hasSong ? () => ref.read(audioProvider.notifier).togglePlay() : null,
                       ),
+                      const SizedBox(width: 4),
+                      const AetherVolumeButton(),
                       const SizedBox(width: 4),
                       AetherIconButton(
                         tooltip: 'Up Next',
