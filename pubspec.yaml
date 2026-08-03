@@ -1,6 +1,6 @@
 name: kerlyss
 description: "A Unified Audio ecosystem for local, Spotify, and YouTube music."
-version: 1.1.1+3
+version: 1.2.0+4
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
