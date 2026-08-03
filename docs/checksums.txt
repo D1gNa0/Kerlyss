@@ -1,2 +1,7 @@
-cb6e360b9884795239bfeac1dde8aaea301b45649a1d0ae582d1f890454061bd  Kerlyss-Android.apk
-1ae222726e46df0418e18b053b66996d993fedf6ab5127c79205afd52e5989ca  Kerlyss-Windows.zip
+Kerlyss Release Binary Checksums (SHA-256)
+==============================================
+Release Version: v1.2.1
+Build Date: 2026-08-03
+
+6a26bf866ac2f736994233fa50b33c3850649e916db5b739c33a184aa88c2120  Kerlyss-Android.apk
+832f05ec0cb6c62137b17cdd2165b9b1fa60b1d808b0c594bc43419daa0093ac  Kerlyss-Windows.zip
