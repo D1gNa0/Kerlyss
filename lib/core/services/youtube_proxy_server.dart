@@ -407,11 +407,11 @@ class YoutubeProxyServer {
           int bytesWritten = 0;
           final expectedLength = upstreamLength;
 
-          await for (final List<int> chunk in httpResponse) {
-            final remaining = expectedLength - bytesWritten;
-            if (remaining <= 0) break;
+          try {
+            await for (final List<int> chunk in httpResponse) {
+              final remaining = expectedLength - bytesWritten;
+              if (remaining <= 0) break;
 
-            try {
               if (chunk.length > remaining) {
                 request.response.add(chunk.sublist(0, remaining));
                 bytesWritten += remaining;
@@ -420,9 +420,9 @@ class YoutubeProxyServer {
 
               request.response.add(chunk);
               bytesWritten += chunk.length;
-            } catch (_) {
-              break; // Client disconnected or stream socket closed
             }
+          } catch (e) {
+            Log.d('YoutubeProxyServer: Stream ended or interrupted mid-transfer for $videoId ($bytesWritten bytes written): $e');
           }
         }
 
