@@ -1,0 +1,10 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "flutter": true,
+        "&": true,
+        "Get-Command": true,
+        "ForEach-Object": true,
+        "dart": true,
+        "timeout": true
+    }
+}
