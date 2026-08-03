@@ -89,11 +89,11 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "UnExpectedd0" "\0"
+            VALUE "CompanyName", "D1gNa0" "\0"
             VALUE "FileDescription", "Kerlyss" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "Kerlyss" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 UnExpectedd0. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 D1gNa0. All rights reserved." "\0"
             VALUE "OriginalFilename", "Kerlyss.exe" "\0"
             VALUE "ProductName", "Kerlyss" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
