@@ -34,7 +34,7 @@ void main() async {
   globalAudioHandler = await AudioService.init<KerlyssAudioHandler>(
     builder: () => KerlyssAudioHandler(),
     config: const AudioServiceConfig(
-      androidNotificationChannelId: 'com.unexpectedd0.kerlyss.channel.audio',
+      androidNotificationChannelId: 'com.d1gna0.kerlyss.channel.audio',
       androidNotificationChannelName: 'Music Playback',
       androidNotificationOngoing: false,
       androidShowNotificationBadge: true,

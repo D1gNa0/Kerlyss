@@ -5,8 +5,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/material.dart';
 
 class UpdateService {
-  static const String _updateUrl = 'https://raw.githubusercontent.com/UnExpectedd0/Kerlyss-Release/main/version.json';
-  static const String _releasePageUrl = 'https://unexpectedd0.github.io/Kerlyss-Release/';
+  static const String _updateUrl = 'https://raw.githubusercontent.com/D1gNa0/Kerlyss/main/version.json';
+  static const String _releasePageUrl = 'https://d1gna0.github.io/Kerlyss/';
 
   Future<void> checkForUpdates(BuildContext context) async {
     try {

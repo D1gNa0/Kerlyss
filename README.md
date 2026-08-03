@@ -1,16 +1,12 @@
-# Kerlyss - Official Releases
+# Kerlyss - Modern Music Streaming & Library Player
 
-🌐 **Official Website:** [unexpectedd0.github.io/Kerlyss-Release](https://unexpectedd0.github.io/Kerlyss-Release/)
-
-This is the official distribution repository for the Kerlyss music application. It contains signed build artifacts, release notes, web streaming apps, and installation guidance for all supported platforms.
-
-**Our private development repository is not public.** Please use the [Issues Tab](https://github.com/UnExpectedd0/Kerlyss-Release/issues) in this repository to report bugs or request features.
+🌐 **Official Website:** [d1gna0.github.io/Kerlyss](https://d1gna0.github.io/Kerlyss/)
 
 ---
 
 ## 📥 Download & Install
 
-The latest version can always be found on our **[Releases Page](https://github.com/UnExpectedd0/Kerlyss-Release/releases/latest)**.
+The latest version can always be found on our **[Releases Page](https://github.com/D1gNa0/Kerlyss/releases/latest)**.
 
 ### Android Installation
 

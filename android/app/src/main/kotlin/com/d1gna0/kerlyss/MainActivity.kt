@@ -1,4 +1,4 @@
-package com.unexpectedd0.kerlyss
+package com.d1gna0.kerlyss
 
 import io.flutter.embedding.android.FlutterActivity
 

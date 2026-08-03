@@ -1,0 +1,2 @@
+6a49366ed1a8871a967758b6e9c359f21d93db529316b58a25ecd485b2487e00  Kerlyss-Android.apk
+7b7f86220d23d0a41bebc0cdb3ce7e19a0b46abb28e3d70152afd45efa2c1cdf  Kerlyss-Windows.zip

@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kerlyss — All your music. One unified player.</title>
+    <meta name="description" content="Kerlyss is a high-performance, unified audio ecosystem bridging local high-fidelity FLAC libraries, Spotify playlists, and YouTube audio.">
+
+    <!-- Favicon & Touch Icons -->
+    <link rel="icon" type="image/png" href="icon.png">
+    <link rel="shortcut icon" href="favicon.ico">
+    <link rel="apple-touch-icon" href="icon.png">
+
+    <!-- Fonts: Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            /* Authentic Kerlyss Design Tokens (Aether System) */
+            --bg-deep: #0A0A0E;           /* Deep Matte Black / Dark Charcoal Obsidian */
+            --surface-dark: #14141C;       /* Ultra Dark Gray */
+            
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-bg-hover: rgba(255, 255, 255, 0.09);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --glass-border-subtle: rgba(255, 255, 255, 0.06);
+            --glass-border-hover: rgba(255, 255, 255, 0.22);
+            
+            --text-primary: #F9FAFB;       /* Cream Off-White */
+            --text-secondary: #9CA3AF;     /* Soft Slate Gray */
+            --text-muted: #6B7280;         /* Muted Gray */
+            
+            /* Tiered Action System */
+            --accent-primary: #FFFFFF;     /* Tier 3: Primary Actions (Crisp Off-White) */
+            --accent-download: #10B981;    /* Tier 2: Downloads & Offline Sync (Emerald Green) */
+            --accent-caution: #E11D48;     /* Tier 1: Caution & Destructive (Crimson Red) */
+            --accent-amber: #F59E0B;       /* Warning / Status */
+            --accent-purple: #A855F7;      /* Subtle Aura Glow */
+            
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        html {
+            scroll-behavior: smooth;
+            background-color: var(--bg-deep);
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+        }
+
+        body {
+            min-height: 100vh;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 50% -10%, rgba(168, 85, 247, 0.07) 0%, transparent 60%),
+                radial-gradient(circle at 80% 40%, rgba(16, 185, 129, 0.04) 0%, transparent 50%),
+                linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+            background-position: 0 0, 0 0, -1px -1px, -1px -1px;
+        }
+
+        /* --- Custom Scrollbar --- */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-deep); }
+        ::-webkit-scrollbar-thumb { background: #1c1c28; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent-download); }
+
+        /* --- Layout Container --- */
+        .container {
+            width: 100%;
+            max-width: 1140px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* --- Header Navigation --- */
+        header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 100;
+            background: rgba(10, 10, 14, 0.82);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--glass-border-subtle);
+        }
+
+        .nav-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 84px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            text-decoration: none;
+            color: var(--text-primary);
+        }
+
+        .brand-icon {
+            width: 58px;
+            height: 58px;
+            border-radius: 12px;
+            object-fit: contain;
+        }
+
+        .brand-name {
+            font-weight: 800;
+            font-size: 1.35rem;
+            letter-spacing: -0.02em;
+        }
+
+        .version-badge {
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            padding: 2px 9px;
+            border-radius: 100px;
+            background: rgba(16, 185, 129, 0.12);
+            color: var(--accent-download);
+            border: 1px solid rgba(16, 185, 129, 0.25);
+            font-weight: 600;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 32px;
+        }
+
+        .nav-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .nav-link:hover { color: var(--text-primary); }
+
+        .nav-cta {
+            background: var(--text-primary);
+            color: #0A0A0E;
+            font-weight: 700;
+            font-size: 0.85rem;
+            padding: 9px 20px;
+            border-radius: 20px;
+            text-decoration: none;
+            transition: all 0.2s;
+            letter-spacing: 0.02em;
+        }
+
+        .nav-cta:hover {
+            opacity: 0.92;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(255, 255, 255, 0.2);
+        }
+
+        /* --- Hero Section --- */
+        .hero {
+            padding-top: 170px;
+            padding-bottom: 80px;
+            text-align: center;
+        }
+
+        .hero-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 16px;
+            border-radius: 100px;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            margin-bottom: 28px;
+            transition: border-color 0.2s;
+        }
+
+        .hero-pill:hover { border-color: var(--glass-border-hover); }
+
+        .hero-pill-icon { color: var(--accent-download); }
+
+        .hero h1 {
+            font-size: clamp(2.8rem, 7vw, 4.8rem);
+            font-weight: 800;
+            letter-spacing: -0.04em;
+            line-height: 1.05;
+            margin-bottom: 20px;
+            background: linear-gradient(180deg, #FFFFFF 20%, #9CA3AF 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p {
+            font-size: 1.15rem;
+            color: var(--text-secondary);
+            max-width: 640px;
+            margin: 0 auto 40px auto;
+            line-height: 1.6;
+        }
+
+        .hero-actions {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 14px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 14px 28px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 0.95rem;
+            text-decoration: none;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            cursor: pointer;
+            letter-spacing: 0.02em;
+        }
+
+        .btn-primary {
+            background: var(--text-primary);
+            color: #0A0A0E;
+            box-shadow: 0 4px 20px rgba(255, 255, 255, 0.25);
+        }
+
+        .btn-primary:hover {
+            background: #ffffff;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 28px rgba(255, 255, 255, 0.35);
+        }
+
+        .btn-secondary {
+            background: var(--glass-bg);
+            color: var(--text-primary);
+            border: 1px solid var(--glass-border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--glass-bg-hover);
+            border-color: var(--glass-border-hover);
+            transform: translateY(-2px);
+        }
+
+        .btn svg {
+            width: 20px;
+            height: 20px;
+            fill: currentColor;
+        }
+
+        .sys-req {
+            font-size: 0.78rem;
+            font-family: var(--font-mono);
+            color: var(--text-muted);
+        }
+
+        /* --- Interactive App Interface Showcase --- */
+        .preview-section {
+            padding: 30px 0 100px 0;
+        }
+
+        .app-window {
+            background: #0E0E14;
+            border: 0.5px solid var(--glass-border);
+            border-radius: 24px;
+            box-shadow: 
+                0 30px 80px rgba(0, 0, 0, 0.8),
+                0 0 0 1px rgba(255, 255, 255, 0.05);
+            overflow: hidden;
+        }
+
+        .window-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 20px;
+            background: #0A0A0E;
+            border-bottom: 1px solid var(--glass-border-subtle);
+        }
+
+        .window-dots {
+            display: flex;
+            gap: 8px;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        .dot-red { background: #E11D48; opacity: 0.8; }
+        .dot-yellow { background: #F59E0B; opacity: 0.8; }
+        .dot-green { background: #10B981; opacity: 0.8; }
+
+        .window-title {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            letter-spacing: 0.05em;
+        }
+
+        .window-actions { width: 50px; }
+
+        /* App Body Mockup */
+        .app-body { padding: 24px; }
+
+        /* Mode Selector Pills (Matching DiscoverySearchBar) */
+        .mode-selector-pills {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+        }
+
+        .mode-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-family: var(--font-mono);
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--glass-border-subtle);
+            user-select: none;
+        }
+
+        .mode-pill.active {
+            background: var(--glass-bg);
+            color: var(--text-primary);
+            border-color: rgba(255, 255, 255, 0.28);
+        }
+
+        .mode-pill svg { width: 14px; height: 14px; fill: currentColor; }
+
+        /* Search Bar Box */
+        .search-bar-box {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 0.5px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 14px 20px;
+            margin-bottom: 24px;
+        }
+
+        .search-icon { color: var(--text-muted); }
+
+        .search-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text-primary);
+            font-size: 0.92rem;
+            font-family: var(--font-sans);
+        }
+
+        /* Track List */
+        .track-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .track-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 18px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 0.5px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .track-row:hover, .track-row.playing {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: var(--glass-border);
+        }
+
+        .track-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .album-art {
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.06);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+        }
+
+        .track-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .track-title {
+            font-weight: 600;
+            font-size: 0.92rem;
+            color: var(--text-primary);
+        }
+
+        .track-artist {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+        }
+
+        .track-extra {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .downloaded-chip {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            color: var(--accent-download);
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .source-tag {
+            font-family: var(--font-mono);
+            font-size: 0.68rem;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 6px;
+            letter-spacing: 0.05em;
+        }
+
+        .tag-spotify { background: rgba(16, 185, 129, 0.12); color: #10B981; }
+        .tag-youtube { background: rgba(225, 29, 72, 0.12); color: #E11D48; }
+        .tag-local { background: rgba(255, 255, 255, 0.1); color: #F9FAFB; }
+
+        .track-duration {
+            font-family: var(--font-mono);
+            font-size: 0.78rem;
+            color: var(--text-muted);
+        }
+
+        /* Mini Player Bar */
+        .player-bar {
+            margin-top: 24px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 0.5px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .now-playing {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .equalizer-icon {
+            display: flex;
+            align-items: flex-end;
+            gap: 3px;
+            height: 16px;
+        }
+
+        .eq-bar {
+            width: 3px;
+            background: var(--accent-download);
+            border-radius: 2px;
+            animation: eqWave 1.2s ease-in-out infinite alternate;
+        }
+        .eq-bar:nth-child(1) { height: 60%; animation-delay: 0.1s; }
+        .eq-bar:nth-child(2) { height: 100%; animation-delay: 0.3s; }
+        .eq-bar:nth-child(3) { height: 40%; animation-delay: 0.2s; }
+        .eq-bar:nth-child(4) { height: 80%; animation-delay: 0.4s; }
+
+        @keyframes eqWave {
+            0% { transform: scaleY(0.3); }
+            100% { transform: scaleY(1); }
+        }
+
+        .player-controls {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .ctrl-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.2s;
+        }
+
+        .ctrl-btn:hover { color: var(--text-primary); }
+
+        .ctrl-btn-play {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--text-primary);
+            color: #0A0A0E;
+        }
+
+        .ctrl-btn-play:hover {
+            background: #ffffff;
+            transform: scale(1.05);
+        }
+
+        /* --- Bento Grid Features --- */
+        .features-section { padding: 80px 0; }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 56px;
+        }
+
+        .section-tag {
+            font-family: var(--font-mono);
+            font-size: 0.78rem;
+            color: var(--accent-download);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .section-title {
+            font-size: 2.2rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+        }
+
+        .bento-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+        }
+
+        .bento-card {
+            background: var(--surface-dark);
+            border: 0.5px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 36px;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .bento-card:hover {
+            border-color: var(--glass-border-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .bento-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 24px;
+        }
+
+        .bento-title {
+            font-size: 1.35rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            letter-spacing: -0.02em;
+        }
+
+        .bento-desc {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* --- Checksums & Security Section --- */
+        .checksum-section { padding: 80px 0 120px 0; }
+
+        .checksum-card {
+            background: var(--surface-dark);
+            border: 0.5px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 40px;
+        }
+
+        .checksum-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .checksum-title-box h3 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .checksum-title-box p {
+            font-size: 0.88rem;
+            color: var(--text-secondary);
+        }
+
+        .checksum-rows {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .checksum-item {
+            background: #0A0A0E;
+            border: 0.5px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .checksum-name {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .checksum-hash {
+            font-family: var(--font-mono);
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            word-break: break-all;
+        }
+
+        .btn-copy {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            color: var(--text-secondary);
+            padding: 7px 16px;
+            border-radius: 12px;
+            font-size: 0.78rem;
+            font-family: var(--font-mono);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-copy:hover {
+            color: var(--text-primary);
+            border-color: var(--glass-border-hover);
+        }
+
+        /* --- Footer --- */
+        footer {
+            border-top: 1px solid var(--glass-border-subtle);
+            padding: 40px 0;
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .footer-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 24px;
+        }
+
+        .footer-link {
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .footer-link:hover { color: var(--text-primary); }
+
+        @media (max-width: 768px) {
+            .nav-links { display: none; }
+            .hero { padding-top: 130px; }
+            .bento-grid { grid-template-columns: 1fr; }
+            .nav-inner { height: 64px; }
+            .app-body { padding: 16px; }
+            .track-extra { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header Navigation -->
+    <header>
+        <div class="container nav-inner">
+            <a href="#" class="brand">
+                <img src="icon.png" alt="Kerlyss" class="brand-icon">
+                <span class="brand-name">KERLYSS</span>
+                <span class="version-badge">v1.1.1</span>
+            </a>
+
+            <div class="nav-links">
+                <a href="#features" class="nav-link">Features</a>
+                <a href="#preview" class="nav-link">Preview</a>
+                <a href="#security" class="nav-link">Checksums</a>
+                <a href="https://github.com/UnExpectedd0/Kerlyss-Release" target="_blank" class="nav-link" style="display:flex; align-items:center; gap:6px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+                    GitHub
+                </a>
+            </div>
+
+            <a href="#downloads" id="header-download-btn" class="nav-cta">Download</a>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main>
+
+        <!-- Hero Section -->
+        <section class="hero container">
+            <div style="margin-bottom: 24px;">
+                <img src="icon.png" alt="Kerlyss App Icon" style="width: 88px; height: 88px; border-radius: 20px; box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.12); object-fit: contain;">
+            </div>
+            <div class="hero-pill">
+                <span class="hero-pill-icon">🟢</span>
+                <span>Kerlyss v1.1.1 Release</span>
+            </div>
+
+            <h1>All your music.<br>One unified player.</h1>
+            <p>Bridge the gap between local high-fidelity audio files, Spotify playlists, and YouTube streams in a single, lightning-fast native application.</p>
+
+            <div class="hero-actions">
+                <div class="btn-group" id="downloads">
+                    <a href="https://github.com/UnExpectedd0/Kerlyss-Release/releases/latest/download/Kerlyss-Windows.zip" id="btn-primary" class="btn btn-primary">
+                        <svg viewBox="0 0 24 24"><path d="M0 3.449L9.75 2.1V11.4H0V3.449ZM0 12.6H9.75V21.9L0 20.551V12.6ZM10.8 1.95L24 0V11.4H10.8V1.95ZM10.8 12.6H24V24L10.8 22.05V12.6Z"/></svg>
+                        <span id="btn-primary-text">Download for Windows</span>
+                    </a>
+
+                    <a href="https://github.com/UnExpectedd0/Kerlyss-Release/releases/latest/download/Kerlyss-Android.apk" id="btn-secondary" class="btn btn-secondary">
+                        <svg viewBox="0 0 24 24"><path d="M17.523 15.3414C17.523 15.6563 17.3917 15.9082 17.129 16.0971C16.8663 16.286 16.5379 16.3804 16.1439 16.3804C15.7499 16.3804 15.4215 16.286 15.1588 16.0971C14.8961 15.9082 14.7648 15.6563 14.7648 15.3414C14.7648 15.0265 14.8961 14.7746 15.1588 14.5857C15.4215 14.3968 15.7499 14.3024 16.1439 14.3024C16.5379 14.3024 16.8663 14.3968 17.129 14.5857C17.3917 14.7746 17.523 15.0265 17.523 15.3414ZM9.23522 15.3414C9.23522 15.6563 9.10393 15.9082 8.84133 16.0971C8.57874 16.286 8.25032 16.3804 7.85632 16.3804C7.46233 16.3804 7.13391 16.286 6.87132 16.0971C6.60872 15.9082 6.47743 15.6563 6.47743 15.3414C6.47743 15.0265 6.60872 14.7746 6.87132 14.5857C7.13391 14.3968 7.46233 14.3024 7.85632 14.3024C8.25032 14.3024 8.57874 14.3968 8.84133 14.5857C9.10393 14.7746 9.23522 15.0265 9.23522 15.3414ZM18.7301 11.2327V11.2327L20.4074 8.32766C20.5252 8.12356 20.4552 7.86241 20.251 7.74457C20.0468 7.62672 19.7857 7.69678 19.6679 7.90099L17.9621 10.8549C16.4851 10.1818 14.819 9.8003 13.0645 9.8003C11.31 9.8003 9.64389 10.1818 8.16694 10.8549L6.46114 7.90099C6.34329 7.69678 6.08215 7.62672 5.87794 7.74457C5.67373 7.86241 5.60367 8.12356 5.72152 8.32766L7.39886 11.2327C3.99049 13.0118 1.62158 16.5165 1.41162 20.6139H24.7174C24.5074 16.5165 22.1385 13.0118 18.7301 11.2327Z"/></svg>
+                        <span id="btn-secondary-text">Android APK</span>
+                    </a>
+                </div>
+
+                <div class="sys-req">Windows 10/11 (x64) · Android 8.0+ · Open Distribution</div>
+            </div>
+        </section>
+
+        <!-- Interactive App Interface Showcase -->
+        <section class="preview-section container" id="preview">
+            <div class="app-window">
+                <div class="window-header">
+                    <div class="window-dots">
+                        <div class="dot dot-red"></div>
+                        <div class="dot dot-yellow"></div>
+                        <div class="dot dot-green"></div>
+                    </div>
+                    <div class="window-title">Kerlyss — Aether UI</div>
+                    <div class="window-actions"></div>
+                </div>
+
+                <div class="app-body">
+                    <!-- Top Mode Selector Pills (Matching Kerlyss App UI) -->
+                    <div class="mode-selector-pills">
+                        <div class="mode-pill active" onclick="switchMode('songs', this)">
+                            <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                            SEARCH SONGS
+                        </div>
+                        <div class="mode-pill" onclick="switchMode('spotify', this)">
+                            <svg viewBox="0 0 24 24"><path d="M12 0C5.376 0 0 5.376 0 12s5.376 12 12 12 12-5.376 12-12S18.624 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.12-.779-.18-.899-.54-.12-.42.18-.78.54-.9 4.56-1.02 8.52-.6 11.64 1.32.42.18.479.659.301 1.021zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141 C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C14.64 8.28 8.16 8.04 4.38 9.18c-.6.18-1.26-.18-1.44-.72-.18-.6.18-1.26.72-1.44 4.38-1.32 11.46-1.08 15.9 1.56.54.3.72 1.02.42 1.56-.3.48-1.02.72-1.56.42z"/></svg>
+                            IMPORT SPOTIFY
+                        </div>
+                        <div class="mode-pill" onclick="switchMode('link', this)">
+                            <svg viewBox="0 0 24 24"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
+                            SPOTIFY LINK
+                        </div>
+                    </div>
+
+                    <!-- Search Input Box -->
+                    <div class="search-bar-box">
+                        <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                        <input type="text" id="mock-input" class="search-input" value="Search tracks, playlists, or paste Spotify URL..." readonly>
+                    </div>
+
+                    <!-- Track Rows -->
+                    <div class="track-list" id="track-list">
+                        <div class="track-row playing">
+                            <div class="track-info">
+                                <div class="album-art">🎵</div>
+                                <div class="track-meta">
+                                    <div class="track-title">Starlight</div>
+                                    <div class="track-artist">Muse — Black Holes and Revelations</div>
+                                </div>
+                            </div>
+                            <div class="track-extra">
+                                <div class="downloaded-chip">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                                    DOWNLOADED
+                                </div>
+                                <span class="source-tag tag-local">LOCAL FLAC</span>
+                                <span class="track-duration">3:59</span>
+                            </div>
+                        </div>
+
+                        <div class="track-row">
+                            <div class="track-info">
+                                <div class="album-art">🎧</div>
+                                <div class="track-meta">
+                                    <div class="track-title">Midnight City</div>
+                                    <div class="track-artist">M83 — Hurry Up, We're Dreaming</div>
+                                </div>
+                            </div>
+                            <div class="track-extra">
+                                <span class="source-tag tag-spotify">SPOTIFY</span>
+                                <span class="track-duration">4:03</span>
+                            </div>
+                        </div>
+
+                        <div class="track-row">
+                            <div class="track-info">
+                                <div class="album-art">▶️</div>
+                                <div class="track-meta">
+                                    <div class="track-title">Resonance</div>
+                                    <div class="track-artist">HOME — Odyssey</div>
+                                </div>
+                            </div>
+                            <div class="track-extra">
+                                <span class="source-tag tag-youtube">YOUTUBE</span>
+                                <span class="track-duration">3:32</span>
+                            </div>
+                        </div>
+
+                        <div class="track-row">
+                            <div class="track-info">
+                                <div class="album-art">🎼</div>
+                                <div class="track-meta">
+                                    <div class="track-title">Get Lucky</div>
+                                    <div class="track-artist">Daft Punk — Random Access Memories</div>
+                                </div>
+                            </div>
+                            <div class="track-extra">
+                                <div class="downloaded-chip">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                                    DOWNLOADED
+                                </div>
+                                <span class="source-tag tag-local">LOCAL FLAC</span>
+                                <span class="track-duration">4:08</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Mini Player Bar -->
+                    <div class="player-bar">
+                        <div class="now-playing">
+                            <div class="equalizer-icon">
+                                <div class="eq-bar"></div>
+                                <div class="eq-bar"></div>
+                                <div class="eq-bar"></div>
+                                <div class="eq-bar"></div>
+                            </div>
+                            <div>
+                                <div style="font-weight: 600; font-size: 0.88rem;">Starlight</div>
+                                <div style="font-size: 0.75rem; color: var(--text-secondary);">Playing from Offline Library · FLAC 96kHz/24bit</div>
+                            </div>
+                        </div>
+
+                        <div class="player-controls">
+                            <button class="ctrl-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></button>
+                            <button class="ctrl-btn ctrl-btn-play"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg></button>
+                            <button class="ctrl-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Bento Grid Features -->
+        <section class="features-section container" id="features">
+            <div class="section-header">
+                <div class="section-tag">AETHER DESIGN & ENGINE</div>
+                <h2 class="section-title">Built for power listeners.</h2>
+            </div>
+
+            <div class="bento-grid">
+                <!-- Card 1 -->
+                <div class="bento-card">
+                    <div>
+                        <div class="bento-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21 21-4.35-4.35"/><circle cx="11" cy="11" r="8"/><path d="M11 8v6"/><path d="M8 11h6"/></svg>
+                        </div>
+                        <h3 class="bento-title">Unified Provider Search</h3>
+                        <p class="bento-desc">Search once to discover and stream tracks across your local directories, Spotify playlists, and YouTube audio simultaneously without switching apps.</p>
+                    </div>
+                </div>
+
+                <!-- Card 2 -->
+                <div class="bento-card">
+                    <div>
+                        <div class="bento-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                        </div>
+                        <h3 class="bento-title">Bit-Perfect Audio Engine</h3>
+                        <p class="bento-desc">High-resolution audio pipeline with direct hardware output support for 24-bit FLAC, WAV, and ALAC with zero sample rate degradation.</p>
+                    </div>
+                </div>
+
+                <!-- Card 3 -->
+                <div class="bento-card">
+                    <div>
+                        <div class="bento-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        </div>
+                        <h3 class="bento-title">Tiered Offline Sync</h3>
+                        <p class="bento-desc">Dedicated downloads view indicated by crisp emerald green tier badges (`#10B981`). Play your offline library anytime with zero telemetry.</p>
+                    </div>
+                </div>
+
+                <!-- Card 4 -->
+                <div class="bento-card">
+                    <div>
+                        <div class="bento-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                        </div>
+                        <h3 class="bento-title">Native Cross-Platform</h3>
+                        <p class="bento-desc">Built with Flutter, high-performance C++ Windows runner, and native Android background audio service for minimal CPU usage and instant startup.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Security & Checksums Section -->
+        <section class="checksum-section container" id="security">
+            <div class="checksum-card">
+                <div class="checksum-header">
+                    <div class="checksum-title-box">
+                        <h3>SHA-256 Release Hashes</h3>
+                        <p>Verify your download integrity against production release signatures.</p>
+                    </div>
+                </div>
+
+                <div class="checksum-rows">
+                    <div class="checksum-item">
+                        <div>
+                            <div class="checksum-name">Kerlyss-Android.apk</div>
+                            <div class="checksum-hash">6a49366ed1a8871a967758b6e9c359f21d93db529316b58a25ecd485b2487e00</div>
+                        </div>
+                        <button class="btn-copy" onclick="copyHash('6a49366ed1a8871a967758b6e9c359f21d93db529316b58a25ecd485b2487e00', this)">Copy Hash</button>
+                    </div>
+
+                    <div class="checksum-item">
+                        <div>
+                            <div class="checksum-name">Kerlyss-Windows.zip</div>
+                            <div class="checksum-hash">7b7f86220d23d0a41bebc0cdb3ce7e19a0b46abb28e3d70152afd45efa2c1cdf</div>
+                        </div>
+                        <button class="btn-copy" onclick="copyHash('7b7f86220d23d0a41bebc0cdb3ce7e19a0b46abb28e3d70152afd45efa2c1cdf', this)">Copy Hash</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container footer-inner">
+            <div>© 2026 Kerlyss · Open Distribution Engine</div>
+            <div class="footer-links">
+                <a href="https://github.com/UnExpectedd0/Kerlyss-Release" target="_blank" class="footer-link">GitHub Repository</a>
+                <a href="https://github.com/UnExpectedd0/Kerlyss-Release/releases" target="_blank" class="footer-link">All Releases</a>
+                <a href="https://github.com/UnExpectedd0/Kerlyss-Release/blob/main/LICENSE" target="_blank" class="footer-link">MIT License</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script>
+        // OS Auto-Detection for Downloads CTA
+        (function detectOS() {
+            const userAgent = window.navigator.userAgent || '';
+            const isAndroid = /android/i.test(userAgent);
+
+            const btnPrimary = document.getElementById('btn-primary');
+            const btnPrimaryText = document.getElementById('btn-primary-text');
+            const btnSecondary = document.getElementById('btn-secondary');
+            const btnSecondaryText = document.getElementById('btn-secondary-text');
+
+            const androidSvg = '<path d="M17.523 15.3414C17.523 15.6563 17.3917 15.9082 17.129 16.0971C16.8663 16.286 16.5379 16.3804 16.1439 16.3804C15.7499 16.3804 15.4215 16.286 15.1588 16.0971C14.8961 15.9082 14.7648 15.6563 14.7648 15.3414C14.7648 15.0265 14.8961 14.7746 15.1588 14.5857C15.4215 14.3968 15.7499 14.3024 16.1439 14.3024C16.5379 14.3024 16.8663 14.3968 17.129 14.5857C17.3917 14.7746 17.523 15.0265 17.523 15.3414ZM9.23522 15.3414C9.23522 15.6563 9.10393 15.9082 8.84133 16.0971C8.57874 16.286 8.25032 16.3804 7.85632 16.3804C7.46233 16.3804 7.13391 16.286 6.87132 16.0971C6.60872 15.9082 6.47743 15.6563 6.47743 15.3414C6.47743 15.0265 6.60872 14.7746 6.87132 14.5857C7.13391 14.3968 7.46233 14.3024 7.85632 14.3024C8.25032 14.3024 8.57874 14.3968 8.84133 14.5857C9.10393 14.7746 9.23522 15.0265 9.23522 15.3414ZM18.7301 11.2327V11.2327L20.4074 8.32766C20.5252 8.12356 20.4552 7.86241 20.251 7.74457C20.0468 7.62672 19.7857 7.69678 19.6679 7.90099L17.9621 10.8549C16.4851 10.1818 14.819 9.8003 13.0645 9.8003C11.31 9.8003 9.64389 10.1818 8.16694 10.8549L6.46114 7.90099C6.34329 7.69678 6.08215 7.62672 5.87794 7.74457C5.67373 7.86241 5.60367 8.12356 5.72152 8.32766L7.39886 11.2327C3.99049 13.0118 1.62158 16.5165 1.41162 20.6139H24.7174C24.5074 16.5165 22.1385 13.0118 18.7301 11.2327Z"/>';
+            const windowsSvg = '<path d="M0 3.449L9.75 2.1V11.4H0V3.449ZM0 12.6H9.75V21.9L0 20.551V12.6ZM10.8 1.95L24 0V11.4H10.8V1.95ZM10.8 12.6H24V24L10.8 22.05V12.6Z"/>';
+
+            if (isAndroid) {
+                btnPrimary.href = "https://github.com/UnExpectedd0/Kerlyss-Release/releases/latest/download/Kerlyss-Android.apk";
+                btnPrimaryText.textContent = "Download APK (v1.1.1)";
+                btnPrimary.querySelector('svg').innerHTML = androidSvg;
+                
+                btnSecondary.href = "https://github.com/UnExpectedd0/Kerlyss-Release/releases/latest/download/Kerlyss-Windows.zip";
+                btnSecondaryText.textContent = "Download Windows ZIP";
+                btnSecondary.querySelector('svg').innerHTML = windowsSvg;
+            }
+        })();
+
+        // Interactive Mode Switcher in Mockup
+        function switchMode(mode, el) {
+            const pills = document.querySelectorAll('.mode-pill');
+            pills.forEach(p => p.classList.remove('active'));
+            el.classList.add('active');
+
+            const mockInput = document.getElementById('mock-input');
+            if (mode === 'songs') {
+                mockInput.value = "Search songs, albums, or artists across all sources...";
+            } else if (mode === 'spotify') {
+                mockInput.value = "Select Spotify playlist to import to offline library...";
+            } else if (mode === 'link') {
+                mockInput.value = "Paste Spotify track/album URL (e.g. https://open.spotify.com/track/...)...";
+            }
+        }
+
+        // Copy Hash Helper
+        function copyHash(hash, btn) {
+            navigator.clipboard.writeText(hash).then(() => {
+                const originalText = btn.textContent;
+                btn.textContent = "Copied!";
+                btn.style.color = "#10B981";
+                btn.style.borderColor = "rgba(16, 185, 129, 0.4)";
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.color = "";
+                    btn.style.borderColor = "";
+                }, 2000);
+            });
+        }
+    </script>
+</body>
+</html>

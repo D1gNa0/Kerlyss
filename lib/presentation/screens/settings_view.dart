@@ -96,9 +96,9 @@ class SettingsView extends ConsumerWidget {
             children: [
               _SettingsTile(
                 label: 'Official Website',
-                value: 'unexpectedd0.github.io/Kerlyss-Release',
+                value: 'd1gna0.github.io/Kerlyss',
                 icon: Icons.language_rounded,
-                onTap: () => _openUrl('https://unexpectedd0.github.io/Kerlyss-Release/'),
+                onTap: () => _openUrl('https://d1gna0.github.io/Kerlyss/'),
               ),
               _SettingsTile(
                 label: 'Developer Instagram',
