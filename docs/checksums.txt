@@ -1,7 +1,7 @@
 Kerlyss Release Binary Checksums (SHA-256)
 ==============================================
-Release Version: v1.2.1
-Build Date: 2026-08-03
+Release Version: v1.2.2
+Build Date: 2026-08-04
 
-6a26bf866ac2f736994233fa50b33c3850649e916db5b739c33a184aa88c2120  Kerlyss-Android.apk
-832f05ec0cb6c62137b17cdd2165b9b1fa60b1d808b0c594bc43419daa0093ac  Kerlyss-Windows.zip
+a6255c6054fa26c64d9f1cbe3ff8e586bd980740e2641bdeb02ce3e4ca34bb03  Kerlyss-Android.apk
+a8301893520aea3291c5fe57a8e8ca3bb72fb2daba2bda7a810cb368801404b3  Kerlyss-Windows.zip
