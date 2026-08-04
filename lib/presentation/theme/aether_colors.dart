@@ -34,7 +34,7 @@ class AetherColors {
   // Status & Notifications
   static const Color warning = Color(0xFFF59E0B);
 
-  // Network Configuration
-  static const String androidUserAgent = 'Mozilla/5.0 (Linux; Android 13; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36';
-  static const String iosUserAgent = 'com.google.ios.youtube/19.29.1 (iPhone16,2; U; CPU iOS 17_5_1 like Mac OS X;)';
+  // Network Configuration (Must match youtube_explode_dart exactly to avoid 403s)
+  static const String androidUserAgent = 'com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip';
+  static const String iosUserAgent = 'com.google.ios.youtube/20.10.4 (iPhone16,2; U; CPU iOS 18_3_2 like Mac OS X;)';
 }

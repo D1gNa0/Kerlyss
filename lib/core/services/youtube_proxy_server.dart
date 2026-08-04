@@ -356,7 +356,22 @@ class YoutubeProxyServer {
         Future<void> pipeFromUpstream(StreamInfo upstreamInfo, {bool isHeadRequest = false}) async {
           // Use shared client pool instead of creating new client per request
           final client = _ProxyHttpClientPool.instance;
-          final httpRequest = await client.getUrl(upstreamInfo.url);
+          
+          Uri targetUrl = upstreamInfo.url;
+          bool useRangeHeader = false;
+          
+          if (isPartialRequest) {
+            if (targetUrl.queryParameters['c'] == 'ANDROID') {
+              useRangeHeader = true;
+            } else {
+              // Non-Android clients (e.g. WEB) require the range in the query params, NOT the header
+              final newParams = Map<String, dynamic>.from(targetUrl.queryParameters);
+              newParams['range'] = '$start-$end';
+              targetUrl = targetUrl.replace(queryParameters: newParams);
+            }
+          }
+
+          final httpRequest = await client.getUrl(targetUrl);
 
           // YouTube blocks default 'Dart/3.x' User-Agents with a 403 Forbidden.
           // We must mask the request to match the client that generated the URL.
@@ -364,7 +379,7 @@ class YoutubeProxyServer {
           httpRequest.headers.set(HttpHeaders.userAgentHeader, userAgent);
           httpRequest.headers.set('Referer', 'https://www.youtube.com/');
 
-          if (isPartialRequest) {
+          if (useRangeHeader) {
             httpRequest.headers.set(HttpHeaders.rangeHeader, 'bytes=$start-$end');
           }
 
@@ -404,25 +419,12 @@ class YoutubeProxyServer {
             return;
           }
 
-          int bytesWritten = 0;
-          final expectedLength = upstreamLength;
-
           try {
-            await for (final List<int> chunk in httpResponse) {
-              final remaining = expectedLength - bytesWritten;
-              if (remaining <= 0) break;
-
-              if (chunk.length > remaining) {
-                request.response.add(chunk.sublist(0, remaining));
-                bytesWritten += remaining;
-                break;
-              }
-
-              request.response.add(chunk);
-              bytesWritten += chunk.length;
-            }
+            // Using addStream handles backpressure and automatically stops 
+            // reading from upstream if the client (just_audio) disconnects.
+            await request.response.addStream(httpResponse);
           } catch (e) {
-            Log.d('YoutubeProxyServer: Stream ended or interrupted mid-transfer for $videoId ($bytesWritten bytes written): $e');
+            Log.d('YoutubeProxyServer: Stream ended or interrupted mid-transfer for $videoId: $e');
           }
         }
 
@@ -451,7 +453,6 @@ class YoutubeProxyServer {
               try {
                 if (headersSent) break;
                 _streamCache.remove(videoId);
-                _ProxyHttpClientPool.close();
 
                 Log.w('YoutubeProxyServer: Immediate retry attempt $attempt for videoId=$videoId (switching to muxed fallback)...');
 

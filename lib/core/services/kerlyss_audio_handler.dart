@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:audio_service/audio_service.dart';
 import 'package:just_audio/just_audio.dart';
 import '../../presentation/state/audio_state.dart';
@@ -5,7 +6,22 @@ import '../../presentation/state/audio_state.dart';
 /// Global Audio Handler for Kerlyss.
 /// This connects just_audio to the system media controls (Notification, Lock Screen, Desktop).
 class KerlyssAudioHandler extends BaseAudioHandler with SeekHandler {
-  final AudioPlayer _player = AudioPlayer();
+  final AudioPlayer _player = AudioPlayer(
+    // Progressive Streaming: Aggressive buffer settings for near-instant playback.
+    // Default ExoPlayer buffers 2.5s before playing — we drop this to 100ms so audio
+    // starts the instant the first HTTP chunk arrives, while the rest streams in the background.
+    audioLoadConfiguration: Platform.isAndroid
+        ? AudioLoadConfiguration(
+            androidLoadControl: AndroidLoadControl(
+              minBufferDuration: const Duration(seconds: 15),   // Keep 15s buffered ahead
+              maxBufferDuration: const Duration(seconds: 50),   // Buffer up to 50s ahead
+              bufferForPlaybackDuration: const Duration(milliseconds: 100), // ← KEY: start playing after just 100ms of data
+              bufferForPlaybackAfterRebufferDuration: const Duration(milliseconds: 500), // After rebuffer, wait 500ms
+              prioritizeTimeOverSizeThresholds: true,
+            ),
+          )
+        : null,
+  );
 
   KerlyssAudioHandler() {
     // 1. Listen for playback state changes from just_audio and push to audio_service

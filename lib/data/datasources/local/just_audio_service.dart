@@ -104,6 +104,9 @@ class JustAudioService implements AudioServiceInterface {
   Stream<int?> get currentIndexStream => _player.currentIndexStream;
 
   @override
+  int get queueLength => _activeQueue?.length ?? 0;
+
+  @override
   Future<void> setAudioQueue(List<AudioSource> queue, {int initialIndex = 0, bool play = false}) async {
     Log.d('JustAudioService: setting AudioQueue (${queue.length} items, startAt: $initialIndex)');
     final token = ++_queueLoadToken;

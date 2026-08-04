@@ -25,6 +25,7 @@ abstract class AudioServiceInterface {
   Future<void> removeFromQueue(int index);
   Future<void> moveInQueue(int oldIndex, int newIndex);
   Stream<int?> get currentIndexStream;
+  int get queueLength;
 
   Future<void> setVolume(double volume);
   Future<void> load(String url, {required SongMetadata metadata});

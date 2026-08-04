@@ -442,37 +442,48 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
                             ],
                           ),
                         ),
-                        const Spacer(),
-                        if (currentPlaylist.spotifySourceUrl != null)
-                          AetherIconButton(
-                            tooltip: 'Sync / Refresh Now',
-                            icon: Icons.refresh_rounded,
-                            size: 16,
-                            buttonSize: 34,
-                            onPressed: _isSyncing ? null : _triggerManualSync,
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            reverse: true,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (currentPlaylist.spotifySourceUrl != null)
+                                  AetherIconButton(
+                                    tooltip: 'Sync / Refresh Now',
+                                    icon: Icons.refresh_rounded,
+                                    size: 16,
+                                    buttonSize: 34,
+                                    onPressed: _isSyncing ? null : _triggerManualSync,
+                                  ),
+                                AetherIconButton(
+                                  tooltip: 'Sync & Download Settings',
+                                  icon: Icons.bolt_rounded,
+                                  color: currentPlaylist.isRealtimeSynced ? AetherColors.primaryAccent : Colors.white70,
+                                  size: 16,
+                                  buttonSize: 34,
+                                  onPressed: () => _showSyncSettingsDialog(context, currentPlaylist),
+                                ),
+                                AetherIconButton(
+                                  tooltip: 'Rename Playlist',
+                                  icon: Icons.edit_rounded,
+                                  size: 16,
+                                  buttonSize: 34,
+                                  onPressed: () => _showRenameDialog(context),
+                                ),
+                                AetherIconButton(
+                                  tooltip: 'Delete Playlist',
+                                  icon: Icons.delete_outline_rounded,
+                                  color: AetherColors.error,
+                                  size: 16,
+                                  buttonSize: 34,
+                                  onPressed: () => _confirmDeletePlaylist(context),
+                                ),
+                              ],
+                            ),
                           ),
-                        AetherIconButton(
-                          tooltip: 'Sync & Download Settings',
-                          icon: Icons.bolt_rounded,
-                          color: currentPlaylist.isRealtimeSynced ? AetherColors.primaryAccent : Colors.white70,
-                          size: 16,
-                          buttonSize: 34,
-                          onPressed: () => _showSyncSettingsDialog(context, currentPlaylist),
-                        ),
-                        AetherIconButton(
-                          tooltip: 'Rename Playlist',
-                          icon: Icons.edit_rounded,
-                          size: 16,
-                          buttonSize: 34,
-                          onPressed: () => _showRenameDialog(context),
-                        ),
-                        AetherIconButton(
-                          tooltip: 'Delete Playlist',
-                          icon: Icons.delete_outline_rounded,
-                          color: AetherColors.error,
-                          size: 16,
-                          buttonSize: 34,
-                          onPressed: () => _confirmDeletePlaylist(context),
                         ),
                       ],
                     ),

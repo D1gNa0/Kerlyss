@@ -270,8 +270,8 @@ class AudioNotifier extends StateNotifier<AudioState> {
     try {
       final videoId = await _songRepository.resolveStreamUri(song.toEntity());
 
-      // Also pre-fetch the actual stream info through the proxy server
-      if (Platform.isWindows && videoId.isNotEmpty) {
+      // Pre-fetch the actual stream info through the proxy server on all platforms
+      if (videoId.isNotEmpty) {
         YoutubeProxyServer.prefetchStream(videoId, _youtubeService.client);
       }
     } catch (e) {
@@ -429,6 +429,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
       final canReuseCurrentQueue = !_isRestoringSession &&
           state.playlist.length == playlist.length &&
           state.playlist.isNotEmpty &&
+          _audioService.queueLength == playlist.length && // Ensure hydration is fully complete
           _hasSamePlaylistOrder(state.playlist, playlist);
 
       if (canReuseCurrentQueue) {
@@ -467,15 +468,18 @@ class AudioNotifier extends StateNotifier<AudioState> {
       );
       globalAudioHandler.setMediaFromSong(clickedSong);
 
-      final sources = await Future.wait(
-        playlist.map((song) => _buildAudioSource(song)),
-      );
+      // ── Progressive Streaming: Play First, Queue Later ──
+      // Build ONLY the clicked song's AudioSource and start playback immediately.
+      // The rest of the playlist is resolved lazily in the background so the user
+      // hears audio within ~100-200ms instead of waiting for all N songs to resolve.
+      final clickedSource = await _buildAudioSource(clickedSong);
       if (!mounted || requestId != _playRequestId) {
         _isNavigatingQueue = false;
         return;
       }
 
-      await _audioService.setAudioQueue(sources, initialIndex: index, play: true);
+      // Load the single song and start playing it immediately
+      await _audioService.setAudioQueue([clickedSource], initialIndex: 0, play: true);
       if (!mounted || requestId != _playRequestId) {
         _isNavigatingQueue = false;
         return;
@@ -486,10 +490,54 @@ class AudioNotifier extends StateNotifier<AudioState> {
       _syncStatusFromEngine();
       _schedulePersistSession();
       _checkAndFetchBpm(clickedSong);
-      _prefetchUpcomingSongs(index, count: 1);
+
+      // ── Background Queue Hydration ──
+      // Now lazily resolve the remaining songs and rebuild the full queue.
+      // The user is already hearing audio while this runs in the background.
+      unawaited(_hydrateFullQueue(playlist, index, requestId));
     } catch (e) {
       _isNavigatingQueue = false;
       _setPlaybackError('playPlaylist', e);
+    }
+  }
+
+  /// Lazily builds the full audio queue in the background after the clicked
+  /// song has already started playing (progressive streaming).
+  /// Uses insertIntoQueue() instead of setAudioQueue() to avoid resetting
+  /// the player and causing playback interruption.
+  Future<void> _hydrateFullQueue(List<SongMetadata> playlist, int clickedIndex, int requestId) async {
+    try {
+      if (playlist.length <= 1) return; // Single song, nothing to hydrate
+
+      // Build sources for all OTHER songs (skip the clicked one, it's already playing)
+      // Insert songs AFTER the current track first (these are most likely to be needed next)
+      int insertionOffset = 1; // Start inserting after position 0 (the playing song)
+
+      // Songs AFTER the clicked index
+      for (var i = clickedIndex + 1; i < playlist.length; i++) {
+        if (!mounted || requestId != _playRequestId) return;
+        final source = await _buildAudioSource(playlist[i]);
+        if (!mounted || requestId != _playRequestId) return;
+        await _audioService.insertIntoQueue(insertionOffset, source);
+        insertionOffset++;
+      }
+
+      // Songs BEFORE the clicked index (insert at position 0, pushing current track forward)
+      for (var i = 0; i < clickedIndex; i++) {
+        if (!mounted || requestId != _playRequestId) return;
+        final source = await _buildAudioSource(playlist[i]);
+        if (!mounted || requestId != _playRequestId) return;
+        await _audioService.insertIntoQueue(i, source);
+      }
+
+      // Update state to reflect the correct current index (it shifted by clickedIndex due to insertions before it)
+      if (mounted && requestId == _playRequestId) {
+        state = state.copyWith(currentIndex: clickedIndex);
+        _prefetchUpcomingSongs(clickedIndex, count: 1);
+        Log.i('🎵 [HYDRATE] Full queue loaded (${playlist.length} tracks) — zero-interruption hydration complete');
+      }
+    } catch (e) {
+      Log.w('AudioNotifier: Background queue hydration failed (non-fatal): $e');
     }
   }
 
@@ -611,9 +659,14 @@ class AudioNotifier extends StateNotifier<AudioState> {
       if (state.playlist.isEmpty) return;
       _isNavigatingQueue = true;
       final nextIndex = (state.currentIndex + 1) % state.playlist.length;
-      Log.i('Audio: Seeking next track at index $nextIndex');
+      final nextSong = state.playlist[nextIndex];
+      Log.i('Audio: Seeking next track "${nextSong.title}" at index $nextIndex');
+      state = state.copyWith(currentIndex: nextIndex, currentSong: nextSong);
+      globalAudioHandler.setMediaFromSong(nextSong);
       await _audioService.seek(Duration.zero, index: nextIndex).timeout(const Duration(seconds: 3));
       await _ensurePlaybackStarted();
+      _checkAndFetchBpm(nextSong);
+      _prefetchUpcomingSongs(nextIndex, count: 1);
     } catch (e) {
       _setPlaybackError('next', e);
     } finally {
@@ -633,9 +686,14 @@ class AudioNotifier extends StateNotifier<AudioState> {
       }
 
       final prevIndex = (state.currentIndex - 1 + state.playlist.length) % state.playlist.length;
-      Log.i('Audio: Seeking previous track at index $prevIndex');
+      final prevSong = state.playlist[prevIndex];
+      Log.i('Audio: Seeking previous track "${prevSong.title}" at index $prevIndex');
+      state = state.copyWith(currentIndex: prevIndex, currentSong: prevSong);
+      globalAudioHandler.setMediaFromSong(prevSong);
       await _audioService.seek(Duration.zero, index: prevIndex).timeout(const Duration(seconds: 3));
       await _ensurePlaybackStarted();
+      _checkAndFetchBpm(prevSong);
+      _prefetchUpcomingSongs(prevIndex, count: 1);
     } catch (e) {
       _setPlaybackError('previous', e);
     } finally {
@@ -763,13 +821,39 @@ class AudioNotifier extends StateNotifier<AudioState> {
     }
   }
 
-  void togglePlay() {
-    if (_audioService.playing) {
-      _audioService.pause();
-    } else {
-      _audioService.play();
+  Future<void> togglePlay() async {
+    try {
+      if (_audioService.playing || state.status == PlaybackStatus.playing) {
+        state = state.copyWith(status: PlaybackStatus.paused);
+        await _audioService.pause();
+      } else {
+        state = state.copyWith(status: PlaybackStatus.playing);
+        await _ensurePlaybackStarted();
+      }
+      _schedulePersistSession();
+    } catch (e) {
+      _setPlaybackError('togglePlay', e);
     }
-    _schedulePersistSession();
+  }
+
+  Future<void> pause() async {
+    try {
+      state = state.copyWith(status: PlaybackStatus.paused);
+      await _audioService.pause();
+      _schedulePersistSession();
+    } catch (e) {
+      _setPlaybackError('pause', e);
+    }
+  }
+
+  Future<void> play() async {
+    try {
+      state = state.copyWith(status: PlaybackStatus.playing);
+      await _ensurePlaybackStarted();
+      _schedulePersistSession();
+    } catch (e) {
+      _setPlaybackError('play', e);
+    }
   }
 
   void seek(Duration position) {
