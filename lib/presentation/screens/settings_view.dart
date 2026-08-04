@@ -95,6 +95,12 @@ class SettingsView extends ConsumerWidget {
             title: 'ABOUT',
             children: [
               _SettingsTile(
+                label: 'Support the Developer',
+                value: 'Buy me a coffee ☕',
+                icon: Icons.favorite_rounded,
+                onTap: () => _openUrl('https://patreon.com/your_username_here'), // TODO: Replace with your actual Patreon link
+              ),
+              _SettingsTile(
                 label: 'Official Website',
                 value: 'd1gna0.github.io/Kerlyss',
                 icon: Icons.language_rounded,
