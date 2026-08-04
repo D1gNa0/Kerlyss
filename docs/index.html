@@ -767,7 +767,7 @@
             <a href="#" class="brand">
                 <img src="icon.png" alt="Kerlyss" class="brand-icon">
                 <span class="brand-name">KERLYSS</span>
-                <span class="version-badge" id="version-badge">v1.2.1</span>
+                <span class="version-badge" id="version-badge">v...</span>
             </a>
 
             <div class="nav-links">
@@ -794,7 +794,7 @@
             </div>
             <div class="hero-pill">
                 <span class="hero-pill-icon">🟢</span>
-                <span>Kerlyss v1.2.1 · 100% Free & Open Source</span>
+                <span id="hero-version-text">Kerlyss · 100% Free & Open Source</span>
             </div>
 
             <h1>All your music.<br>One unified player.</h1>
@@ -1100,6 +1100,20 @@
                 }, 2000);
             });
         }
+        // Fetch Version Helper
+        fetch('version.json')
+            .then(res => res.json())
+            .then(data => {
+                if(data.version) {
+                    const vText = "v" + data.version;
+                    document.getElementById('version-badge').textContent = vText;
+                    const heroText = document.getElementById('hero-version-text');
+                    if(heroText) {
+                        heroText.textContent = "Kerlyss " + vText + " · 100% Free & Open Source";
+                    }
+                }
+            })
+            .catch(e => console.error('Failed to load version info', e));
     </script>
 </body>
 </html>
