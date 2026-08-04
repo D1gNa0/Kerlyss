@@ -1,4 +1,4 @@
 {
-  "version": "1.2.1",
-  "releaseNotes": "Kerlyss v1.2.1 Release! Updated brand icon to monochrome metallic silver, refined mobile responsive landing page layout, and updated Windows HICON resource."
+  "version": "1.2.2",
+  "releaseNotes": "Kerlyss v1.2.2 Release! Stability Improvements & New Adaptive Icons. Added Patreon support link, redesigned Android icons, fixed playback seeking, and improved queue state handling."
 }
