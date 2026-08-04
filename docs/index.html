@@ -1015,17 +1015,17 @@
                     <div class="checksum-item">
                         <div>
                             <div class="checksum-name">Kerlyss-Android.apk</div>
-                            <div class="checksum-hash">396b326b09d3d5841ca1354685450870672b6b388d696da79b1eab051101c58e</div>
+                            <div class="checksum-hash" id="android-hash">Loading...</div>
                         </div>
-                        <button class="btn-copy" onclick="copyHash('396b326b09d3d5841ca1354685450870672b6b388d696da79b1eab051101c58e', this)">Copy Hash</button>
+                        <button class="btn-copy" onclick="copyHash(document.getElementById('android-hash').textContent, this)">Copy Hash</button>
                     </div>
 
                     <div class="checksum-item">
                         <div>
                             <div class="checksum-name">Kerlyss-Windows.zip</div>
-                            <div class="checksum-hash">b16c3c36067cfd157f32d07eeed64b1d529dc08055755241fe7d5a7b80890210</div>
+                            <div class="checksum-hash" id="windows-hash">Loading...</div>
                         </div>
-                        <button class="btn-copy" onclick="copyHash('b16c3c36067cfd157f32d07eeed64b1d529dc08055755241fe7d5a7b80890210', this)">Copy Hash</button>
+                        <button class="btn-copy" onclick="copyHash(document.getElementById('windows-hash').textContent, this)">Copy Hash</button>
                     </div>
                 </div>
             </div>
@@ -1100,7 +1100,7 @@
                 }, 2000);
             });
         }
-        // Fetch Version Helper
+        // Fetch Version & Checksums Helper
         fetch('version.json')
             .then(res => res.json())
             .then(data => {
@@ -1114,6 +1114,23 @@
                 }
             })
             .catch(e => console.error('Failed to load version info', e));
+
+        fetch('checksums.txt')
+            .then(res => res.text())
+            .then(text => {
+                const lines = text.split('\n');
+                for (const line of lines) {
+                    const trimmed = line.trim();
+                    if (trimmed.includes('Kerlyss-Android.apk')) {
+                        const hash = trimmed.split(/\s+/)[0];
+                        document.getElementById('android-hash').textContent = hash;
+                    } else if (trimmed.includes('Kerlyss-Windows.zip')) {
+                        const hash = trimmed.split(/\s+/)[0];
+                        document.getElementById('windows-hash').textContent = hash;
+                    }
+                }
+            })
+            .catch(e => console.error('Failed to load checksums', e));
     </script>
 </body>
 </html>
