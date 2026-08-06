@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +7,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/aether_colors.dart';
 import '../common/aether_glass.dart';
+import '../state/app_settings_provider.dart';
 import '../state/audio_provider.dart';
 import '../../core/services/app_storage_paths.dart';
 import '../../core/services/update_service.dart';
@@ -71,17 +73,16 @@ class SettingsView extends ConsumerWidget {
                 FutureBuilder<Directory>(
                   future: AppStoragePaths.downloadsDirectory(),
                   builder: (context, snapshot) {
-                    final path = snapshot.data?.path ?? 'Loading...';
+                    final settings = ref.watch(appSettingsProvider);
+                    final path = settings.customDownloadsPath ?? snapshot.data?.path ?? 'Loading...';
                     return _SettingsTile(
                       label: 'Downloads Folder', 
                       value: path,
                       icon: Icons.folder_open_rounded,
                       onTap: () async {
-                        if (snapshot.hasData) {
-                          try {
-                            final uri = Uri.directory(snapshot.data!.path);
-                            await launchUrl(uri);
-                          } catch (_) {}
+                        final result = await FilePicker.platform.getDirectoryPath();
+                        if (result != null) {
+                          ref.read(appSettingsProvider.notifier).setCustomDownloadsPath(result);
                         }
                       },
                     );
