@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/services/app_storage_paths.dart';
+import '../../core/services/logger_service.dart';
 import '../../data/datasources/local/isar_database_service.dart';
 import '../../data/models/app_settings_model.dart';
 import '../../data/repositories/repository_providers.dart';
@@ -124,14 +125,18 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
       final model = await _isarService.getSettings();
       state = AppSettingsState.fromModel(model);
       AppStoragePaths.customDownloadsPath = state.customDownloadsPath;
-    } catch (_) {}
+    } catch (e, stackTrace) {
+      Log.e('Failed to load app settings from Isar: $e', e, stackTrace);
+    }
   }
 
   Future<void> _saveSettings(AppSettingsState newState) async {
     state = newState;
     try {
       await _isarService.saveSettings(newState.toModel());
-    } catch (_) {}
+    } catch (e, stackTrace) {
+      Log.e('Failed to save app settings to Isar: $e', e, stackTrace);
+    }
   }
 
   Future<void> setAudioQuality(String val) async {
@@ -171,11 +176,12 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
   }
 
   Future<void> setCustomDownloadsPath(String? path) async {
-    AppStoragePaths.customDownloadsPath = path;
-    if (path == null) {
+    final cleanPath = (path?.trim().isEmpty ?? true) ? null : path!.trim();
+    AppStoragePaths.customDownloadsPath = cleanPath;
+    if (cleanPath == null) {
       await _saveSettings(state.copyWith(clearCustomDownloadsPath: true));
     } else {
-      await _saveSettings(state.copyWith(customDownloadsPath: path));
+      await _saveSettings(state.copyWith(customDownloadsPath: cleanPath));
     }
   }
 }

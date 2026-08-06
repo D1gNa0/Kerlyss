@@ -10,6 +10,8 @@ class AppStoragePaths {
   static Directory? _cachedDownloadsDirectory;
   static String? _customDownloadsPath;
 
+  static String? get customDownloadsPath => _customDownloadsPath;
+
   static set customDownloadsPath(String? path) {
     _customDownloadsPath = path;
     _cachedDownloadsDirectory = null;
@@ -35,7 +37,7 @@ class AppStoragePaths {
       return _cachedDownloadsDirectory!;
     }
   
-    if (_customDownloadsPath != null) {
+    if (_customDownloadsPath != null && _customDownloadsPath!.trim().isNotEmpty) {
       final customDir = Directory(_customDownloadsPath!);
       if (await customDir.exists()) {
         _cachedDownloadsDirectory = customDir;

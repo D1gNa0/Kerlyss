@@ -20,6 +20,12 @@ void main() {
       }
     });
 
+    test('exposes customDownloadsPath getter', () {
+      expect(AppStoragePaths.customDownloadsPath, isNull);
+      AppStoragePaths.customDownloadsPath = '/some/path';
+      expect(AppStoragePaths.customDownloadsPath, equals('/some/path'));
+    });
+
     test('returns custom downloads directory if customDownloadsPath is set and directory exists', () async {
       AppStoragePaths.customDownloadsPath = tempCustomDir.path;
       final dir = await AppStoragePaths.downloadsDirectory();
@@ -33,6 +39,13 @@ void main() {
       final dir = await AppStoragePaths.downloadsDirectory();
       expect(dir.path, isNot(equals(nonExistentPath)));
       expect(dir.path.contains('downloads'), isTrue);
+    });
+
+    test('falls back to default downloads directory if custom path is empty or whitespace', () async {
+      AppStoragePaths.customDownloadsPath = '   ';
+      final dir = await AppStoragePaths.downloadsDirectory();
+      expect(dir.path.contains('downloads'), isTrue);
+      expect(dir.path, isNot(equals('.')));
     });
 
     test('setting customDownloadsPath to null resets cached directory to default', () async {

@@ -7,6 +7,7 @@ import 'package:kerlyss/presentation/state/app_settings_provider.dart';
 
 class FakeIsarDatabaseService implements IsarDatabaseService {
   AppSettingsModel savedModel = AppSettingsModel();
+  bool shouldThrowOnSave = false;
 
   @override
   late Isar isar;
@@ -18,6 +19,9 @@ class FakeIsarDatabaseService implements IsarDatabaseService {
 
   @override
   Future<void> saveSettings(AppSettingsModel settings) async {
+    if (shouldThrowOnSave) {
+      throw Exception('Database write error');
+    }
     savedModel = settings;
   }
 
@@ -96,10 +100,22 @@ void main() {
       await notifier.setCustomDownloadsPath('/my/downloads');
       expect(notifier.state.customDownloadsPath, equals('/my/downloads'));
       expect(fakeIsar.savedModel.customDownloadsPath, equals('/my/downloads'));
+      expect(AppStoragePaths.customDownloadsPath, equals('/my/downloads'));
 
-      await notifier.setCustomDownloadsPath(null);
+      await notifier.setCustomDownloadsPath('   ');
       expect(notifier.state.customDownloadsPath, isNull);
       expect(fakeIsar.savedModel.customDownloadsPath, isNull);
+      expect(AppStoragePaths.customDownloadsPath, isNull);
+    });
+
+    test('handles save errors gracefully with logging', () async {
+      fakeIsar.shouldThrowOnSave = true;
+      final notifier = AppSettingsNotifier(fakeIsar);
+      await Future.delayed(const Duration(milliseconds: 20));
+
+      // Should not throw unhandled exception
+      await notifier.setAudioQuality('Low (128kbps)');
+      expect(notifier.state.audioQuality, equals('Low (128kbps)'));
     });
   });
 }
