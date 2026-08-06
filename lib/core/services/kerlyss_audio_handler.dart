@@ -6,7 +6,12 @@ import '../../presentation/state/audio_state.dart';
 /// Global Audio Handler for Kerlyss.
 /// This connects just_audio to the system media controls (Notification, Lock Screen, Desktop).
 class KerlyssAudioHandler extends BaseAudioHandler with SeekHandler {
+  static final AndroidEqualizer? _equalizer = Platform.isAndroid ? AndroidEqualizer() : null;
+
+  AndroidEqualizer? get equalizer => _equalizer;
+
   final AudioPlayer _player = AudioPlayer(
+    audioPipeline: _equalizer != null ? AudioPipeline(androidAudioEffects: [_equalizer!]) : null,
     // Progressive Streaming: Aggressive buffer settings for near-instant playback.
     // Default ExoPlayer buffers 2.5s before playing — we drop this to 100ms so audio
     // starts the instant the first HTTP chunk arrives, while the rest streams in the background.
