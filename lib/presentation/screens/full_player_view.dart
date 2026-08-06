@@ -116,7 +116,7 @@ class FullPlayerView extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
+                  const Spacer(),
 
                   // Aether Pulse Visualizer (Behind Album Art)
                   Stack(
@@ -160,7 +160,7 @@ class FullPlayerView extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
+                  const Spacer(),
 
                   // Song Info Refined
                   Column(
@@ -205,10 +205,27 @@ class FullPlayerView extends ConsumerWidget {
                           ),
                         ),
                       ],
+                      if (audioState.audioFormat != null) ...[
+                        const SizedBox(height: 12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _buildInfoTag(context, audioState.audioFormat!),
+                            if (audioState.audioBitrate != null) ...[
+                              const SizedBox(width: 8),
+                              _buildInfoTag(context, audioState.audioBitrate!),
+                            ],
+                            if (audioState.audioSize != null) ...[
+                              const SizedBox(width: 8),
+                              _buildInfoTag(context, audioState.audioSize!),
+                            ],
+                          ],
+                        ),
+                      ],
                     ],
                   ),
 
-                  const SizedBox(height: 24),
+                  const Spacer(),
 
                   // Playback Controls
                   Row(
@@ -440,5 +457,25 @@ class FullPlayerView extends ConsumerWidget {
     final minutes = twoDigits(duration.inMinutes.remainder(60));
     final seconds = twoDigits(duration.inSeconds.remainder(60));
     return '$minutes:$seconds';
+  }
+
+  Widget _buildInfoTag(BuildContext context, String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(6),
+        color: Colors.white.withValues(alpha: 0.05),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Text(
+        text.toUpperCase(),
+        style: const TextStyle(
+          color: Colors.white38,
+          fontSize: 9,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 1,
+        ),
+      ),
+    );
   }
 }
