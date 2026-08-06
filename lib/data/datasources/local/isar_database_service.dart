@@ -3,6 +3,7 @@ import 'package:path_provider/path_provider.dart';
 import '../../models/song_model.dart';
 import '../../models/playlist_model.dart';
 import '../../models/cached_search_model.dart';
+import '../../models/app_settings_model.dart';
 
 class IsarDatabaseService {
   late Isar isar;
@@ -10,7 +11,7 @@ class IsarDatabaseService {
   Future<void> init() async {
     final dir = await getApplicationDocumentsDirectory();
     isar = await Isar.open(
-      [SongModelSchema, PlaylistModelSchema, CachedSearchModelSchema],
+      [SongModelSchema, PlaylistModelSchema, CachedSearchModelSchema, AppSettingsModelSchema],
       directory: dir.path,
     );
   }
@@ -125,6 +126,19 @@ class IsarDatabaseService {
   Future<void> clearSearchCache() async {
     await isar.writeTxn(() async {
       await isar.cachedSearchModels.clear();
+    });
+  }
+
+  // --- Settings Operations ---
+  Future<AppSettingsModel> getSettings() async {
+    final settings = await isar.appSettingsModels.get(1);
+    return settings ?? AppSettingsModel();
+  }
+
+  Future<void> saveSettings(AppSettingsModel settings) async {
+    settings.id = 1;
+    await isar.writeTxn(() async {
+      await isar.appSettingsModels.put(settings);
     });
   }
 }
