@@ -10,7 +10,12 @@ import '../common/aether_glass.dart';
 import '../state/app_settings_provider.dart';
 import '../state/audio_provider.dart';
 import '../../core/services/app_storage_paths.dart';
+import '../../core/services/logger_service.dart';
 import '../../core/services/update_service.dart';
+
+final defaultDownloadsDirProvider = FutureProvider<Directory>((ref) async {
+  return AppStoragePaths.downloadsDirectory();
+});
 
 class SettingsView extends ConsumerWidget {
   const SettingsView({super.key});
@@ -70,24 +75,57 @@ class SettingsView extends ConsumerWidget {
                     value: 'Shadow Glass',
                     onTap: () {},
                   ),
-                FutureBuilder<Directory>(
-                  future: AppStoragePaths.downloadsDirectory(),
-                  builder: (context, snapshot) {
-                    final settings = ref.watch(appSettingsProvider);
-                    final path = settings.customDownloadsPath ?? snapshot.data?.path ?? 'Loading...';
-                    return _SettingsTile(
-                      label: 'Downloads Folder', 
-                      value: path,
+                () {
+                  final downloadsDirAsync = ref.watch(defaultDownloadsDirProvider);
+                  final settings = ref.watch(appSettingsProvider);
+                  return downloadsDirAsync.when(
+                    data: (dir) => _SettingsTile(
+                      label: 'Downloads Folder',
+                      value: settings.customDownloadsPath ?? dir.path,
                       icon: Icons.folder_open_rounded,
                       onTap: () async {
-                        final result = await FilePicker.platform.getDirectoryPath();
-                        if (result != null) {
-                          ref.read(appSettingsProvider.notifier).setCustomDownloadsPath(result);
+                        try {
+                          final result = await FilePicker.platform.getDirectoryPath();
+                          if (result != null) {
+                            ref.read(appSettingsProvider.notifier).setCustomDownloadsPath(result);
+                          }
+                        } catch (e) {
+                          Log.e('Failed to select directory', e);
                         }
                       },
-                    );
-                  },
-                ),
+                    ),
+                    loading: () => _SettingsTile(
+                      label: 'Downloads Folder',
+                      value: settings.customDownloadsPath ?? 'Loading...',
+                      icon: Icons.folder_open_rounded,
+                      onTap: () async {
+                        try {
+                          final result = await FilePicker.platform.getDirectoryPath();
+                          if (result != null) {
+                            ref.read(appSettingsProvider.notifier).setCustomDownloadsPath(result);
+                          }
+                        } catch (e) {
+                          Log.e('Failed to select directory', e);
+                        }
+                      },
+                    ),
+                    error: (err, stack) => _SettingsTile(
+                      label: 'Downloads Folder',
+                      value: settings.customDownloadsPath ?? 'Error loading folder',
+                      icon: Icons.folder_open_rounded,
+                      onTap: () async {
+                        try {
+                          final result = await FilePicker.platform.getDirectoryPath();
+                          if (result != null) {
+                            ref.read(appSettingsProvider.notifier).setCustomDownloadsPath(result);
+                          }
+                        } catch (e) {
+                          Log.e('Failed to select directory', e);
+                        }
+                      },
+                    ),
+                  );
+                }(),
               ],
             ),
           ],
