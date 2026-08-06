@@ -948,9 +948,13 @@ class AudioNotifier extends StateNotifier<AudioState> {
       equalizer.setEnabled(true);
       // Apply asynchronously
       Future.microtask(() async {
-        final params = await equalizer.parameters;
-        for (int i = 0; i < params.bands.length && i < gains.length; i++) {
-          await params.bands[i].setGain(gains[i]);
+        try {
+          final params = await equalizer.parameters;
+          for (int i = 0; i < params.bands.length && i < gains.length; i++) {
+            await params.bands[i].setGain(gains[i]);
+          }
+        } catch (e) {
+          Log.w('AudioNotifier: Failed to apply EQ preset gains: $e');
         }
       });
     }
@@ -1014,6 +1018,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
             bitrateKbps = (sizeInBytes * 8) / durationMs;
           }
           
+          if (!mounted || state.currentSong.id != song.id) return;
           state = state.copyWith(
             audioFormat: format,
             audioBitrate: '${bitrateKbps.round()} kbps',
@@ -1035,6 +1040,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
       final sizeMb = streamInfo.size.totalBytes / (1024 * 1024);
       final bitrateKbps = streamInfo.bitrate.bitsPerSecond / 1000;
       final format = streamInfo.codec.subtype.toUpperCase();
+      if (!mounted || state.currentSong.id != songId) return;
       state = state.copyWith(
         audioFormat: format,
         audioBitrate: '${bitrateKbps.round()} kbps',
