@@ -82,6 +82,9 @@ class AudioState {
   final String? errorMessage;
   final Duration? sleepTimerRemaining;
   final String eqPreset;
+  final String? audioFormat;
+  final String? audioBitrate;
+  final String? audioSize;
 
   const AudioState({
     required this.currentSong,
@@ -96,6 +99,9 @@ class AudioState {
     this.errorMessage,
     this.sleepTimerRemaining,
     this.eqPreset = 'Flat',
+    this.audioFormat,
+    this.audioBitrate,
+    this.audioSize,
   });
 
   AudioState copyWith({
@@ -113,6 +119,12 @@ class AudioState {
     Duration? sleepTimerRemaining,
     bool clearSleepTimer = false,
     String? eqPreset,
+    String? audioFormat,
+    bool clearAudioFormat = false,
+    String? audioBitrate,
+    bool clearAudioBitrate = false,
+    String? audioSize,
+    bool clearAudioSize = false,
   }) {
     return AudioState(
       currentSong: currentSong ?? this.currentSong,
@@ -127,6 +139,9 @@ class AudioState {
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       sleepTimerRemaining: clearSleepTimer ? null : (sleepTimerRemaining ?? this.sleepTimerRemaining),
       eqPreset: eqPreset ?? this.eqPreset,
+      audioFormat: clearAudioFormat ? null : (audioFormat ?? this.audioFormat),
+      audioBitrate: clearAudioBitrate ? null : (audioBitrate ?? this.audioBitrate),
+      audioSize: clearAudioSize ? null : (audioSize ?? this.audioSize),
     );
   }
 }

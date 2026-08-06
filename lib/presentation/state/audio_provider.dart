@@ -128,6 +128,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
           currentIndex: index,
           currentSong: nextSong,
         );
+        _updateAudioFormatInfo(nextSong);
         globalAudioHandler.setMediaFromSong(nextSong);
         _schedulePersistSession();
         _checkAndFetchBpm(nextSong);
@@ -338,6 +339,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
         isRepeatEnabled: snapshot.isRepeatEnabled,
       );
 
+      _updateAudioFormatInfo(restoredSong);
       globalAudioHandler.setMediaFromSong(restoredSong);
 
       if (snapshot.wasPlaying) {
@@ -440,6 +442,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
             currentSong: clickedSong,
             status: PlaybackStatus.loading, clearError: true,
           );
+          _updateAudioFormatInfo(clickedSong);
           globalAudioHandler.setMediaFromSong(clickedSong);
 
           await _audioService.seek(Duration.zero, index: existingIndex);
@@ -466,6 +469,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
         isShuffleEnabled: false,
         status: PlaybackStatus.loading, clearError: true,
       );
+      _updateAudioFormatInfo(clickedSong);
       globalAudioHandler.setMediaFromSong(clickedSong);
 
       // ── Progressive Streaming: Play First, Queue Later ──
@@ -662,6 +666,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
       final nextSong = state.playlist[nextIndex];
       Log.i('Audio: Seeking next track "${nextSong.title}" at index $nextIndex');
       state = state.copyWith(currentIndex: nextIndex, currentSong: nextSong);
+      _updateAudioFormatInfo(nextSong);
       globalAudioHandler.setMediaFromSong(nextSong);
       await _audioService.seek(Duration.zero, index: nextIndex).timeout(const Duration(seconds: 3));
       await _ensurePlaybackStarted();
@@ -689,6 +694,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
       final prevSong = state.playlist[prevIndex];
       Log.i('Audio: Seeking previous track "${prevSong.title}" at index $prevIndex');
       state = state.copyWith(currentIndex: prevIndex, currentSong: prevSong);
+      _updateAudioFormatInfo(prevSong);
       globalAudioHandler.setMediaFromSong(prevSong);
       await _audioService.seek(Duration.zero, index: prevIndex).timeout(const Duration(seconds: 3));
       await _ensurePlaybackStarted();
@@ -926,6 +932,138 @@ class AudioNotifier extends StateNotifier<AudioState> {
   void setEqPreset(String preset) {
     state = state.copyWith(eqPreset: preset);
     Log.i('AudioNotifier: Equalizer preset changed to "$preset".');
+    
+    final equalizer = globalAudioHandler.equalizer;
+    if (equalizer != null) {
+      // Define preset gains [60Hz, 230Hz, 910Hz, 4kHz, 14kHz]
+      final Map<String, List<double>> presets = {
+        'Flat': [0.0, 0.0, 0.0, 0.0, 0.0],
+        'Bass Boost': [5.0, 3.0, 0.0, 0.0, -1.0],
+        'Vocal': [-2.0, 0.0, 3.0, 4.0, 1.0],
+        'Electronic': [4.0, 1.5, 0.0, 2.5, 3.5],
+        'Rock': [3.0, 1.5, -1.0, 2.0, 4.0],
+      };
+      final gains = presets[preset] ?? presets['Flat']!;
+      
+      equalizer.setEnabled(true);
+      // Apply asynchronously
+      Future.microtask(() async {
+        final params = await equalizer.parameters;
+        for (int i = 0; i < params.bands.length && i < gains.length; i++) {
+          await params.bands[i].setGain(gains[i]);
+        }
+      });
+    }
+  }
+
+  Future<void> _updateAudioFormatInfo(SongMetadata song) async {
+    if (song.id.isEmpty) {
+      state = state.copyWith(
+        clearAudioFormat: true,
+        clearAudioBitrate: true,
+        clearAudioSize: true,
+      );
+      return;
+    }
+
+    String? localPath;
+    if (song.source == AudioSourceType.local) {
+      if (File(song.id).existsSync()) {
+        localPath = song.id;
+      }
+    }
+    if (localPath == null) {
+      try {
+        final dbSong = await _isarService.getSongById(song.id);
+        if (dbSong != null && dbSong.localPath != null && File(dbSong.localPath!).existsSync()) {
+          localPath = dbSong.localPath;
+        }
+      } catch (_) {}
+    }
+    if (localPath == null) {
+      try {
+        final sanitizedTitle = YoutubeService.sanitizeFilePart(song.title);
+        final downloadsDir = await AppStoragePaths.downloadsDirectory();
+        if (await downloadsDir.exists()) {
+          final rawId = song.id.replaceAll('deezer_', '').replaceAll('youtube_', '').replaceAll('jamendo_', '');
+          await for (final entity in downloadsDir.list(recursive: false)) {
+            if (entity is File) {
+              final fileName = p.basename(entity.path).toLowerCase();
+              if ((rawId.isNotEmpty && fileName.contains(rawId.toLowerCase())) ||
+                  (sanitizedTitle.length > 2 && fileName.contains(sanitizedTitle.toLowerCase()))) {
+                localPath = entity.path;
+                break;
+              }
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    if (localPath != null) {
+      try {
+        final file = File(localPath);
+        if (await file.exists()) {
+          final sizeInBytes = await file.length();
+          final ext = p.extension(localPath).replaceAll('.', '').toUpperCase();
+          final format = ext.isEmpty ? 'Unknown' : ext;
+          final durationMs = song.duration.inMilliseconds;
+          
+          double bitrateKbps = 0.0;
+          if (durationMs > 0) {
+            bitrateKbps = (sizeInBytes * 8) / durationMs;
+          }
+          
+          state = state.copyWith(
+            audioFormat: format,
+            audioBitrate: '${bitrateKbps.round()} kbps',
+            audioSize: '${(sizeInBytes / (1024 * 1024)).toStringAsFixed(1)} MB',
+          );
+          return;
+        }
+      } catch (e) {
+        Log.e('AudioNotifier: Failed to resolve local audio info: $e');
+      }
+    }
+
+    _checkRemoteAudioInfo(song.id);
+  }
+
+  void _checkRemoteAudioInfo(String songId) {
+    final streamInfo = YoutubeProxyServer.getStreamInfoForSong(songId);
+    if (streamInfo != null) {
+      final sizeMb = streamInfo.size.totalBytes / (1024 * 1024);
+      final bitrateKbps = streamInfo.bitrate.bitsPerSecond / 1000;
+      final format = streamInfo.codec.subtype.toUpperCase();
+      state = state.copyWith(
+        audioFormat: format,
+        audioBitrate: '${bitrateKbps.round()} kbps',
+        audioSize: '${sizeMb.toStringAsFixed(1)} MB',
+      );
+    } else {
+      Future.delayed(const Duration(seconds: 1), () {
+        if (!mounted) return;
+        if (state.currentSong.id == songId) {
+          final streamInfo = YoutubeProxyServer.getStreamInfoForSong(songId);
+          if (streamInfo != null) {
+            final sizeMb = streamInfo.size.totalBytes / (1024 * 1024);
+            final bitrateKbps = streamInfo.bitrate.bitsPerSecond / 1000;
+            final format = streamInfo.codec.subtype.toUpperCase();
+            state = state.copyWith(
+              audioFormat: format,
+              audioBitrate: '${bitrateKbps.round()} kbps',
+              audioSize: '${sizeMb.toStringAsFixed(1)} MB',
+            );
+          } else {
+            state = state.copyWith(
+              audioFormat: 'AAC/OPUS',
+              audioBitrate: '160 kbps (Est)',
+              audioSize: 'Streaming',
+            );
+          }
+        }
+      });
+    }
   }
 
   @override
