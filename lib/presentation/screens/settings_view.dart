@@ -12,6 +12,7 @@ import '../state/audio_provider.dart';
 import '../../core/services/app_storage_paths.dart';
 import '../../core/services/logger_service.dart';
 import '../../core/services/update_service.dart';
+import 'settings_components/equalizer_dialog.dart';
 
 final defaultDownloadsDirProvider = FutureProvider<Directory>((ref) async {
   return AppStoragePaths.downloadsDirectory();
@@ -261,40 +262,36 @@ class _SettingsTile extends StatelessWidget {
 class _EqPresetTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final audioState = ref.watch(audioProvider);
-    const presets = ['Flat', 'Bass Boost', 'Vocal', 'Electronic', 'Rock'];
+    final settings = ref.watch(appSettingsProvider);
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: Row(
-        children: [
-          const Icon(Icons.tune_rounded, color: Colors.white70, size: 18),
-          const SizedBox(width: 12),
-          const Expanded(
-            child: Text(
-              'Equalizer Preset',
-              style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
+    return InkWell(
+      onTap: () {
+        showDialog(
+          context: context,
+          builder: (context) => const EqualizerDialog(),
+        );
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            const Icon(Icons.tune_rounded, color: Colors.white70, size: 18),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Equalizer & Audio FX',
+                style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
+              ),
             ),
-          ),
-          DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: presets.contains(audioState.eqPreset) ? audioState.eqPreset : 'Flat',
-              dropdownColor: AetherColors.ultraDarkGray,
+            Text(
+              settings.equalizerEnabled ? settings.equalizer : 'Disabled',
               style: const TextStyle(color: AetherColors.accentCyan, fontSize: 11, fontWeight: FontWeight.bold),
-              items: presets.map((p) {
-                return DropdownMenuItem<String>(
-                  value: p,
-                  child: Text(p),
-                );
-              }).toList(),
-              onChanged: (newPreset) {
-                if (newPreset != null) {
-                  ref.read(audioProvider.notifier).setEqPreset(newPreset);
-                }
-              },
             ),
-          ),
-        ],
+            const SizedBox(width: 6),
+            const Icon(Icons.chevron_right_rounded, color: Colors.white24, size: 16),
+          ],
+        ),
       ),
     );
   }
