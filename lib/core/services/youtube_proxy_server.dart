@@ -507,6 +507,20 @@ class YoutubeProxyServer {
     return _resolvedUrlCache[videoId];
   }
 
+  /// Gets cached stream info for a song ID (either mapped directly or resolved through cache).
+  static StreamInfo? getStreamInfoForSong(String songId) {
+    if (_streamCache.containsKey(songId)) {
+      return _streamCache[songId];
+    }
+    if (StreamResolutionCache.instance.has(songId)) {
+      final videoId = StreamResolutionCache.instance.get(songId);
+      if (videoId != null && _streamCache.containsKey(videoId)) {
+        return _streamCache[videoId];
+      }
+    }
+    return null;
+  }
+
   /// Adds a resolved URL to the cache.
   static void cacheUrl(String videoId, String url) {
     if (_resolvedUrlCache.length >= _maxUrlCacheSize) {
