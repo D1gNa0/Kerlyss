@@ -8,6 +8,12 @@ class AppStoragePaths {
   
   static Directory? _cachedAppRootDirectory;
   static Directory? _cachedDownloadsDirectory;
+  static String? _customDownloadsPath;
+
+  static set customDownloadsPath(String? path) {
+    _customDownloadsPath = path;
+    _cachedDownloadsDirectory = null;
+  }
 
   static Future<Directory> appRootDirectory() async {
     if (_cachedAppRootDirectory != null && await _cachedAppRootDirectory!.exists()) {
@@ -29,6 +35,14 @@ class AppStoragePaths {
       return _cachedDownloadsDirectory!;
     }
   
+    if (_customDownloadsPath != null) {
+      final customDir = Directory(_customDownloadsPath!);
+      if (await customDir.exists()) {
+        _cachedDownloadsDirectory = customDir;
+        return customDir;
+      }
+    }
+
     final appDirectory = await appRootDirectory();
     final downloadsDirectory = Directory('${appDirectory.path}/$downloadsFolderName');
 
