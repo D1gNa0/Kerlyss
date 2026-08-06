@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,9 +7,15 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/aether_colors.dart';
 import '../common/aether_glass.dart';
+import '../state/app_settings_provider.dart';
 import '../state/audio_provider.dart';
 import '../../core/services/app_storage_paths.dart';
+import '../../core/services/logger_service.dart';
 import '../../core/services/update_service.dart';
+
+final defaultDownloadsDirProvider = FutureProvider<Directory>((ref) async {
+  return AppStoragePaths.downloadsDirectory();
+});
 
 class SettingsView extends ConsumerWidget {
   const SettingsView({super.key});
@@ -16,6 +23,14 @@ class SettingsView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final bottomPadding = MediaQuery.of(context).padding.bottom + 100;
+    final downloadsDirAsync = ref.watch(defaultDownloadsDirProvider);
+    final settings = ref.watch(appSettingsProvider);
+    final String displayPath = settings.customDownloadsPath ??
+        downloadsDirAsync.when(
+          data: (dir) => dir.path,
+          loading: () => 'Loading...',
+          error: (_, __) => 'Error loading folder',
+        );
 
     return Scaffold(
       backgroundColor: AetherColors.deepMatteBlack,
@@ -68,23 +83,19 @@ class SettingsView extends ConsumerWidget {
                     value: 'Shadow Glass',
                     onTap: () {},
                   ),
-                FutureBuilder<Directory>(
-                  future: AppStoragePaths.downloadsDirectory(),
-                  builder: (context, snapshot) {
-                    final path = snapshot.data?.path ?? 'Loading...';
-                    return _SettingsTile(
-                      label: 'Downloads Folder', 
-                      value: path,
-                      icon: Icons.folder_open_rounded,
-                      onTap: () async {
-                        if (snapshot.hasData) {
-                          try {
-                            final uri = Uri.directory(snapshot.data!.path);
-                            await launchUrl(uri);
-                          } catch (_) {}
-                        }
-                      },
-                    );
+                _SettingsTile(
+                  label: 'Downloads Folder',
+                  value: displayPath,
+                  icon: Icons.folder_open_rounded,
+                  onTap: () async {
+                    try {
+                      final result = await FilePicker.platform.getDirectoryPath();
+                      if (result != null) {
+                        await ref.read(appSettingsProvider.notifier).setCustomDownloadsPath(result);
+                      }
+                    } catch (e) {
+                      Log.e('Failed to select directory', e);
+                    }
                   },
                 ),
               ],
