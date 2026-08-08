@@ -1,4 +1,5 @@
 import 'core/services/app_storage_paths.dart';
+import 'core/services/app_window_listener.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -69,6 +70,8 @@ void main() async {
 
   if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
     await windowManager.ensureInitialized();
+    await windowManager.setPreventClose(true);
+    windowManager.addListener(AppWindowListener());
 
     WindowOptions windowOptions = const WindowOptions(
       size: Size(1200, 800),
