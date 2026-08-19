@@ -129,7 +129,7 @@ class YoutubeProxyServer {
     Object? lastError;
 
     final clientOptions = [
-      [YoutubeApiClient.mweb, YoutubeApiClient.tv],
+      [YoutubeApiClient.android],
       [YoutubeApiClient.ios],
       [YoutubeApiClient.androidVr],
       <YoutubeApiClient>[], // default client list fallback
@@ -307,21 +307,15 @@ class YoutubeProxyServer {
               _reportRateLimit(streamError);
             }
             resolvedFallbackUrl = await _resolvePipedFallbackUrl(videoId);
-            if (resolvedFallbackUrl == null && deezerId != null && deezerId.isNotEmpty) {
-              resolvedFallbackUrl = await _fetchDeezerPreviewFallbackUrl(deezerId);
-            }
             if (resolvedFallbackUrl == null) {
               rethrow;
             }
           }
         } else {
-          Log.i('YoutubeProxyServer: YouTube is rate-limited. Skipping direct stream extraction and trying fallbacks...');
+          Log.i('YoutubeProxyServer: YouTube is rate-limited. Skipping direct stream extraction and trying Piped...');
           resolvedFallbackUrl = await _resolvePipedFallbackUrl(videoId);
-          if (resolvedFallbackUrl == null && deezerId != null && deezerId.isNotEmpty) {
-            resolvedFallbackUrl = await _fetchDeezerPreviewFallbackUrl(deezerId);
-          }
           if (resolvedFallbackUrl == null) {
-            throw Exception('YouTube rate-limited and fallbacks failed for videoId: $videoId');
+            throw Exception('YouTube rate-limited and Piped stream fallback failed for videoId: $videoId');
           }
         }
 
@@ -496,13 +490,6 @@ class YoutubeProxyServer {
 
       } catch (e) {
         Log.e('Proxy Error for videoId=$videoId: $e');
-        _evictVideoFromCaches(videoId);
-        if (deezerId != null && deezerId.isNotEmpty) {
-          StreamResolutionCache.instance.remove(deezerId);
-        }
-        if (queryStr != null && queryStr.isNotEmpty) {
-          StreamResolutionCache.instance.remove(queryStr);
-        }
         if (!headersSent) {
           try {
             request.response.statusCode = 500;
@@ -522,8 +509,6 @@ class YoutubeProxyServer {
   static void clearCaches() {
     _streamCache.clear();
     _resolvedUrlCache.clear();
-    _queryToVideoIdCache.clear();
-    StreamResolutionCache.instance.clear();
     _ProxyHttpClientPool.close();
     Log.i('YoutubeProxyServer: All caches cleared');
   }
@@ -563,11 +548,8 @@ class YoutubeProxyServer {
   /// Resolves the direct stream URL for a given video ID using decentralized Piped API instance rotation.
   static Future<String?> _resolvePipedFallbackUrl(String videoId) async {
     final baseInstances = [
-      'https://pipedapi.mha.fi',
-      'https://piped-api.garudalinux.org',
-      'https://pipedapi.drgns.space',
-      'https://pipedapi.lunar.icu',
       'https://api.piped.private.coffee',
+      'https://pipedapi.kavin.rocks',
     ];
 
     // Try last successful instance first to avoid iteration latency
@@ -622,11 +604,8 @@ class YoutubeProxyServer {
   /// Searches for a video ID on decentralized Piped API instances as a fallback for lazy search queries.
   static Future<String?> _searchPipedFallback(String queryStr) async {
     final baseInstances = [
-      'https://pipedapi.mha.fi',
-      'https://piped-api.garudalinux.org',
-      'https://pipedapi.drgns.space',
-      'https://pipedapi.lunar.icu',
       'https://api.piped.private.coffee',
+      'https://pipedapi.kavin.rocks',
     ];
 
     final instances = List<String>.from(baseInstances);
@@ -673,32 +652,6 @@ class YoutubeProxyServer {
           _lastSuccessfulInstance = null; // Reset if failed
         }
       }
-    }
-    return null;
-  }
-
-  /// Resolves direct Deezer CDN stream as emergency fallback when YouTube IP rate limit occurs.
-  static Future<String?> _fetchDeezerPreviewFallbackUrl(String deezerId) async {
-    final rawId = deezerId.replaceAll('deezer_', '').trim();
-    if (rawId.isEmpty) return null;
-
-    try {
-      final client = HttpClient()
-        ..connectionTimeout = const Duration(milliseconds: 2500);
-      final request = await client.getUrl(Uri.parse('https://api.deezer.com/track/$rawId'));
-      final response = await request.close();
-
-      if (response.statusCode == 200) {
-        final bodyJson = await response.transform(utf8.decoder).join();
-        final data = jsonDecode(bodyJson) as Map<String, dynamic>;
-        final previewUrl = data['preview'] as String?;
-        if (previewUrl != null && previewUrl.isNotEmpty) {
-          Log.i('YoutubeProxyServer: Resolved direct Deezer CDN fallback stream for $deezerId → $previewUrl');
-          return previewUrl;
-        }
-      }
-    } catch (e) {
-      Log.w('YoutubeProxyServer: Deezer preview fallback failed for $deezerId: $e');
     }
     return null;
   }
