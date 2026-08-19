@@ -12,6 +12,10 @@ import '../state/audio_provider.dart';
 import '../../core/services/app_storage_paths.dart';
 import '../../core/services/logger_service.dart';
 import '../../core/services/update_service.dart';
+import 'package:path/path.dart' as p;
+import '../state/downloaded_songs_provider.dart';
+import '../../data/datasources/local/isar_database_service.dart';
+import '../../data/repositories/repository_providers.dart';
 import 'settings_components/equalizer_dialog.dart';
 
 final defaultDownloadsDirProvider = FutureProvider<Directory>((ref) async {
@@ -88,16 +92,22 @@ class SettingsView extends ConsumerWidget {
                   label: 'Downloads Folder',
                   value: displayPath,
                   icon: Icons.folder_open_rounded,
-                  onTap: () async {
-                    try {
-                      final result = await FilePicker.platform.getDirectoryPath();
-                      if (result != null) {
-                        await ref.read(appSettingsProvider.notifier).setCustomDownloadsPath(result);
-                      }
-                    } catch (e) {
-                      Log.e('Failed to select directory', e);
-                    }
-                  },
+                  onTap: () => _pickDirectoryAndChange(context, ref, displayPath),
+                  trailingAction: settings.customDownloadsPath != null
+                      ? TextButton.icon(
+                          onPressed: () => _resetDownloadsDirectoryToDefault(context, ref, displayPath),
+                          icon: const Icon(Icons.restart_alt_rounded, size: 14, color: AetherColors.primaryAccent),
+                          label: const Text(
+                            'RESET',
+                            style: TextStyle(
+                              color: AetherColors.primaryAccent,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                        )
+                      : null,
                 ),
               ],
             ),
@@ -200,12 +210,14 @@ class _SettingsTile extends StatelessWidget {
   final String value;
   final VoidCallback onTap;
   final IconData? icon;
+  final Widget? trailingAction;
 
   const _SettingsTile({
     required this.label,
     required this.value,
     required this.onTap,
     this.icon,
+    this.trailingAction,
   });
 
   @override
@@ -251,6 +263,10 @@ class _SettingsTile extends StatelessWidget {
               ),
               const SizedBox(width: 6),
             ],
+            if (trailingAction != null) ...[
+              trailingAction!,
+              const SizedBox(width: 6),
+            ],
             const Icon(Icons.chevron_right_rounded, color: Colors.white24, size: 16),
           ],
         ),
@@ -285,7 +301,7 @@ class _EqPresetTile extends ConsumerWidget {
               ),
             ),
             Text(
-              settings.equalizerEnabled ? settings.equalizer : 'Disabled',
+              settings.equalizerEnabled ? settings.eqPreset : 'Disabled',
               style: const TextStyle(color: AetherColors.accentCyan, fontSize: 11, fontWeight: FontWeight.bold),
             ),
             const SizedBox(width: 6),
@@ -336,5 +352,138 @@ class _ShortcutTile extends StatelessWidget {
       ),
     );
   }
+}
+
+Future<void> _pickDirectoryAndChange(BuildContext context, WidgetRef ref, String currentPath) async {
+  try {
+    final result = await FilePicker.platform.getDirectoryPath();
+    if (result != null && result.isNotEmpty && result != currentPath) {
+      await _handleFolderChange(
+        context: context,
+        ref: ref,
+        currentPath: currentPath,
+        targetPath: result,
+        isReset: false,
+      );
+    }
+  } catch (e) {
+    Log.e('Failed to select directory', e);
+  }
+}
+
+Future<void> _resetDownloadsDirectoryToDefault(BuildContext context, WidgetRef ref, String currentPath) async {
+  try {
+    AppStoragePaths.customDownloadsPath = null;
+    final defaultDir = await AppStoragePaths.downloadsDirectory();
+    final defaultPath = defaultDir.path;
+
+    final settings = ref.read(appSettingsProvider);
+    AppStoragePaths.customDownloadsPath = settings.customDownloadsPath;
+
+    if (currentPath == defaultPath) {
+      await ref.read(appSettingsProvider.notifier).setCustomDownloadsPath(null);
+      ref.invalidate(defaultDownloadsDirProvider);
+      return;
+    }
+
+    await _handleFolderChange(
+      context: context,
+      ref: ref,
+      currentPath: currentPath,
+      targetPath: defaultPath,
+      isReset: true,
+    );
+  } catch (e) {
+    Log.e('Failed to reset downloads directory', e);
+  }
+}
+
+Future<void> _handleFolderChange({
+  required BuildContext context,
+  required WidgetRef ref,
+  required String currentPath,
+  required String targetPath,
+  required bool isReset,
+}) async {
+  final currentDir = Directory(currentPath);
+  final targetDir = Directory(targetPath);
+
+  List<File> audioFiles = [];
+  if (await currentDir.exists()) {
+    final audioExtensions = {'.mp3', '.m4a', '.flac', '.opus', '.wav', '.aac', '.ogg'};
+    try {
+      audioFiles = await currentDir
+          .list(recursive: false)
+          .where((e) => e is File && audioExtensions.contains(p.extension(e.path).toLowerCase()))
+          .cast<File>()
+          .toList();
+    } catch (e) {
+      Log.e('Failed to scan current download folder for audio files', e);
+    }
+  }
+
+  bool shouldMoveFiles = false;
+  if (audioFiles.isNotEmpty) {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AetherColors.ultraDarkGray,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'MOVE EXISTING DOWNLOADS?',
+          style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1.5),
+        ),
+        content: Text(
+          'Do you want to move your ${audioFiles.length} downloaded track(s) from:\n"${currentDir.path}"\n\nto your new folder?\n"${targetDir.path}"',
+          style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('KEEP IN OLD FOLDER', style: TextStyle(color: Colors.white38, fontSize: 11)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AetherColors.primaryAccent,
+              foregroundColor: Colors.black,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('MOVE FILES', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+    shouldMoveFiles = result ?? false;
+  }
+
+  if (shouldMoveFiles && audioFiles.isNotEmpty) {
+    try {
+      if (!await targetDir.exists()) {
+        await targetDir.create(recursive: true);
+      }
+
+      final pathMap = <String, String>{};
+      for (final file in audioFiles) {
+        final destPath = p.join(targetDir.path, p.basename(file.path));
+        try {
+          await file.rename(destPath);
+        } catch (_) {
+          await file.copy(destPath);
+          await file.delete();
+        }
+        pathMap[file.path] = destPath;
+      }
+
+      await ref.read(isarDatabaseServiceProvider).updateMovedFilePaths(pathMap);
+      Log.i('Successfully moved ${audioFiles.length} files to $targetPath');
+    } catch (e) {
+      Log.e('Error moving files to new downloads directory: $e');
+    }
+  }
+
+  await ref.read(appSettingsProvider.notifier).setCustomDownloadsPath(isReset ? null : targetPath);
+  ref.invalidate(defaultDownloadsDirProvider);
+  ref.invalidate(downloadedSongsProvider);
 }
 

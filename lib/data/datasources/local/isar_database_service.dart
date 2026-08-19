@@ -60,6 +60,19 @@ class IsarDatabaseService {
     });
   }
 
+  Future<void> updateMovedFilePaths(Map<String, String> oldToNewPathMap) async {
+    if (oldToNewPathMap.isEmpty) return;
+    await isar.writeTxn(() async {
+      for (final entry in oldToNewPathMap.entries) {
+        final matches = await isar.songModels.filter().localPathEqualTo(entry.key).findAll();
+        for (final song in matches) {
+          song.localPath = entry.value;
+          await isar.songModels.put(song);
+        }
+      }
+    });
+  }
+
   // --- Playlist Operations ---
   Future<void> savePlaylist(PlaylistModel playlist) async {
     await isar.writeTxn(() async {
