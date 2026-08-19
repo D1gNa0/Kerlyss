@@ -10,6 +10,7 @@ import 'library_provider.dart';
 import 'download_state_provider.dart';
 import 'app_settings_provider.dart';
 import 'audio_provider.dart';
+import 'audio_state.dart';
 
 class RecommendationState {
   final List<SongEntity> similarSongs;
@@ -121,11 +122,10 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
           .toList();
 
       // Personalized tiers (A: Related Artists via Deezer API, B: Seed Artist Tracks, C: Fallbacks)
-      if (library.isNotEmpty) {
+      final seeds = _pickSeeds(libraryState.favoriteSongs, library);
+      if (seeds.isNotEmpty) {
         fallbackResultsFuture = _deezerService.searchTracks('popular music');
-        final seeds = _pickSeeds(libraryState.favoriteSongs, library);
-        if (seeds.isNotEmpty) {
-          ideaArtist = seeds.first.artist;
+        ideaArtist = seeds.first.artist;
 
           for (final seed in seeds) {
             // Tier A: Fetch true related artists via Deezer API
@@ -212,25 +212,6 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
             );
           }
         }
-      } else {
-        ideaArtist = null;
-
-        // Library empty: populate from Deezer trending
-        final fallbackResults = await _deezerService.searchTracks('top hits');
-        _mergeCandidates(
-          pool: similar,
-          incoming: fallbackResults,
-          excludedIds: excludedIds,
-          dislikedArtists: dislikedArtists,
-          candidateIds: candidateIds,
-          scoreById: scoreById,
-          reasonById: reasonById,
-          seedArtist: '',
-          activeBpm: activeSongBpm,
-          tierScore: 0,
-          reason: 'TRENDING FALLBACK',
-        );
-      }
 
       // Second pass: supplement with more Deezer results if under target
       if (similar.length < _targetCount) {
@@ -376,6 +357,16 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
         fetchRecommendations();
       }
     });
+
+    _ref.listen<AudioState>(audioProvider, (previous, next) {
+      if (previous == null) return;
+      final prevId = previous.currentSong.id;
+      final nextId = next.currentSong.id;
+      if (nextId.isNotEmpty && nextId != prevId) {
+        _lastInvalidatedAt = DateTime.now();
+        fetchRecommendations();
+      }
+    });
   }
 
   List<SongEntity> _pickSeeds(
@@ -383,31 +374,39 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
     List<SongEntity> library,
   ) {
     final now = DateTime.now();
-    final merged = <SongEntity>{...favorites, ...library}.toList();
-    if (merged.isEmpty) return const [];
-
-    merged.sort((a, b) => b.dateAdded.compareTo(a.dateAdded));
-    final weighted = <SongEntity>[];
-    for (final song in merged.take(25)) {
-      final ageDays = max(1, now.difference(song.dateAdded).inDays);
-      final isFavorite = favorites.any((f) => f.id == song.id);
-      final weight = (isFavorite ? 6 : 3) + max(1, 30 ~/ ageDays);
-      for (var i = 0; i < weight; i++) {
-        weighted.add(song);
-      }
-    }
-
     final picks = <SongEntity>[];
     final seenArtists = <String>{};
-    while (picks.length < 3 && weighted.isNotEmpty) {
-      final candidate = weighted[_random.nextInt(weighted.length)];
-      if (seenArtists.add(candidate.artist.toLowerCase())) {
-        picks.add(candidate);
-      }
-      weighted.removeWhere((s) => s.id == candidate.id);
+
+    // Priority Seed: Active currently playing song
+    final activeSong = _ref.read(audioProvider).currentSong;
+    if (activeSong.id.isNotEmpty && activeSong.artist.isNotEmpty) {
+      picks.add(activeSong.toEntity());
+      seenArtists.add(activeSong.artist.toLowerCase());
     }
 
-    if (picks.isEmpty) {
+    final merged = <SongEntity>{...favorites, ...library}.toList();
+    if (merged.isNotEmpty) {
+      merged.sort((a, b) => b.dateAdded.compareTo(a.dateAdded));
+      final weighted = <SongEntity>[];
+      for (final song in merged.take(25)) {
+        final ageDays = max(1, now.difference(song.dateAdded).inDays);
+        final isFavorite = favorites.any((f) => f.id == song.id);
+        final weight = (isFavorite ? 6 : 3) + max(1, 30 ~/ ageDays);
+        for (var i = 0; i < weight; i++) {
+          weighted.add(song);
+        }
+      }
+
+      while (picks.length < 3 && weighted.isNotEmpty) {
+        final candidate = weighted[_random.nextInt(weighted.length)];
+        if (seenArtists.add(candidate.artist.toLowerCase())) {
+          picks.add(candidate);
+        }
+        weighted.removeWhere((s) => s.id == candidate.id);
+      }
+    }
+
+    if (picks.isEmpty && merged.isNotEmpty) {
       picks.add(merged.first);
     }
 

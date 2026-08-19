@@ -222,6 +222,13 @@ class YoutubeProxyServer {
           Log.i('YoutubeProxyServer: Query cache HIT → $videoId');
         }
 
+        // Check if explicit video ID is invalid format (e.g. test stubs like remote_youtube_123)
+        if (videoId.isNotEmpty && !RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(videoId) && (queryStr == null || queryStr.isEmpty)) {
+          request.response.statusCode = HttpStatus.badRequest;
+          await request.response.close();
+          return;
+        }
+
         // Lazy Resolution: If no explicit video ID was provided, perform the search on the fly!
         if (videoId.isEmpty && queryStr != null && queryStr.isNotEmpty) {
           Log.i('YoutubeProxyServer: Lazily resolving query "$queryStr"...');
