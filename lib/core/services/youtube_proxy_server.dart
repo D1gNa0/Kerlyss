@@ -155,30 +155,30 @@ class YoutubeProxyServer {
     }
 
     StreamInfo info;
-    final audioStreams = manifest.audioOnly.toList();
+    List<MuxedStreamInfo> muxedStreams = [];
+    List<AudioOnlyStreamInfo> audioStreams = [];
+
+    try {
+      if (manifest.muxed.isNotEmpty) muxedStreams = manifest.muxed.toList();
+    } catch (_) {}
+    try {
+      if (manifest.audioOnly.isNotEmpty) audioStreams = manifest.audioOnly.toList();
+    } catch (_) {}
     final hasFailedAudio = _audioOnlyFailures.contains(videoId);
 
-    if (audioStreams.isNotEmpty && !hasFailedAudio) {
-      // Prioritize high-quality audio-only stream (AAC/Opus) which uses 70% LESS data than video (~3-5MB total)
+    if (muxedStreams.isNotEmpty && (hasFailedAudio || audioStreams.isEmpty)) {
+      muxedStreams.sort((a, b) => a.bitrate.compareTo(b.bitrate));
+      info = muxedStreams.first;
+      Log.i('YoutubeProxyServer: Selected muxed stream for $videoId');
+    } else if (audioStreams.isNotEmpty) {
       audioStreams.sort((a, b) => b.bitrate.compareTo(a.bitrate));
       info = audioStreams.first;
-      Log.i('YoutubeProxyServer: Selected pure audio-only stream for $videoId (${(info.bitrate.bitsPerSecond / 1000).toStringAsFixed(0)} kbps)');
+      Log.i('YoutubeProxyServer: Selected audio stream for $videoId (${(info.bitrate.bitsPerSecond / 1000).toStringAsFixed(0)} kbps)');
+    } else if (muxedStreams.isNotEmpty) {
+      muxedStreams.sort((a, b) => a.bitrate.compareTo(b.bitrate));
+      info = muxedStreams.first;
     } else {
-      // Fallback to lowest-bitrate muxed stream if audio-only fails or is unavailable (extremely stable)
-      final muxedStreams = manifest.muxed.toList();
-      if (muxedStreams.isNotEmpty) {
-        muxedStreams.sort((a, b) => a.bitrate.compareTo(b.bitrate));
-        info = muxedStreams.first;
-        Log.w('YoutubeProxyServer: Selected lowest-bitrate muxed fallback stream for $videoId (Audio failure or unavailable)');
-      } else {
-        // Ultimate fallback to whatever is available
-        if (audioStreams.isNotEmpty) {
-          audioStreams.sort((a, b) => a.bitrate.compareTo(b.bitrate));
-          info = audioStreams.first;
-        } else {
-          throw Exception('No compatible streams available for video $videoId.');
-        }
-      }
+      throw Exception('No compatible streams available for video $videoId.');
     }
 
     return info;
