@@ -84,6 +84,32 @@ class _DiscoveryRecommendationsViewState extends ConsumerState<DiscoveryRecommen
 
     final hasLibrary = library.allSongs.isNotEmpty;
 
+    String subtitle;
+    switch (state.mode) {
+      case RecommendationMode.currentTrack:
+        final active = ref.watch(audioProvider).currentSong;
+        subtitle = active.title.isNotEmpty
+            ? 'Similar to "${active.title}" by ${active.artist}'
+            : 'Similar to currently playing track';
+        break;
+      case RecommendationMode.customArtist:
+        subtitle = 'Radio feed for ${state.customArtistSeed ?? "Artist"}';
+        break;
+      case RecommendationMode.customSong:
+        subtitle = 'Similar to "${state.customSongSeed?.title ?? "Song"}"';
+        break;
+      case RecommendationMode.auto:
+      default:
+        subtitle = state.baseIdeaArtist != null
+            ? 'Because you listen to ${state.baseIdeaArtist}'
+            : (hasLibrary
+                ? (hasPersonalizedReason
+                    ? 'Based on your library'
+                    : 'Fallback picks while we learn your taste')
+                : 'Like songs to unlock this section');
+        break;
+    }
+
     if (state.isLoading) {
       return const Center(child: CircularProgressIndicator(color: Colors.white24));
     }
@@ -111,14 +137,9 @@ class _DiscoveryRecommendationsViewState extends ConsumerState<DiscoveryRecommen
         children: [
           _buildSectionHeader(
             title: 'FOR YOU',
-            subtitle: state.baseIdeaArtist != null
-                ? 'Because you listen to ${state.baseIdeaArtist}'
-              : (hasLibrary
-                ? (hasPersonalizedReason
-                  ? 'Based on your library'
-                  : 'Fallback picks while we learn your taste')
-                : 'Like songs to unlock this section'),
+            subtitle: subtitle,
             onRefresh: () => ref.read(recommendationsProvider.notifier).refresh(),
+            onTune: () => _showTuningSheet(context, ref),
           ),
           const SizedBox(height: 16),
           if (filteredSimilar.isNotEmpty)
@@ -159,6 +180,7 @@ class _DiscoveryRecommendationsViewState extends ConsumerState<DiscoveryRecommen
     required String title,
     required String subtitle,
     VoidCallback? onRefresh,
+    VoidCallback? onTune,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -176,7 +198,17 @@ class _DiscoveryRecommendationsViewState extends ConsumerState<DiscoveryRecommen
                 ),
               ),
             ),
-            if (onRefresh != null)
+            if (onTune != null)
+              AetherIconButton(
+                tooltip: 'Tune recommendation seed',
+                icon: Icons.tune_rounded,
+                size: 16,
+                buttonSize: 34,
+                color: AetherColors.accentCyan,
+                onPressed: onTune,
+              ),
+            if (onRefresh != null) ...[
+              const SizedBox(width: 4),
               AetherIconButton(
                 tooltip: 'Refresh recommendations',
                 icon: Icons.refresh_rounded,
@@ -185,6 +217,7 @@ class _DiscoveryRecommendationsViewState extends ConsumerState<DiscoveryRecommen
                 color: Colors.white70,
                 onPressed: onRefresh,
               ),
+            ],
           ],
         ),
         const SizedBox(height: 4),
@@ -196,6 +229,151 @@ class _DiscoveryRecommendationsViewState extends ConsumerState<DiscoveryRecommen
           ),
         ),
       ],
+    );
+  }
+
+  void _showTuningSheet(BuildContext context, WidgetRef ref) {
+    final state = ref.read(recommendationsProvider);
+    final activeSong = ref.read(audioProvider).currentSong;
+    final libraryState = ref.read(libraryProvider);
+    final topArtists = libraryState.allSongs.map((s) => s.artist).toSet().take(10).toList();
+    final topSongs = libraryState.allSongs.take(10).toList();
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AetherColors.ultraDarkGray,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(24),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.tune_rounded, color: AetherColors.accentCyan, size: 20),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'TUNE RECOMMENDATION SEED',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.5, fontSize: 13),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, color: Colors.white38, size: 20),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _buildModeTile(
+                  context,
+                  ref,
+                  mode: RecommendationMode.auto,
+                  title: '🤖 Auto Mix (Smart Default)',
+                  subtitle: 'Balances favorite artists, library history, and active playback',
+                  isSelected: state.mode == RecommendationMode.auto,
+                  onTap: () {
+                    ref.read(recommendationsProvider.notifier).resetToAuto();
+                    Navigator.pop(context);
+                  },
+                ),
+                _buildModeTile(
+                  context,
+                  ref,
+                  mode: RecommendationMode.currentTrack,
+                  title: '🎧 Currently Playing Song',
+                  subtitle: activeSong.title.isNotEmpty
+                      ? '"${activeSong.title}" by ${activeSong.artist}'
+                      : 'Play a song to generate recommendations matching its style',
+                  isSelected: state.mode == RecommendationMode.currentTrack,
+                  onTap: activeSong.title.isNotEmpty
+                      ? () {
+                          ref.read(recommendationsProvider.notifier).setMode(RecommendationMode.currentTrack);
+                          Navigator.pop(context);
+                        }
+                      : null,
+                ),
+                const SizedBox(height: 16),
+                const Text('SELECT AN ARTIST', style: TextStyle(color: Colors.white38, fontSize: 10, letterSpacing: 1.2)),
+                const SizedBox(height: 8),
+                if (topArtists.isEmpty)
+                  const Text('No artists in library yet', style: TextStyle(color: Colors.white24, fontSize: 12))
+                else
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: topArtists.map((artist) {
+                      final isSelected = state.mode == RecommendationMode.customArtist && state.customArtistSeed == artist;
+                      return ChoiceChip(
+                        label: Text(artist, style: TextStyle(color: isSelected ? Colors.black : Colors.white, fontSize: 12)),
+                        selected: isSelected,
+                        selectedColor: AetherColors.accentCyan,
+                        backgroundColor: Colors.white.withValues(alpha: 0.08),
+                        onSelected: (_) {
+                          ref.read(recommendationsProvider.notifier).setCustomArtistSeed(artist);
+                          Navigator.pop(context);
+                        },
+                      );
+                    }).toList(),
+                  ),
+                const SizedBox(height: 16),
+                const Text('SELECT A SONG', style: TextStyle(color: Colors.white38, fontSize: 10, letterSpacing: 1.2)),
+                const SizedBox(height: 8),
+                if (topSongs.isEmpty)
+                  const Text('No songs in library yet', style: TextStyle(color: Colors.white24, fontSize: 12))
+                else
+                  Column(
+                    children: topSongs.take(5).map((song) {
+                      final isSelected = state.mode == RecommendationMode.customSong && state.customSongSeed?.id == song.id;
+                      return ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(song.title, style: const TextStyle(color: Colors.white, fontSize: 13)),
+                        subtitle: Text(song.artist, style: const TextStyle(color: Colors.white38, fontSize: 11)),
+                        trailing: isSelected ? const Icon(Icons.check_circle_rounded, color: AetherColors.accentCyan, size: 18) : null,
+                        onTap: () {
+                          ref.read(recommendationsProvider.notifier).setCustomSongSeed(song);
+                          Navigator.pop(context);
+                        },
+                      );
+                    }).toList(),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildModeTile(
+    BuildContext context,
+    WidgetRef ref, {
+    required RecommendationMode mode,
+    required String title,
+    required String subtitle,
+    required bool isSelected,
+    VoidCallback? onTap,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: isSelected ? AetherColors.accentCyan.withValues(alpha: 0.12) : Colors.white.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isSelected ? AetherColors.accentCyan.withValues(alpha: 0.5) : Colors.white.withValues(alpha: 0.08),
+        ),
+      ),
+      child: ListTile(
+        title: Text(title, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+        subtitle: Text(subtitle, style: const TextStyle(color: Colors.white38, fontSize: 11)),
+        trailing: isSelected ? const Icon(Icons.check_circle_rounded, color: AetherColors.accentCyan, size: 18) : null,
+        onTap: onTap,
+      ),
     );
   }
 
