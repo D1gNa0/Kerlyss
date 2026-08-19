@@ -99,8 +99,23 @@ class _DiscoveryRecommendationsViewState extends ConsumerState<DiscoveryRecommen
         break;
     }
 
-    if (state.isLoading) {
-      return const Center(child: CircularProgressIndicator(color: Colors.white24));
+    if (state.isLoading && state.similarSongs.isEmpty && state.trendingSongs.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 48),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(strokeWidth: 2, color: AetherColors.accentCyan),
+              SizedBox(height: 16),
+              Text(
+                'SEARCHING SIMILAR TRACKS...',
+                style: TextStyle(color: Colors.white38, fontSize: 11, letterSpacing: 1.5),
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     if (filteredTrending.isEmpty && filteredSimilar.isEmpty && !hasLibrary) {
@@ -127,13 +142,25 @@ class _DiscoveryRecommendationsViewState extends ConsumerState<DiscoveryRecommen
           _buildSectionHeader(
             title: 'FOR YOU',
             subtitle: subtitle,
+            isLoading: state.isLoading,
             onRefresh: () => ref.read(recommendationsProvider.notifier).refresh(),
             onTune: () => _showTuningSheet(context, ref),
           ),
+          if (state.isLoading && state.similarSongs.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            const ClipRRect(
+              borderRadius: BorderRadius.all(Radius.circular(2)),
+              child: LinearProgressIndicator(
+                minHeight: 2,
+                color: AetherColors.accentCyan,
+                backgroundColor: Colors.transparent,
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           if (filteredSimilar.isNotEmpty)
             _buildList(filteredSimilar)
-          else
+          else if (!state.isLoading)
             const Padding(
               padding: EdgeInsets.only(bottom: 6),
               child: Text(
@@ -168,6 +195,7 @@ class _DiscoveryRecommendationsViewState extends ConsumerState<DiscoveryRecommen
   Widget _buildSectionHeader({
     required String title,
     required String subtitle,
+    bool isLoading = false,
     VoidCallback? onRefresh,
     VoidCallback? onTune,
   }) {
@@ -194,27 +222,44 @@ class _DiscoveryRecommendationsViewState extends ConsumerState<DiscoveryRecommen
                 size: 16,
                 buttonSize: 34,
                 color: AetherColors.accentCyan,
-                onPressed: onTune,
+                onPressed: isLoading ? null : onTune,
               ),
             if (onRefresh != null) ...[
               const SizedBox(width: 4),
-              AetherIconButton(
-                tooltip: 'Refresh recommendations',
-                icon: Icons.refresh_rounded,
-                size: 16,
-                buttonSize: 34,
-                color: Colors.white70,
-                onPressed: onRefresh,
-              ),
+              if (isLoading)
+                const SizedBox(
+                  width: 34,
+                  height: 34,
+                  child: Center(
+                    child: SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AetherColors.accentCyan,
+                      ),
+                    ),
+                  ),
+                )
+              else
+                AetherIconButton(
+                  tooltip: 'Refresh recommendations',
+                  icon: Icons.refresh_rounded,
+                  size: 16,
+                  buttonSize: 34,
+                  color: Colors.white70,
+                  onPressed: onRefresh,
+                ),
             ],
           ],
         ),
         const SizedBox(height: 4),
         Text(
-          subtitle,
-          style: const TextStyle(
-            color: Colors.white38,
+          isLoading ? 'Searching for similar songs...' : subtitle,
+          style: TextStyle(
+            color: isLoading ? AetherColors.accentCyan : Colors.white38,
             fontSize: 12,
+            fontWeight: isLoading ? FontWeight.w500 : FontWeight.normal,
           ),
         ),
       ],
