@@ -56,7 +56,7 @@ class MiniPlayer extends ConsumerWidget {
       },
       child: Container(
         height: 64,
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        margin: const EdgeInsets.fromLTRB(12, 0, 12, 6),
         child: AetherGlass(
           borderRadius: 20,
           padding: EdgeInsets.zero,

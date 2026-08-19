@@ -16,6 +16,7 @@ class EqualizerDialog extends ConsumerWidget {
 
     return Dialog(
       backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       child: AetherGlass(
         borderRadius: 24,
         padding: const EdgeInsets.all(20),
@@ -25,44 +26,52 @@ class EqualizerDialog extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'EQUALIZER',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 2,
-                  ),
+                const Row(
+                  children: [
+                    Icon(Icons.equalizer_rounded, color: AetherColors.accentCyan, size: 22),
+                    SizedBox(width: 8),
+                    Text(
+                      'AUDIO EQUALIZER',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ],
                 ),
                 Switch(
                   value: settings.equalizerEnabled,
                   activeColor: AetherColors.accentCyan,
-                  onChanged: (val) async {
-                    await ref.read(appSettingsProvider.notifier).setEqualizerEnabled(val);
+                  onChanged: (enabled) async {
+                    await ref.read(appSettingsProvider.notifier).setEqualizerEnabled(enabled);
                     final eq = globalAudioHandler.equalizer;
                     if (eq != null) {
-                      await eq.setEnabled(val);
+                      await eq.setEnabled(enabled);
                     }
                   },
                 ),
               ],
             ),
+
             const SizedBox(height: 16),
+
             if (settings.equalizerEnabled) ...[
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text('Preset', style: TextStyle(color: Colors.white70, fontSize: 12)),
                   DropdownButton<String>(
-                    value: settings.equalizer,
+                    value: settings.eqPreset,
                     dropdownColor: AetherColors.ultraDarkGray,
                     style: const TextStyle(color: AetherColors.accentCyan, fontSize: 12, fontWeight: FontWeight.bold),
                     items: ['Flat', 'Bass Boost', 'Vocal', 'Electronic', 'Rock', 'Custom']
-                        .map((p) => DropdownMenuItem(value: p, child: Text(p)))
+                        .map((preset) => DropdownMenuItem(value: preset, child: Text(preset)))
                         .toList(),
                     onChanged: (newPreset) async {
                       if (newPreset != null && newPreset != 'Custom') {
-                        await ref.read(appSettingsProvider.notifier).setEqualizerPreset(newPreset);
+                        await ref.read(appSettingsProvider.notifier).setEqPreset(newPreset);
                         ref.read(audioProvider.notifier).setEqPreset(newPreset);
                         
                         final Map<String, List<double>> presets = {
@@ -72,62 +81,73 @@ class EqualizerDialog extends ConsumerWidget {
                           'Electronic': [4.0, 1.5, 0.0, 2.5, 3.5],
                           'Rock': [3.0, 1.5, -1.0, 2.0, 4.0],
                         };
-                        await ref.read(appSettingsProvider.notifier).setEqBandGains(presets[newPreset]!);
+                        if (presets.containsKey(newPreset)) {
+                          await ref.read(appSettingsProvider.notifier).setEqBandGains(presets[newPreset]!);
+                        }
                       }
                     },
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
-              SizedBox(
-                height: 180,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: List.generate(eqBands.length, (index) {
-                    final currentGain = settings.eqBandGains[index];
-                    return Column(
-                      children: [
-                        Text(
-                          '${currentGain.round() > 0 ? "+" : ""}${currentGain.round()}dB',
-                          style: const TextStyle(color: Colors.white54, fontSize: 9),
-                        ),
-                        Expanded(
-                          child: RotatedBox(
-                            quarterTurns: 3,
+
+              const SizedBox(height: 16),
+
+              // Band Sliders (60Hz, 230Hz, 910Hz, 4kHz, 14kHz)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: List.generate(5, (index) {
+                  final gain = index < settings.eqBandGains.length ? settings.eqBandGains[index] : 0.0;
+
+                  return Column(
+                    children: [
+                      Text('${gain.toStringAsFixed(1)}dB', style: const TextStyle(color: Colors.white54, fontSize: 10)),
+                      SizedBox(
+                        height: 140,
+                        child: RotatedBox(
+                          quarterTurns: 3,
+                          child: SliderTheme(
+                            data: SliderTheme.of(context).copyWith(
+                              trackHeight: 3,
+                              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                              overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+                              activeTrackColor: AetherColors.accentCyan,
+                              inactiveTrackColor: Colors.white12,
+                              thumbColor: Colors.white,
+                            ),
                             child: Slider(
-                              value: currentGain.clamp(-15.0, 15.0),
+                              value: gain.clamp(-15.0, 15.0),
                               min: -15.0,
                               max: 15.0,
-                              activeColor: AetherColors.accentCyan,
-                              inactiveColor: Colors.white10,
-                              onChanged: (val) async {
-                                final newGains = List<double>.from(settings.eqBandGains);
-                                newGains[index] = val;
-                                await ref.read(appSettingsProvider.notifier).setEqBandGains(newGains);
-                                await ref.read(appSettingsProvider.notifier).setEqualizerPreset('Custom');
-                                
-                                final eq = globalAudioHandler.equalizer;
-                                if (eq != null) {
-                                  try {
-                                    final params = await eq.parameters;
-                                    if (index < params.bands.length) {
-                                      await params.bands[index].setGain(val);
+                              onChanged: settings.equalizerEnabled
+                                  ? (val) async {
+                                      final newGains = List<double>.from(settings.eqBandGains);
+                                      newGains[index] = val;
+                                      await ref.read(appSettingsProvider.notifier).setEqBandGains(newGains);
+                                      await ref.read(appSettingsProvider.notifier).setEqPreset('Custom');
+                                      
+                                      final eq = globalAudioHandler.equalizer;
+                                      if (eq != null) {
+                                        try {
+                                          final params = await eq.parameters;
+                                          if (index < params.bands.length) {
+                                            await params.bands[index].setGain(val);
+                                          }
+                                        } catch (_) {}
+                                      }
                                     }
-                                  } catch (_) {}
-                                }
-                              },
+                                  : null,
                             ),
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          eqBands[index],
-                          style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.w500),
-                        ),
-                      ],
-                    );
-                  }),
-                ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        eqBands[index],
+                        style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  );
+                }),
               ),
             ] else
               const Padding(
