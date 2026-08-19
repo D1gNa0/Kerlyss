@@ -12,6 +12,7 @@ import 'download_state_provider.dart';
 import 'app_settings_provider.dart';
 import 'audio_provider.dart';
 import 'audio_state.dart';
+import '../../core/services/recommendation_store.dart';
 
 enum RecommendationMode {
   auto,
@@ -76,13 +77,46 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
 
   final Ref _ref;
   final DeezerPublicService _deezerService;
+  final RecommendationStore _store = RecommendationStore();
   final Random _random = Random();
   DateTime? _lastInvalidatedAt;
   DateTime? _nextRetryAllowedAt;
   int _fetchRequestId = 0;
 
   RecommendationsNotifier(this._ref, this._deezerService)
-      : super(RecommendationState(similarSongs: [], trendingSongs: [], isLoading: false));
+      : super(RecommendationState(similarSongs: [], trendingSongs: [], isLoading: false)) {
+    unawaited(_loadPersistedState());
+  }
+
+  Future<void> _loadPersistedState() async {
+    try {
+      final snapshot = await _store.load();
+      if (snapshot != null && snapshot.similarSongs.isNotEmpty && mounted) {
+        state = state.copyWith(
+          similarSongs: snapshot.similarSongs,
+          trendingSongs: snapshot.trendingSongs,
+          similarReasons: snapshot.similarReasons,
+          baseIdeaArtist: snapshot.baseIdeaArtist,
+          mode: snapshot.mode,
+          lastFetchedAt: snapshot.lastFetchedAt,
+          isLoading: false,
+        );
+      }
+    } catch (_) {}
+  }
+
+  void _persistState() {
+    _store.save(
+      RecommendationSnapshot(
+        similarSongs: state.similarSongs,
+        trendingSongs: state.trendingSongs,
+        similarReasons: state.similarReasons,
+        baseIdeaArtist: state.baseIdeaArtist,
+        mode: state.mode,
+        lastFetchedAt: state.lastFetchedAt,
+      ),
+    );
+  }
 
   Future<void> fetchRecommendations({bool force = false}) async {
     if (state.isLoading) return;
@@ -319,6 +353,7 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
       clearBaseIdeaArtist: ideaArtist == null,
       isLoading: false,
     );
+    _persistState();
   }
 
   Future<void> dislikeSong(SongEntity song) async {
@@ -329,6 +364,7 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
       similarSongs: updatedSimilar,
       trendingSongs: updatedTrending,
     );
+    _persistState();
     Log.i('RecommendationsNotifier: Disliked song "${song.title}"');
   }
 
@@ -341,6 +377,7 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
       similarSongs: updatedSimilar,
       trendingSongs: updatedTrending,
     );
+    _persistState();
     Log.i('RecommendationsNotifier: Disliked artist "$artistName"');
   }
 
