@@ -27,15 +27,6 @@ class DiscoveryRecommendationsView extends ConsumerStatefulWidget {
 }
 
 class _DiscoveryRecommendationsViewState extends ConsumerState<DiscoveryRecommendationsView> {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (ref.read(recommendationsProvider).similarSongs.isEmpty) {
-        ref.read(recommendationsProvider.notifier).fetchRecommendations();
-      }
-    });
-  }
 
   @override
   Widget build(BuildContext context) {

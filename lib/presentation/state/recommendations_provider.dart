@@ -101,8 +101,13 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
           lastFetchedAt: snapshot.lastFetchedAt,
           isLoading: false,
         );
+        Log.i('RecommendationsNotifier: Restored ${snapshot.similarSongs.length} recommendations from disk cache');
+      } else {
+        await fetchRecommendations();
       }
-    } catch (_) {}
+    } catch (e) {
+      await fetchRecommendations();
+    }
   }
 
   void _persistState() {
