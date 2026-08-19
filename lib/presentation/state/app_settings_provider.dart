@@ -15,6 +15,8 @@ class AppSettingsState {
   final List<double> eqBandGains;
   final String theme;
   final bool animationsEnabled;
+  final List<String> dislikedSongIds;
+  final List<String> dislikedArtists;
 
   const AppSettingsState({
     this.customDownloadsPath,
@@ -25,6 +27,8 @@ class AppSettingsState {
     required this.eqBandGains,
     required this.theme,
     required this.animationsEnabled,
+    this.dislikedSongIds = const [],
+    this.dislikedArtists = const [],
   });
 
   factory AppSettingsState.initial() => const AppSettingsState(
@@ -36,6 +40,8 @@ class AppSettingsState {
         eqBandGains: [0.0, 0.0, 0.0, 0.0, 0.0],
         theme: 'Deep Matte',
         animationsEnabled: true,
+        dislikedSongIds: [],
+        dislikedArtists: [],
       );
 
   factory AppSettingsState.fromModel(AppSettingsModel model) => AppSettingsState(
@@ -47,6 +53,8 @@ class AppSettingsState {
         eqBandGains: List<double>.from(model.eqBandGains),
         theme: model.theme,
         animationsEnabled: model.animationsEnabled,
+        dislikedSongIds: List<String>.from(model.dislikedSongIds),
+        dislikedArtists: List<String>.from(model.dislikedArtists),
       );
 
   AppSettingsModel toModel() {
@@ -59,7 +67,9 @@ class AppSettingsState {
       ..eqPreset = eqPreset
       ..eqBandGains = List<double>.from(eqBandGains)
       ..theme = theme
-      ..animationsEnabled = animationsEnabled;
+      ..animationsEnabled = animationsEnabled
+      ..dislikedSongIds = List<String>.from(dislikedSongIds)
+      ..dislikedArtists = List<String>.from(dislikedArtists);
   }
 
   AppSettingsState copyWith({
@@ -72,6 +82,8 @@ class AppSettingsState {
     List<double>? eqBandGains,
     String? theme,
     bool? animationsEnabled,
+    List<String>? dislikedSongIds,
+    List<String>? dislikedArtists,
   }) {
     return AppSettingsState(
       customDownloadsPath: clearCustomDownloadsPath
@@ -84,6 +96,8 @@ class AppSettingsState {
       eqBandGains: eqBandGains ?? this.eqBandGains,
       theme: theme ?? this.theme,
       animationsEnabled: animationsEnabled ?? this.animationsEnabled,
+      dislikedSongIds: dislikedSongIds ?? this.dislikedSongIds,
+      dislikedArtists: dislikedArtists ?? this.dislikedArtists,
     );
   }
 
@@ -99,7 +113,9 @@ class AppSettingsState {
           eqPreset == other.eqPreset &&
           listEquals(eqBandGains, other.eqBandGains) &&
           theme == other.theme &&
-          animationsEnabled == other.animationsEnabled;
+          animationsEnabled == other.animationsEnabled &&
+          listEquals(dislikedSongIds, other.dislikedSongIds) &&
+          listEquals(dislikedArtists, other.dislikedArtists);
 
   @override
   int get hashCode =>
@@ -110,7 +126,9 @@ class AppSettingsState {
       eqPreset.hashCode ^
       Object.hashAll(eqBandGains) ^
       theme.hashCode ^
-      animationsEnabled.hashCode;
+      animationsEnabled.hashCode ^
+      Object.hashAll(dislikedSongIds) ^
+      Object.hashAll(dislikedArtists);
 }
 
 class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
@@ -183,6 +201,19 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
     } else {
       await _saveSettings(state.copyWith(customDownloadsPath: cleanPath));
     }
+  }
+
+  Future<void> addDislikedSong(String songId) async {
+    if (songId.isEmpty || state.dislikedSongIds.contains(songId)) return;
+    final updated = List<String>.from(state.dislikedSongIds)..add(songId);
+    await _saveSettings(state.copyWith(dislikedSongIds: updated));
+  }
+
+  Future<void> addDislikedArtist(String artistName) async {
+    final clean = artistName.trim();
+    if (clean.isEmpty || state.dislikedArtists.contains(clean)) return;
+    final updated = List<String>.from(state.dislikedArtists)..add(clean);
+    await _saveSettings(state.copyWith(dislikedArtists: updated));
   }
 }
 

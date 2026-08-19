@@ -9,6 +9,8 @@ import '../../state/audio_state.dart';
 import '../../state/audio_provider.dart';
 import '../../state/library_provider.dart';
 import '../../state/download_state_provider.dart';
+import '../../theme/aether_colors.dart';
+import '../../../core/services/toast_service.dart';
 
 class DiscoveryRecommendationsView extends ConsumerStatefulWidget {
   final Function(SongEntity) onDownload;
@@ -214,6 +216,42 @@ class _DiscoveryRecommendationsViewState extends ConsumerState<DiscoveryRecommen
             final playlist = songs.map((s) => SongMetadata.fromEntity(s)).toList();
             ref.read(audioProvider.notifier).playPlaylist(playlist, index);
           },
+          trailing: PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert_rounded, size: 16, color: Colors.white38),
+            color: AetherColors.ultraDarkGray,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            onSelected: (value) {
+              if (value == 'dislike_song') {
+                ref.read(recommendationsProvider.notifier).dislikeSong(song);
+                ToastService.show(context, 'Removed "${song.title}" from recommendations');
+              } else if (value == 'dislike_artist') {
+                ref.read(recommendationsProvider.notifier).dislikeArtist(song.artist);
+                ToastService.show(context, 'Muted recommendations for ${song.artist}');
+              }
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'dislike_song',
+                child: Row(
+                  children: [
+                    const Icon(Icons.hide_source_rounded, size: 14, color: Colors.white70),
+                    const SizedBox(width: 8),
+                    const Text('Not interested in song', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'dislike_artist',
+                child: Row(
+                  children: [
+                    const Icon(Icons.block_rounded, size: 14, color: Colors.amber),
+                    const SizedBox(width: 8),
+                    Text('Don\'t recommend ${song.artist}', style: const TextStyle(color: Colors.amber, fontSize: 12)),
+                  ],
+                ),
+              ),
+            ],
+          ),
         );
       },
     );

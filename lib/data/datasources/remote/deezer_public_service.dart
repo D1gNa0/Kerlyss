@@ -70,4 +70,103 @@ class DeezerPublicService {
       throw ServerException('Deezer service error: $e');
     }
   }
+
+  Future<String?> searchArtist(String artistName) async {
+    final encoded = Uri.encodeComponent(artistName);
+    if (encoded.isEmpty) return null;
+    final url = 'https://api.deezer.com/search/artist?q=$encoded&limit=1';
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        url,
+        options: Options(
+          sendTimeout: const Duration(seconds: 8),
+          receiveTimeout: const Duration(seconds: 8),
+        ),
+      );
+      if (response.statusCode == 200 && response.data != null) {
+        final List? data = response.data!['data'] as List?;
+        if (data != null && data.isNotEmpty) {
+          final id = data.first['id']?.toString();
+          return id;
+        }
+      }
+    } catch (e) {
+      Log.w('DeezerPublicService: Failed to search artist "$artistName": $e');
+    }
+    return null;
+  }
+
+  Future<List<String>> getRelatedArtists(String artistId) async {
+    if (artistId.isEmpty) return [];
+    final url = 'https://api.deezer.com/artist/$artistId/related?limit=10';
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        url,
+        options: Options(
+          sendTimeout: const Duration(seconds: 8),
+          receiveTimeout: const Duration(seconds: 8),
+        ),
+      );
+      if (response.statusCode == 200 && response.data != null) {
+        final List? data = response.data!['data'] as List?;
+        if (data != null) {
+          final List<String> names = [];
+          for (var item in data) {
+            final name = item['name']?.toString();
+            if (name != null && name.isNotEmpty) {
+              names.add(name);
+            }
+          }
+          return names;
+        }
+      }
+    } catch (e) {
+      Log.w('DeezerPublicService: Failed to fetch related artists for ID "$artistId": $e');
+    }
+    return [];
+  }
+
+  Future<List<SongEntity>> getArtistTopTracks(String artistId) async {
+    if (artistId.isEmpty) return [];
+    final url = 'https://api.deezer.com/artist/$artistId/top?limit=10';
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        url,
+        options: Options(
+          sendTimeout: const Duration(seconds: 8),
+          receiveTimeout: const Duration(seconds: 8),
+        ),
+      );
+      if (response.statusCode == 200 && response.data != null) {
+        final List? data = response.data!['data'] as List?;
+        if (data != null) {
+          final List<SongEntity> songs = [];
+          for (var item in data) {
+            try {
+              final model = DeezerTrackModel.fromJson(item as Map<String, dynamic>);
+              if (model.id.isNotEmpty) {
+                songs.add(
+                  SongEntity(
+                    id: 'deezer_${model.id}',
+                    title: model.title,
+                    artist: model.artistName,
+                    album: model.albumTitle,
+                    albumArtUrl: model.albumCoverUrl,
+                    duration: Duration(seconds: model.duration),
+                    sourceUrl: '',
+                    sourceType: AudioSourceType.deezer,
+                    dateAdded: DateTime.now(),
+                  ),
+                );
+              }
+            } catch (_) {}
+          }
+          return songs;
+        }
+      }
+    } catch (e) {
+      Log.w('DeezerPublicService: Failed to fetch top tracks for artist ID "$artistId": $e');
+    }
+    return [];
+  }
 }
