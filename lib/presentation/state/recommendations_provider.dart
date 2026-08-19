@@ -93,10 +93,10 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
       return;
     }
 
-    // Only set isLoading: true if screen is currently completely empty
-    if (state.similarSongs.isEmpty) {
-      state = state.copyWith(isLoading: true);
-    }
+    state = state.copyWith(
+      isLoading: true,
+      similarSongs: force ? [] : state.similarSongs,
+    );
 
     try {
       final settings = _ref.read(appSettingsProvider);
