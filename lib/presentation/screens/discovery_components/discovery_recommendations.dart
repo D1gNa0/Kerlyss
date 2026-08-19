@@ -257,7 +257,7 @@ class _DiscoveryRecommendationsViewState extends ConsumerState<DiscoveryRecommen
                   context,
                   ref,
                   mode: RecommendationMode.auto,
-                  title: '🤖 Auto Mix (Smart Default)',
+                  title: 'Auto Mix',
                   subtitle: 'Balances favorite artists, library history, and active playback',
                   isSelected: state.mode == RecommendationMode.auto,
                   onTap: () {
@@ -269,7 +269,7 @@ class _DiscoveryRecommendationsViewState extends ConsumerState<DiscoveryRecommen
                   context,
                   ref,
                   mode: RecommendationMode.currentTrack,
-                  title: '🎧 Currently Playing Song',
+                  title: 'Currently Playing Song',
                   subtitle: activeSong.title.isNotEmpty
                       ? '"${activeSong.title}" by ${activeSong.artist}'
                       : 'Play a song to generate recommendations matching its style',
@@ -285,7 +285,7 @@ class _DiscoveryRecommendationsViewState extends ConsumerState<DiscoveryRecommen
                   context,
                   ref,
                   mode: RecommendationMode.currentArtist,
-                  title: '👤 Currently Playing Artist',
+                  title: 'Currently Playing Artist',
                   subtitle: activeSong.artist.isNotEmpty
                       ? 'Radio feed for ${activeSong.artist}'
                       : 'Play a song to generate a radio feed for its artist',
