@@ -524,11 +524,9 @@ class AudioNotifier extends StateNotifier<AudioState> {
     try {
       if (playlist.length <= 1) return; // Single song, nothing to hydrate
 
-      // Build sources for all OTHER songs (skip the clicked one, it's already playing)
-      // Insert songs AFTER the current track first (these are most likely to be needed next)
-      int insertionOffset = 1; // Start inserting after position 0 (the playing song)
+      // Build sources for upcoming songs AFTER the current track
+      int insertionOffset = 1;
 
-      // Songs AFTER the clicked index
       for (var i = clickedIndex + 1; i < playlist.length; i++) {
         if (!mounted || requestId != _playRequestId) return;
         final source = await _buildAudioSource(playlist[i]);
@@ -537,19 +535,9 @@ class AudioNotifier extends StateNotifier<AudioState> {
         insertionOffset++;
       }
 
-      // Songs BEFORE the clicked index (insert at position 0, pushing current track forward)
-      for (var i = 0; i < clickedIndex; i++) {
-        if (!mounted || requestId != _playRequestId) return;
-        final source = await _buildAudioSource(playlist[i]);
-        if (!mounted || requestId != _playRequestId) return;
-        await _audioService.insertIntoQueue(i, source);
-      }
-
-      // Update state to reflect the correct current index (it shifted by clickedIndex due to insertions before it)
       if (mounted && requestId == _playRequestId) {
-        state = state.copyWith(currentIndex: clickedIndex);
         _prefetchUpcomingSongs(clickedIndex, count: 1);
-        Log.i('🎵 [HYDRATE] Full queue loaded (${playlist.length} tracks) — zero-interruption hydration complete');
+        Log.i('🎵 [HYDRATE] Queue loaded (${playlist.length} tracks) — zero-interruption complete');
       }
     } catch (e) {
       Log.w('AudioNotifier: Background queue hydration failed (non-fatal): $e');
@@ -570,18 +558,21 @@ class AudioNotifier extends StateNotifier<AudioState> {
 
   Future<void> _ensurePlaybackStarted() async {
     try {
-      _forcePlayingUntil = DateTime.now().add(const Duration(milliseconds: 1200));
+      _forcePlayingUntil = DateTime.now().add(const Duration(milliseconds: 3000));
       await _audioService.play();
 
-      // just_audio_windows occasionally drops the first play intent right after load.
-      // Retry once to ensure user-initiated taps actually start playback.
-      if (!_audioService.playing) {
-        await Future.delayed(const Duration(milliseconds: 120));
-        _forcePlayingUntil = DateTime.now().add(const Duration(milliseconds: 1200));
+      // just_audio_windows takes ~200-500ms to open HTTP streams.
+      // Poll briefly until the engine is actively playing to prevent dropped play intents.
+      for (int i = 0; i < 10; i++) {
+        if (_audioService.playing) break;
+        await Future.delayed(const Duration(milliseconds: 100));
+        if (!mounted) return;
         await _audioService.play();
       }
 
-      _syncStatusFromEngine();
+      if (mounted) {
+        state = state.copyWith(status: PlaybackStatus.playing, clearError: true);
+      }
     } catch (e) {
       _forcePlayingUntil = null;
       _setPlaybackError('ensurePlaybackStarted', e);
