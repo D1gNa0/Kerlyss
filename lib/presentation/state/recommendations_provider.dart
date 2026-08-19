@@ -388,7 +388,7 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
     // Explicit User Mode 1: Currently Playing Song ONLY
     if (mode == RecommendationMode.currentTrack) {
       final activeSong = _ref.read(audioProvider).currentSong;
-      if (activeSong.id.isNotEmpty && activeSong.artist.isNotEmpty) {
+      if (activeSong.id.isNotEmpty && activeSong.title.isNotEmpty && activeSong.artist.isNotEmpty) {
         return [activeSong.toEntity()];
       }
     }

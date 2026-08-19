@@ -75,15 +75,17 @@ class _DiscoveryRecommendationsViewState extends ConsumerState<DiscoveryRecommen
     switch (state.mode) {
       case RecommendationMode.currentTrack:
         final active = ref.watch(audioProvider).currentSong;
-        subtitle = active.title.isNotEmpty
+        final hasActiveSong = active.id.isNotEmpty && active.title.isNotEmpty && active.artist.isNotEmpty;
+        subtitle = hasActiveSong
             ? 'Similar to "${active.title}" by ${active.artist}'
-            : 'Similar to currently playing song';
+            : 'Play a song to get matching recommendations';
         break;
       case RecommendationMode.currentArtist:
         final active = ref.watch(audioProvider).currentSong;
-        subtitle = active.artist.isNotEmpty
+        final hasActiveArtist = active.id.isNotEmpty && active.artist.isNotEmpty;
+        subtitle = hasActiveArtist
             ? 'Radio feed for ${active.artist}'
-            : 'Radio feed for current artist';
+            : 'Play a song to get artist radio recommendations';
         break;
       case RecommendationMode.auto:
       default:
@@ -270,11 +272,11 @@ class _DiscoveryRecommendationsViewState extends ConsumerState<DiscoveryRecommen
                   ref,
                   mode: RecommendationMode.currentTrack,
                   title: 'Currently Playing Song',
-                  subtitle: activeSong.title.isNotEmpty
+                  subtitle: (activeSong.id.isNotEmpty && activeSong.title.isNotEmpty && activeSong.artist.isNotEmpty)
                       ? '"${activeSong.title}" by ${activeSong.artist}'
                       : 'Play a song to generate recommendations matching its style',
                   isSelected: state.mode == RecommendationMode.currentTrack,
-                  onTap: activeSong.title.isNotEmpty
+                  onTap: (activeSong.id.isNotEmpty && activeSong.title.isNotEmpty && activeSong.artist.isNotEmpty)
                       ? () {
                           ref.read(recommendationsProvider.notifier).setMode(RecommendationMode.currentTrack);
                           Navigator.pop(context);
@@ -286,11 +288,11 @@ class _DiscoveryRecommendationsViewState extends ConsumerState<DiscoveryRecommen
                   ref,
                   mode: RecommendationMode.currentArtist,
                   title: 'Currently Playing Artist',
-                  subtitle: activeSong.artist.isNotEmpty
+                  subtitle: (activeSong.id.isNotEmpty && activeSong.artist.isNotEmpty)
                       ? 'Radio feed for ${activeSong.artist}'
                       : 'Play a song to generate a radio feed for its artist',
                   isSelected: state.mode == RecommendationMode.currentArtist,
-                  onTap: activeSong.artist.isNotEmpty
+                  onTap: (activeSong.id.isNotEmpty && activeSong.artist.isNotEmpty)
                       ? () {
                           ref.read(recommendationsProvider.notifier).setMode(RecommendationMode.currentArtist);
                           Navigator.pop(context);
