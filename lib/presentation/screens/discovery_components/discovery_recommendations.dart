@@ -26,28 +26,15 @@ class DiscoveryRecommendationsView extends ConsumerStatefulWidget {
   ConsumerState<DiscoveryRecommendationsView> createState() => _DiscoveryRecommendationsViewState();
 }
 
-class _DiscoveryRecommendationsViewState extends ConsumerState<DiscoveryRecommendationsView>
-    with WidgetsBindingObserver {
+class _DiscoveryRecommendationsViewState extends ConsumerState<DiscoveryRecommendationsView> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(recommendationsProvider.notifier).fetchRecommendations();
+      if (ref.read(recommendationsProvider).similarSongs.isEmpty) {
+        ref.read(recommendationsProvider.notifier).fetchRecommendations();
+      }
     });
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      ref.read(recommendationsProvider.notifier).fetchRecommendations();
-    }
   }
 
   @override

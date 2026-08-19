@@ -93,17 +93,16 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
   int _fetchRequestId = 0;
 
   RecommendationsNotifier(this._ref, this._deezerService)
-      : super(RecommendationState(similarSongs: [], trendingSongs: [], isLoading: false)) {
-    _listenToSignalChanges();
-  }
+      : super(RecommendationState(similarSongs: [], trendingSongs: [], isLoading: false));
 
   Future<void> fetchRecommendations({bool force = false}) async {
     if (state.isLoading) return;
+    if (!force && state.similarSongs.isNotEmpty) return;
+
     final requestId = ++_fetchRequestId;
     if (!force && _nextRetryAllowedAt != null && DateTime.now().isBefore(_nextRetryAllowedAt!)) {
       return;
     }
-    if (!force && !_shouldRefresh()) return;
 
     // Only set isLoading: true if screen is currently completely empty
     if (state.similarSongs.isEmpty) {
@@ -378,59 +377,6 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
   void refresh() {
     _lastInvalidatedAt = DateTime.now();
     fetchRecommendations(force: true);
-  }
-
-  bool _shouldRefresh() {
-    final now = DateTime.now();
-    final lastFetchedAt = state.lastFetchedAt;
-    if (lastFetchedAt == null) return true;
-    if (now.difference(lastFetchedAt) > _cacheTtl) return true;
-
-    if (_lastInvalidatedAt != null && _lastInvalidatedAt!.isAfter(lastFetchedAt)) {
-      return true;
-    }
-
-    return false;
-  }
-
-  void _listenToSignalChanges() {
-    _ref.listen<LibraryState>(libraryProvider, (previous, next) {
-      if (previous == null) return;
-
-      final previousFavoriteIds = previous.favoriteSongs.map((s) => s.id).toSet();
-      final nextFavoriteIds = next.favoriteSongs.map((s) => s.id).toSet();
-      final favoriteChanged = previousFavoriteIds.length != nextFavoriteIds.length ||
-          !previousFavoriteIds.containsAll(nextFavoriteIds);
-      if (favoriteChanged) {
-        _lastInvalidatedAt = DateTime.now();
-        fetchRecommendations();
-      }
-    });
-
-    _ref.listen<DownloadState>(downloadStateProvider, (previous, next) {
-      if (previous == null) return;
-
-      final downloadedChanged = previous.alreadyDownloadedIds.length != next.alreadyDownloadedIds.length ||
-          !previous.alreadyDownloadedIds.containsAll(next.alreadyDownloadedIds);
-      if (downloadedChanged) {
-        _lastInvalidatedAt = DateTime.now();
-        fetchRecommendations();
-      }
-    });
-
-    _ref.listen<AudioState>(audioProvider, (previous, next) {
-      if (previous == null) return;
-      final prevId = previous.currentSong.id;
-      final nextId = next.currentSong.id;
-      if (nextId.isNotEmpty && nextId != prevId) {
-        // If user tapped a song FROM the active recommendation list, keep the list intact!
-        final isPlayingFromCurrentRecs = state.similarSongs.any((s) => s.id == nextId || s.sourceUrl == nextId);
-        if (!isPlayingFromCurrentRecs) {
-          _lastInvalidatedAt = DateTime.now();
-          fetchRecommendations();
-        }
-      }
-    });
   }
 
   void setMode(RecommendationMode mode) {
