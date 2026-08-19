@@ -23,6 +23,7 @@ class StreamResolutionCache {
   void removeByVideoId(String videoId) {
     _cache.removeWhere((_, value) => value == videoId);
   }
+  void clear() => _cache.clear();
 
   /// Pre-resolves the YouTube video IDs and stream manifests for a list of songs,
   /// silently in the background. Supports both Deezer and YouTube tracks.
@@ -58,6 +59,4 @@ class StreamResolutionCache {
       _resolving.remove(song.id);
     }
   }
-
-  void clear() => _cache.clear();
 }

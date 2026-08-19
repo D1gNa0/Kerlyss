@@ -496,6 +496,13 @@ class YoutubeProxyServer {
 
       } catch (e) {
         Log.e('Proxy Error for videoId=$videoId: $e');
+        _evictVideoFromCaches(videoId);
+        if (deezerId != null && deezerId.isNotEmpty) {
+          StreamResolutionCache.instance.remove(deezerId);
+        }
+        if (queryStr != null && queryStr.isNotEmpty) {
+          StreamResolutionCache.instance.remove(queryStr);
+        }
         if (!headersSent) {
           try {
             request.response.statusCode = 500;
@@ -515,6 +522,8 @@ class YoutubeProxyServer {
   static void clearCaches() {
     _streamCache.clear();
     _resolvedUrlCache.clear();
+    _queryToVideoIdCache.clear();
+    StreamResolutionCache.instance.clear();
     _ProxyHttpClientPool.close();
     Log.i('YoutubeProxyServer: All caches cleared');
   }
