@@ -16,6 +16,7 @@ import '../common/aether_title_bar.dart';
 import '../theme/aether_colors.dart';
 import '../state/download_state_provider.dart';
 import '../../core/services/update_service.dart';
+import 'download_components/download_queue_bottom_sheet.dart';
 
 class MainShellView extends ConsumerStatefulWidget {
   const MainShellView({super.key});
@@ -119,8 +120,8 @@ class _MainShellViewState extends ConsumerState<MainShellView> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Bulk Progress Indicator
-                  _BulkDownloadOverlay(),
+                  // Global Download Progress Indicator
+                  _DownloadProgressOverlay(),
 
                   // Global Persistent Player
                   MiniPlayer(),
@@ -137,60 +138,88 @@ class _MainShellViewState extends ConsumerState<MainShellView> {
   }
 }
 
-class _BulkDownloadOverlay extends ConsumerWidget {
-  const _BulkDownloadOverlay();
+class _DownloadProgressOverlay extends ConsumerWidget {
+  const _DownloadProgressOverlay();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(downloadStateProvider);
-    if (!state.isBulkActive) return const SizedBox.shrink();
+    if (!state.isAnyDownloadActive) return const SizedBox.shrink();
 
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: AetherColors.ultraDarkGray.withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.downloading_rounded, color: AetherColors.primaryAccent, size: 16),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'SAVING PLAYLIST: ${state.bulkCompleted} OF ${state.bulkTotal} TRACKS',
-                  style: const TextStyle(color: Colors.white, fontSize: 9, letterSpacing: 1.5, fontWeight: FontWeight.bold),
-                ),
-              ),
-              Text(
-                '${((state.bulkCompleted / (state.bulkTotal > 0 ? state.bulkTotal : 1)) * 100).toInt()}%',
-                style: const TextStyle(color: AetherColors.primaryAccent, fontSize: 10, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(2),
-            child: LinearProgressIndicator(
-              value: state.bulkTotal > 0 ? state.bulkCompleted / state.bulkTotal : 0,
-              backgroundColor: Colors.white10,
-              valueColor: const AlwaysStoppedAnimation<Color>(AetherColors.primaryAccent),
-              minHeight: 2,
+    final activeSong = state.activeSong;
+    final progress = state.activeSongProgress;
+    final progressPct = (progress * 100).toInt();
+
+    String titleText;
+    if (state.isBulkActive) {
+      final currentNum = state.bulkCompleted + 1;
+      final totalNum = state.bulkTotal;
+      titleText = 'DOWNLOADING PLAYLIST ($currentNum/$totalNum)${activeSong != null ? ': ${activeSong.title.toUpperCase()}' : ''}';
+    } else if (activeSong != null) {
+      titleText = 'DOWNLOADING: "${activeSong.title.toUpperCase()}"';
+    } else {
+      titleText = 'DOWNLOADING (${state.downloadingTrackIds.length} IN QUEUE)';
+    }
+
+    return GestureDetector(
+      onTap: () => DownloadQueueBottomSheet.show(context),
+      child: Container(
+        width: double.infinity,
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: AetherColors.ultraDarkGray.withValues(alpha: 0.95),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AetherColors.primaryAccent.withValues(alpha: 0.2)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.4),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
             ),
-          ),
-        ],
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.downloading_rounded, color: AetherColors.primaryAccent, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    titleText,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 9,
+                      letterSpacing: 1.2,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  progress > 0 ? '$progressPct%' : '..',
+                  style: const TextStyle(color: AetherColors.primaryAccent, fontSize: 11, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(width: 6),
+                const Icon(Icons.keyboard_arrow_up_rounded, color: Colors.white54, size: 18),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(2),
+              child: LinearProgressIndicator(
+                value: progress > 0 ? progress : null,
+                backgroundColor: Colors.white10,
+                valueColor: const AlwaysStoppedAnimation<Color>(AetherColors.primaryAccent),
+                minHeight: 2.5,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

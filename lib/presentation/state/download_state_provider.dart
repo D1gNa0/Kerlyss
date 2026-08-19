@@ -1,10 +1,13 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../domain/entities/song_entity.dart';
 
 class DownloadState {
   final Set<String> downloadingTrackIds;
   final Map<String, double> downloadProgress;
   final Set<String> alreadyDownloadedIds;
+  final Map<String, SongEntity> activeDownloadSongs;
+  final List<String> downloadQueueOrder;
   final int bulkTotal;
   final int bulkCompleted;
 
@@ -12,16 +15,39 @@ class DownloadState {
     this.downloadingTrackIds = const {},
     this.downloadProgress = const {},
     this.alreadyDownloadedIds = const {},
+    this.activeDownloadSongs = const {},
+    this.downloadQueueOrder = const [],
     this.bulkTotal = 0,
     this.bulkCompleted = 0,
   });
 
   bool get isBulkActive => bulkTotal > 0;
+  bool get isAnyDownloadActive => downloadingTrackIds.isNotEmpty || isBulkActive;
+
+  SongEntity? get activeSong {
+    for (final id in downloadQueueOrder) {
+      if (downloadingTrackIds.contains(id) && activeDownloadSongs.containsKey(id)) {
+        return activeDownloadSongs[id];
+      }
+    }
+    if (activeDownloadSongs.isNotEmpty) {
+      return activeDownloadSongs.values.first;
+    }
+    return null;
+  }
+
+  double get activeSongProgress {
+    final song = activeSong;
+    if (song == null) return 0.0;
+    return downloadProgress[song.id] ?? 0.0;
+  }
 
   DownloadState copyWith({
     Set<String>? downloadingTrackIds,
     Map<String, double>? downloadProgress,
     Set<String>? alreadyDownloadedIds,
+    Map<String, SongEntity>? activeDownloadSongs,
+    List<String>? downloadQueueOrder,
     int? bulkTotal,
     int? bulkCompleted,
   }) {
@@ -29,6 +55,8 @@ class DownloadState {
       downloadingTrackIds: downloadingTrackIds ?? this.downloadingTrackIds,
       downloadProgress: downloadProgress ?? this.downloadProgress,
       alreadyDownloadedIds: alreadyDownloadedIds ?? this.alreadyDownloadedIds,
+      activeDownloadSongs: activeDownloadSongs ?? this.activeDownloadSongs,
+      downloadQueueOrder: downloadQueueOrder ?? this.downloadQueueOrder,
       bulkTotal: bulkTotal ?? this.bulkTotal,
       bulkCompleted: bulkCompleted ?? this.bulkCompleted,
     );
@@ -45,6 +73,20 @@ class DownloadStateNotifier extends StateNotifier<DownloadState> {
     state = state.copyWith(
       downloadingTrackIds: {...state.downloadingTrackIds, id},
       downloadProgress: {...state.downloadProgress, id: 0.0},
+    );
+  }
+
+  void setDownloadingSong(SongEntity song) {
+    final updatedActive = {...state.activeDownloadSongs, song.id: song};
+    final updatedQueue = List<String>.from(state.downloadQueueOrder);
+    if (!updatedQueue.contains(song.id)) {
+      updatedQueue.add(song.id);
+    }
+    state = state.copyWith(
+      downloadingTrackIds: {...state.downloadingTrackIds, song.id},
+      downloadProgress: {...state.downloadProgress, song.id: 0.0},
+      activeDownloadSongs: updatedActive,
+      downloadQueueOrder: updatedQueue,
     );
   }
 
@@ -70,10 +112,14 @@ class DownloadStateNotifier extends StateNotifier<DownloadState> {
   void completeDownload(String id) {
     final newDownloading = {...state.downloadingTrackIds}..remove(id);
     final newProgress = {...state.downloadProgress}..remove(id);
+    final newActiveSongs = {...state.activeDownloadSongs}..remove(id);
+    final newQueueOrder = List<String>.from(state.downloadQueueOrder)..remove(id);
 
     state = state.copyWith(
       downloadingTrackIds: newDownloading,
       downloadProgress: newProgress,
+      activeDownloadSongs: newActiveSongs,
+      downloadQueueOrder: newQueueOrder,
       alreadyDownloadedIds: {...state.alreadyDownloadedIds, id},
     );
   }
@@ -81,10 +127,14 @@ class DownloadStateNotifier extends StateNotifier<DownloadState> {
   void clearDownloadAttempt(String id) {
     final newDownloading = {...state.downloadingTrackIds}..remove(id);
     final newProgress = {...state.downloadProgress}..remove(id);
+    final newActiveSongs = {...state.activeDownloadSongs}..remove(id);
+    final newQueueOrder = List<String>.from(state.downloadQueueOrder)..remove(id);
 
     state = state.copyWith(
       downloadingTrackIds: newDownloading,
       downloadProgress: newProgress,
+      activeDownloadSongs: newActiveSongs,
+      downloadQueueOrder: newQueueOrder,
     );
   }
 

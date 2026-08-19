@@ -25,7 +25,7 @@ class TrackDownloadService {
       return;
     }
 
-    notifier.setDownloading(song.id);
+    notifier.setDownloadingSong(song);
 
     try {
       String? destinationPath;

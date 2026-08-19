@@ -106,6 +106,42 @@ class AetherSongTile extends ConsumerWidget {
                       padding: EdgeInsets.symmetric(horizontal: 6),
                       child: Icon(Icons.check_circle_outline_rounded, color: AetherColors.success, size: 16),
                     )
+                  else if (isDownloading)
+                    Tooltip(
+                      message: downloadProgress > 0
+                          ? 'Downloading ${(downloadProgress * 100).toInt()}%'
+                          : 'Downloading...',
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: SizedBox(
+                          width: 32,
+                          height: 32,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  value: downloadProgress > 0 ? downloadProgress : null,
+                                  strokeWidth: 2.2,
+                                  valueColor: const AlwaysStoppedAnimation<Color>(AetherColors.primaryAccent),
+                                  backgroundColor: Colors.white.withValues(alpha: 0.1),
+                                ),
+                              ),
+                              Text(
+                                downloadProgress > 0 ? '${(downloadProgress * 100).toInt()}' : '..',
+                                style: const TextStyle(
+                                  color: AetherColors.primaryAccent,
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    )
                   else if (onDownload != null)
                     AetherIconButton(
                       tooltip: 'Download song',
@@ -113,7 +149,7 @@ class AetherSongTile extends ConsumerWidget {
                       color: Colors.white70,
                       size: 18,
                       buttonSize: 36,
-                      onPressed: isDownloading ? null : onDownload,
+                      onPressed: onDownload,
                     ),
                   const SizedBox(width: 6),
                 ],
