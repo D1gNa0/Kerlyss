@@ -375,20 +375,23 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
   ) {
     final now = DateTime.now();
     final picks = <SongEntity>[];
-    final seenArtists = <String>{};
+    final seenArtists = <String>{'the top hits band', 'top hits', 'top hits records', 'tribute band'};
 
-    // Priority Seed: Active currently playing song
+    // Priority Seed 1: Active currently playing song (if valid non-generic artist)
     final activeSong = _ref.read(audioProvider).currentSong;
     if (activeSong.id.isNotEmpty && activeSong.artist.isNotEmpty) {
-      picks.add(activeSong.toEntity());
-      seenArtists.add(activeSong.artist.toLowerCase());
+      final normActiveArtist = activeSong.artist.toLowerCase().trim();
+      if (!seenArtists.contains(normActiveArtist)) {
+        picks.add(activeSong.toEntity());
+        seenArtists.add(normActiveArtist);
+      }
     }
 
     final merged = <SongEntity>{...favorites, ...library}.toList();
     if (merged.isNotEmpty) {
       merged.sort((a, b) => b.dateAdded.compareTo(a.dateAdded));
       final weighted = <SongEntity>[];
-      for (final song in merged.take(25)) {
+      for (final song in merged.take(30)) {
         final ageDays = max(1, now.difference(song.dateAdded).inDays);
         final isFavorite = favorites.any((f) => f.id == song.id);
         final weight = (isFavorite ? 6 : 3) + max(1, 30 ~/ ageDays);
@@ -397,9 +400,10 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
         }
       }
 
-      while (picks.length < 3 && weighted.isNotEmpty) {
+      while (picks.length < 4 && weighted.isNotEmpty) {
         final candidate = weighted[_random.nextInt(weighted.length)];
-        if (seenArtists.add(candidate.artist.toLowerCase())) {
+        final normCandidateArtist = candidate.artist.toLowerCase().trim();
+        if (seenArtists.add(normCandidateArtist)) {
           picks.add(candidate);
         }
         weighted.removeWhere((s) => s.id == candidate.id);
@@ -426,14 +430,25 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
     required int tierScore,
     required String reason,
   }) {
+    final artistCountsInPool = <String, int>{};
+    for (final s in pool) {
+      final key = s.artist.toLowerCase().trim();
+      artistCountsInPool[key] = (artistCountsInPool[key] ?? 0) + 1;
+    }
+
     for (final song in incoming) {
       if (pool.length >= _targetCount * 3) {
         return;
       }
+      final artistKey = song.artist.toLowerCase().trim();
       if (excludedIds.contains(song.id) || candidateIds.contains(song.id)) {
         continue;
       }
-      if (dislikedArtists.contains(song.artist.toLowerCase().trim())) {
+      if (dislikedArtists.contains(artistKey) || artistKey.contains('top hits band') || artistKey == 'top hits') {
+        continue;
+      }
+      // Strict per-artist limit during candidate accumulation
+      if ((artistCountsInPool[artistKey] ?? 0) >= 2) {
         continue;
       }
       if (!_isSingleTrack(song)) {
@@ -443,24 +458,24 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
       final score = _scoreSong(song, seedArtist, tierScore, activeBpm);
       pool.add(song);
       candidateIds.add(song.id);
+      artistCountsInPool[artistKey] = (artistCountsInPool[artistKey] ?? 0) + 1;
       scoreById[song.id] = score;
       reasonById[song.id] = reason;
     }
   }
 
   int _scoreSong(SongEntity song, String seedArtist, int tierScore, int? activeBpm) {
-    final artist = song.artist.toLowerCase();
-    final title = song.title.toLowerCase();
-    final seed = seedArtist.toLowerCase();
+    final artist = song.artist.toLowerCase().trim();
+    final title = song.title.toLowerCase().trim();
+    final seed = seedArtist.toLowerCase().trim();
 
-    var score = 0;
+    var score = tierScore;
     if (seed.isNotEmpty && artist == seed) {
-      score += 3;
+      // Small bonus for seed artist, but prioritize related artists for variety
+      score += 1;
     } else if (seed.isNotEmpty && (artist.contains(seed) || title.contains(seed))) {
-      score += 2;
+      score += 1;
     }
-
-    score += tierScore;
 
     // BPM / Tempo Proximity Bonus (+2 points if within +/- 15 BPM)
     if (activeBpm != null && activeBpm > 0 && song.bpm != null && song.bpm! > 0) {
@@ -494,7 +509,7 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
     final result = <SongEntity>[];
     for (final song in sorted) {
       if (result.length >= maxCount) break;
-      final key = song.artist.toLowerCase();
+      final key = song.artist.toLowerCase().trim();
       final count = byArtistCount[key] ?? 0;
       if (count >= 2) {
         continue;
@@ -503,11 +518,15 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
       result.add(song);
     }
 
-    // If artist cap removed too much, backfill from sorted to preserve fill guarantee.
+    // Backfill from sorted preserving strict max 3 per artist cap
     if (result.length < maxCount) {
       for (final song in sorted) {
         if (result.length >= maxCount) break;
         if (result.any((s) => s.id == song.id)) continue;
+        final key = song.artist.toLowerCase().trim();
+        final count = byArtistCount[key] ?? 0;
+        if (count >= 3) continue;
+        byArtistCount[key] = count + 1;
         result.add(song);
       }
     }
