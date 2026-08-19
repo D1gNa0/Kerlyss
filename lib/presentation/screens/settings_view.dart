@@ -410,11 +410,11 @@ Future<void> _handleFolderChange({
 
   List<File> audioFiles = [];
   if (await currentDir.exists()) {
-    final audioExtensions = {'.mp3', '.m4a', '.flac', '.opus', '.wav', '.aac', '.ogg'};
+    final audioExtensions = {'.mp3', '.m4a', '.flac', '.opus', '.wav', '.aac', '.ogg', '.webm', '.mp4'};
     try {
       audioFiles = await currentDir
           .list(recursive: false)
-          .where((e) => e is File && audioExtensions.contains(p.extension(e.path).toLowerCase()))
+          .where((e) => e is File && (audioExtensions.contains(p.extension(e.path).toLowerCase()) || p.basename(e.path).startsWith('jamendo_') || p.basename(e.path).startsWith('youtube_')))
           .cast<File>()
           .toList();
     } catch (e) {
@@ -479,6 +479,14 @@ Future<void> _handleFolderChange({
       Log.i('Successfully moved ${audioFiles.length} files to $targetPath');
     } catch (e) {
       Log.e('Error moving files to new downloads directory: $e');
+    }
+  } else if (!shouldMoveFiles && audioFiles.isNotEmpty) {
+    // Unlink old directory paths in Isar so the app strictly targets the new downloads folder
+    try {
+      await ref.read(isarDatabaseServiceProvider).clearLocalPathsInDirectory(currentPath);
+      Log.i('Unlinked old local paths in Isar DB for $currentPath');
+    } catch (e) {
+      Log.e('Error clearing old local paths in Isar DB: $e');
     }
   }
 

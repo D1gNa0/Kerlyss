@@ -289,8 +289,13 @@ class YoutubeProxyServer {
             Log.i('YoutubeProxyServer: Trying direct YouTube stream extraction...');
             info = await _getStreamInfo(videoId, yt);
           } catch (streamError) {
-            Log.w('YoutubeProxyServer: Direct YouTube stream extraction failed: $streamError. Evicting cache and trying Piped fallback...');
+            Log.w('YoutubeProxyServer: Direct YouTube stream extraction failed: $streamError. Evicting cache...');
             _evictVideoFromCaches(videoId);
+            if (streamError is ArgumentError) {
+              request.response.statusCode = HttpStatus.badRequest;
+              await request.response.close();
+              return;
+            }
             if (_isRateLimitException(streamError)) {
               _reportRateLimit(streamError);
             }

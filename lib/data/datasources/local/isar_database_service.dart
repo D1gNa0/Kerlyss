@@ -73,6 +73,23 @@ class IsarDatabaseService {
     });
   }
 
+  Future<void> clearLocalPathsInDirectory(String directoryPath) async {
+    if (directoryPath.trim().isEmpty) return;
+    final normalized = directoryPath.replaceAll('\\', '/').toLowerCase();
+    await isar.writeTxn(() async {
+      final allWithLocal = await isar.songModels.filter().localPathIsNotNull().findAll();
+      for (final song in allWithLocal) {
+        if (song.localPath != null) {
+          final songPath = song.localPath!.replaceAll('\\', '/').toLowerCase();
+          if (songPath.startsWith(normalized)) {
+            song.localPath = null;
+            await isar.songModels.put(song);
+          }
+        }
+      }
+    });
+  }
+
   // --- Playlist Operations ---
   Future<void> savePlaylist(PlaylistModel playlist) async {
     await isar.writeTxn(() async {
