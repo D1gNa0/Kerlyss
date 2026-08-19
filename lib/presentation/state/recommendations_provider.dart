@@ -83,7 +83,10 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
     }
     if (!force && !_shouldRefresh()) return;
 
-    state = state.copyWith(isLoading: true);
+    // Only set isLoading: true if screen is currently completely empty
+    if (state.similarSongs.isEmpty) {
+      state = state.copyWith(isLoading: true);
+    }
 
     try {
       final settings = _ref.read(appSettingsProvider);
@@ -121,97 +124,111 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
                            _isSingleTrack(song))
           .toList();
 
+      // Emit initial trending results if screen is currently empty
+      if (state.similarSongs.isEmpty && trending.isNotEmpty) {
+        _emitProgressiveUpdate(trending.take(5).toList(), reasonById, scoreById, null);
+      }
+
       // Personalized tiers (A: Related Artists via Deezer API, B: Seed Artist Tracks, C: Fallbacks)
       final seeds = _pickSeeds(libraryState.favoriteSongs, library);
       if (seeds.isNotEmpty) {
         fallbackResultsFuture = _deezerService.searchTracks('popular music');
         ideaArtist = seeds.first.artist;
 
-          for (final seed in seeds) {
-            // Tier A: Fetch true related artists via Deezer API
-            String? artistId;
-            try {
-              artistId = await _deezerService.searchArtist(seed.artist);
-            } catch (_) {}
+        for (final seed in seeds) {
+          // Tier A: Fetch true related artists via Deezer API
+          String? artistId;
+          try {
+            artistId = await _deezerService.searchArtist(seed.artist);
+          } catch (_) {}
 
-            if (artistId != null && artistId.isNotEmpty) {
-              final relatedArtistNames = await _deezerService.getRelatedArtists(artistId);
-              for (final relatedName in relatedArtistNames.take(3)) {
-                if (dislikedArtists.contains(relatedName.toLowerCase())) continue;
-                final relatedTracks = await _deezerService.searchTracks(relatedName);
-                _mergeCandidates(
-                  pool: similar,
-                  incoming: relatedTracks,
-                  excludedIds: excludedIds,
-                  dislikedArtists: dislikedArtists,
-                  candidateIds: candidateIds,
-                  scoreById: scoreById,
-                  reasonById: reasonById,
-                  seedArtist: seed.artist,
-                  activeBpm: activeSongBpm,
-                  tierScore: 4,
-                  reason: 'SIMILAR TO ${seed.artist.toUpperCase()}',
-                );
+          if (artistId != null && artistId.isNotEmpty) {
+            final relatedArtistNames = await _deezerService.getRelatedArtists(artistId);
+            for (final relatedName in relatedArtistNames.take(3)) {
+              if (dislikedArtists.contains(relatedName.toLowerCase())) continue;
+              final relatedTracks = await _deezerService.searchTracks(relatedName);
+              _mergeCandidates(
+                pool: similar,
+                incoming: relatedTracks,
+                excludedIds: excludedIds,
+                dislikedArtists: dislikedArtists,
+                candidateIds: candidateIds,
+                scoreById: scoreById,
+                reasonById: reasonById,
+                seedArtist: seed.artist,
+                activeBpm: activeSongBpm,
+                tierScore: 4,
+                reason: 'SIMILAR TO ${seed.artist.toUpperCase()}',
+              );
+
+              // Progressive UI update: render candidate tracks one by one as they arrive
+              if (requestId == _fetchRequestId) {
+                _emitProgressiveUpdate(similar, reasonById, scoreById, ideaArtist);
               }
             }
-
-            // Tier B: Direct seed artist & track queries
-            final seedResults = await Future.wait<List<SongEntity>>([
-              _deezerService.searchTracks(seed.artist),
-              _deezerService.searchTracks('${seed.artist} ${seed.title}'),
-            ]);
-
-            _mergeCandidates(
-              pool: similar,
-              incoming: seedResults[0],
-              excludedIds: excludedIds,
-              dislikedArtists: dislikedArtists,
-              candidateIds: candidateIds,
-              scoreById: scoreById,
-              reasonById: reasonById,
-              seedArtist: seed.artist,
-              activeBpm: activeSongBpm,
-              tierScore: 2,
-              reason: 'ARTIST MATCH',
-            );
-
-            _mergeCandidates(
-              pool: similar,
-              incoming: seedResults[1],
-              excludedIds: excludedIds,
-              dislikedArtists: dislikedArtists,
-              candidateIds: candidateIds,
-              scoreById: scoreById,
-              reasonById: reasonById,
-              seedArtist: seed.artist,
-              activeBpm: activeSongBpm,
-              tierScore: 1,
-              reason: 'RELATED TRACK',
-            );
-
-            if (similar.length >= _targetCount * 2) {
-              break;
-            }
           }
 
-          // Tier C: Global fallback using popular Deezer queries
-          if (similar.length < _targetCount) {
-            final fallbackResults = await fallbackResultsFuture;
-            _mergeCandidates(
-              pool: similar,
-              incoming: fallbackResults,
-              excludedIds: excludedIds,
-              dislikedArtists: dislikedArtists,
-              candidateIds: candidateIds,
-              scoreById: scoreById,
-              reasonById: reasonById,
-              seedArtist: seeds.first.artist,
-              activeBpm: activeSongBpm,
-              tierScore: 0,
-              reason: 'TRENDING FALLBACK',
-            );
+          // Tier B: Direct seed artist & track queries
+          final seedResults = await Future.wait<List<SongEntity>>([
+            _deezerService.searchTracks(seed.artist),
+            _deezerService.searchTracks('${seed.artist} ${seed.title}'),
+          ]);
+
+          _mergeCandidates(
+            pool: similar,
+            incoming: seedResults[0],
+            excludedIds: excludedIds,
+            dislikedArtists: dislikedArtists,
+            candidateIds: candidateIds,
+            scoreById: scoreById,
+            reasonById: reasonById,
+            seedArtist: seed.artist,
+            activeBpm: activeSongBpm,
+            tierScore: 2,
+            reason: 'ARTIST MATCH',
+          );
+
+          _mergeCandidates(
+            pool: similar,
+            incoming: seedResults[1],
+            excludedIds: excludedIds,
+            dislikedArtists: dislikedArtists,
+            candidateIds: candidateIds,
+            scoreById: scoreById,
+            reasonById: reasonById,
+            seedArtist: seed.artist,
+            activeBpm: activeSongBpm,
+            tierScore: 1,
+            reason: 'RELATED TRACK',
+          );
+
+          if (requestId == _fetchRequestId) {
+            _emitProgressiveUpdate(similar, reasonById, scoreById, ideaArtist);
+          }
+
+          if (similar.length >= _targetCount * 2) {
+            break;
           }
         }
+
+        // Tier C: Global fallback using popular Deezer queries
+        if (similar.length < _targetCount && fallbackResultsFuture != null) {
+          final fallbackResults = await fallbackResultsFuture;
+          _mergeCandidates(
+            pool: similar,
+            incoming: fallbackResults,
+            excludedIds: excludedIds,
+            dislikedArtists: dislikedArtists,
+            candidateIds: candidateIds,
+            scoreById: scoreById,
+            reasonById: reasonById,
+            seedArtist: seeds.first.artist,
+            activeBpm: activeSongBpm,
+            tierScore: 0,
+            reason: 'TRENDING FALLBACK',
+          );
+        }
+      }
 
       // Second pass: supplement with more Deezer results if under target
       if (similar.length < _targetCount) {
@@ -249,7 +266,7 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
 
       final now = DateTime.now();
       _nextRetryAllowedAt = null;
-      if (mounted) {
+      if (mounted && requestId == _fetchRequestId) {
         state = state.copyWith(
           similarSongs: similar,
           trendingSongs: trending.take(_targetCount).toList(),
@@ -271,6 +288,27 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
         );
       }
     }
+  }
+
+  void _emitProgressiveUpdate(
+    List<SongEntity> candidates,
+    Map<String, String> reasonById,
+    Map<String, int> scoreById,
+    String? ideaArtist,
+  ) {
+    if (!mounted) return;
+    final ranked = _rankAndTrim(candidates, scoreById, _targetCount);
+    final reasons = <String, String>{
+      for (final s in ranked)
+        s.id: reasonById[s.id] ?? 'RECOMMENDED FOR YOU',
+    };
+    state = state.copyWith(
+      similarSongs: ranked,
+      similarReasons: reasons,
+      baseIdeaArtist: ideaArtist,
+      clearBaseIdeaArtist: ideaArtist == null,
+      isLoading: false,
+    );
   }
 
   Future<void> dislikeSong(SongEntity song) async {
@@ -363,8 +401,12 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
       final prevId = previous.currentSong.id;
       final nextId = next.currentSong.id;
       if (nextId.isNotEmpty && nextId != prevId) {
-        _lastInvalidatedAt = DateTime.now();
-        fetchRecommendations();
+        // If user tapped a song FROM the active recommendation list, keep the list intact!
+        final isPlayingFromCurrentRecs = state.similarSongs.any((s) => s.id == nextId || s.sourceUrl == nextId);
+        if (!isPlayingFromCurrentRecs) {
+          _lastInvalidatedAt = DateTime.now();
+          fetchRecommendations();
+        }
       }
     });
   }
