@@ -13,33 +13,22 @@ class AppWindowListener extends WindowListener {
     if (_isExiting) return;
     _isExiting = true;
 
-    Log.i('AppWindowListener: Window close event intercepted. Cleaning up resources before process exit...');
+    Log.i('AppWindowListener: Window close event intercepted. Instantly closing window...');
 
-    // Emergency hard fallback: Ensure exit(0) triggers within 1.5s even if async cleanup hangs
-    Future.delayed(const Duration(milliseconds: 1500), () {
-      exit(0);
-    });
-
-    try {
-      await YoutubeProxyServer.stop();
-    } catch (e) {
-      Log.e('AppWindowListener: Error stopping YoutubeProxyServer', e);
-    }
-
-    try {
-      await globalAudioHandler.stop();
-    } catch (e) {
-      Log.e('AppWindowListener: Error stopping AudioHandler', e);
-    }
-
+    // 1. Instantly hide window from screen so user sees 0 delay
     if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
       try {
-        await windowManager.destroy();
-      } catch (e) {
-        Log.e('AppWindowListener: Error destroying windowManager', e);
-      }
+        windowManager.hide();
+      } catch (_) {}
     }
 
-    exit(0);
+    // 2. Perform parallel unawaited resource cleanup
+    YoutubeProxyServer.stop().catchError((e) => Log.e('AppWindowListener: Error stopping proxy', e));
+    globalAudioHandler.stop().catchError((e) => Log.e('AppWindowListener: Error stopping handler', e));
+
+    // 3. Hard exit process within 150ms
+    Future.delayed(const Duration(milliseconds: 150), () {
+      exit(0);
+    });
   }
 }
