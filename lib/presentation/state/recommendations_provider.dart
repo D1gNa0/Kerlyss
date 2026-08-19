@@ -16,8 +16,7 @@ import 'audio_state.dart';
 enum RecommendationMode {
   auto,
   currentTrack,
-  customArtist,
-  customSong,
+  currentArtist,
 }
 
 class RecommendationState {
@@ -28,8 +27,6 @@ class RecommendationState {
   final bool isLoading;
   final DateTime? lastFetchedAt;
   final RecommendationMode mode;
-  final String? customArtistSeed;
-  final SongEntity? customSongSeed;
 
   RecommendationState({
     required this.similarSongs,
@@ -39,8 +36,6 @@ class RecommendationState {
     this.isLoading = false,
     this.lastFetchedAt,
     this.mode = RecommendationMode.auto,
-    this.customArtistSeed,
-    this.customSongSeed,
   });
 
   RecommendationState copyWith({
@@ -52,10 +47,6 @@ class RecommendationState {
     bool? isLoading,
     DateTime? lastFetchedAt,
     RecommendationMode? mode,
-    String? customArtistSeed,
-    bool clearCustomArtistSeed = false,
-    SongEntity? customSongSeed,
-    bool clearCustomSongSeed = false,
   }) {
     return RecommendationState(
       similarSongs: similarSongs ?? this.similarSongs,
@@ -65,8 +56,6 @@ class RecommendationState {
       isLoading: isLoading ?? this.isLoading,
       lastFetchedAt: lastFetchedAt ?? this.lastFetchedAt,
       mode: mode ?? this.mode,
-      customArtistSeed: clearCustomArtistSeed ? null : (customArtistSeed ?? this.customArtistSeed),
-      customSongSeed: clearCustomSongSeed ? null : (customSongSeed ?? this.customSongSeed),
     );
   }
 }
@@ -380,38 +369,14 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
   }
 
   void setMode(RecommendationMode mode) {
-    if (state.mode == mode && mode != RecommendationMode.customArtist && mode != RecommendationMode.customSong) return;
+    if (state.mode == mode) return;
     state = state.copyWith(mode: mode);
     _lastInvalidatedAt = DateTime.now();
     fetchRecommendations(force: true);
   }
 
-  void setCustomArtistSeed(String artistName) {
-    state = state.copyWith(
-      mode: RecommendationMode.customArtist,
-      customArtistSeed: artistName,
-    );
-    _lastInvalidatedAt = DateTime.now();
-    fetchRecommendations(force: true);
-  }
-
-  void setCustomSongSeed(SongEntity song) {
-    state = state.copyWith(
-      mode: RecommendationMode.customSong,
-      customSongSeed: song,
-    );
-    _lastInvalidatedAt = DateTime.now();
-    fetchRecommendations(force: true);
-  }
-
   void resetToAuto() {
-    state = state.copyWith(
-      mode: RecommendationMode.auto,
-      clearCustomArtistSeed: true,
-      clearCustomSongSeed: true,
-    );
-    _lastInvalidatedAt = DateTime.now();
-    fetchRecommendations(force: true);
+    setMode(RecommendationMode.auto);
   }
 
   List<SongEntity> _pickSeeds(
@@ -420,29 +385,7 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
   ) {
     final mode = state.mode;
 
-    // Explicit User Mode 1: Custom Artist Seed
-    if (mode == RecommendationMode.customArtist && state.customArtistSeed != null && state.customArtistSeed!.isNotEmpty) {
-      final customArtist = state.customArtistSeed!;
-      return [
-        SongEntity(
-          id: 'custom_artist_${customArtist.toLowerCase()}',
-          title: 'Top Tracks',
-          artist: customArtist,
-          album: 'Artist Radio',
-          duration: const Duration(minutes: 3),
-          sourceUrl: '',
-          sourceType: AudioSourceType.youtube,
-          dateAdded: DateTime.now(),
-        ),
-      ];
-    }
-
-    // Explicit User Mode 2: Custom Song Seed
-    if (mode == RecommendationMode.customSong && state.customSongSeed != null) {
-      return [state.customSongSeed!];
-    }
-
-    // Explicit User Mode 3: Currently Playing Track ONLY
+    // Explicit User Mode 1: Currently Playing Song ONLY
     if (mode == RecommendationMode.currentTrack) {
       final activeSong = _ref.read(audioProvider).currentSong;
       if (activeSong.id.isNotEmpty && activeSong.artist.isNotEmpty) {
@@ -450,7 +393,26 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
       }
     }
 
-    // Mode 4: Auto Mixture (Smart Default)
+    // Explicit User Mode 2: Currently Playing Artist ONLY
+    if (mode == RecommendationMode.currentArtist) {
+      final activeSong = _ref.read(audioProvider).currentSong;
+      if (activeSong.id.isNotEmpty && activeSong.artist.isNotEmpty) {
+        return [
+          SongEntity(
+            id: 'artist_radio_${activeSong.artist.toLowerCase()}',
+            title: 'Top Tracks',
+            artist: activeSong.artist,
+            album: 'Artist Radio',
+            duration: const Duration(minutes: 3),
+            sourceUrl: '',
+            sourceType: AudioSourceType.youtube,
+            dateAdded: DateTime.now(),
+          ),
+        ];
+      }
+    }
+
+    // Mode 3: Auto Mixture (Smart Default)
     final now = DateTime.now();
     final picks = <SongEntity>[];
     final seenArtists = <String>{'the top hits band', 'top hits', 'top hits records', 'tribute band'};

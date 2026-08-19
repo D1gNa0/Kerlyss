@@ -77,13 +77,13 @@ class _DiscoveryRecommendationsViewState extends ConsumerState<DiscoveryRecommen
         final active = ref.watch(audioProvider).currentSong;
         subtitle = active.title.isNotEmpty
             ? 'Similar to "${active.title}" by ${active.artist}'
-            : 'Similar to currently playing track';
+            : 'Similar to currently playing song';
         break;
-      case RecommendationMode.customArtist:
-        subtitle = 'Radio feed for ${state.customArtistSeed ?? "Artist"}';
-        break;
-      case RecommendationMode.customSong:
-        subtitle = 'Similar to "${state.customSongSeed?.title ?? "Song"}"';
+      case RecommendationMode.currentArtist:
+        final active = ref.watch(audioProvider).currentSong;
+        subtitle = active.artist.isNotEmpty
+            ? 'Radio feed for ${active.artist}'
+            : 'Radio feed for current artist';
         break;
       case RecommendationMode.auto:
       default:
@@ -222,9 +222,6 @@ class _DiscoveryRecommendationsViewState extends ConsumerState<DiscoveryRecommen
   void _showTuningSheet(BuildContext context, WidgetRef ref) {
     final state = ref.read(recommendationsProvider);
     final activeSong = ref.read(audioProvider).currentSong;
-    final libraryState = ref.read(libraryProvider);
-    final topArtists = libraryState.allSongs.map((s) => s.artist).toSet().take(10).toList();
-    final topSongs = libraryState.allSongs.take(10).toList();
 
     showModalBottomSheet(
       context: context,
@@ -245,7 +242,7 @@ class _DiscoveryRecommendationsViewState extends ConsumerState<DiscoveryRecommen
                     const Icon(Icons.tune_rounded, color: AetherColors.accentCyan, size: 20),
                     const SizedBox(width: 12),
                     const Text(
-                      'TUNE RECOMMENDATION SEED',
+                      'RECOMMENDATION SEED',
                       style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.5, fontSize: 13),
                     ),
                     const Spacer(),
@@ -284,51 +281,22 @@ class _DiscoveryRecommendationsViewState extends ConsumerState<DiscoveryRecommen
                         }
                       : null,
                 ),
-                const SizedBox(height: 16),
-                const Text('SELECT AN ARTIST', style: TextStyle(color: Colors.white38, fontSize: 10, letterSpacing: 1.2)),
-                const SizedBox(height: 8),
-                if (topArtists.isEmpty)
-                  const Text('No artists in library yet', style: TextStyle(color: Colors.white24, fontSize: 12))
-                else
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: topArtists.map((artist) {
-                      final isSelected = state.mode == RecommendationMode.customArtist && state.customArtistSeed == artist;
-                      return ChoiceChip(
-                        label: Text(artist, style: TextStyle(color: isSelected ? Colors.black : Colors.white, fontSize: 12)),
-                        selected: isSelected,
-                        selectedColor: AetherColors.accentCyan,
-                        backgroundColor: Colors.white.withValues(alpha: 0.08),
-                        onSelected: (_) {
-                          ref.read(recommendationsProvider.notifier).setCustomArtistSeed(artist);
+                _buildModeTile(
+                  context,
+                  ref,
+                  mode: RecommendationMode.currentArtist,
+                  title: '👤 Currently Playing Artist',
+                  subtitle: activeSong.artist.isNotEmpty
+                      ? 'Radio feed for ${activeSong.artist}'
+                      : 'Play a song to generate a radio feed for its artist',
+                  isSelected: state.mode == RecommendationMode.currentArtist,
+                  onTap: activeSong.artist.isNotEmpty
+                      ? () {
+                          ref.read(recommendationsProvider.notifier).setMode(RecommendationMode.currentArtist);
                           Navigator.pop(context);
-                        },
-                      );
-                    }).toList(),
-                  ),
-                const SizedBox(height: 16),
-                const Text('SELECT A SONG', style: TextStyle(color: Colors.white38, fontSize: 10, letterSpacing: 1.2)),
-                const SizedBox(height: 8),
-                if (topSongs.isEmpty)
-                  const Text('No songs in library yet', style: TextStyle(color: Colors.white24, fontSize: 12))
-                else
-                  Column(
-                    children: topSongs.take(5).map((song) {
-                      final isSelected = state.mode == RecommendationMode.customSong && state.customSongSeed?.id == song.id;
-                      return ListTile(
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(song.title, style: const TextStyle(color: Colors.white, fontSize: 13)),
-                        subtitle: Text(song.artist, style: const TextStyle(color: Colors.white38, fontSize: 11)),
-                        trailing: isSelected ? const Icon(Icons.check_circle_rounded, color: AetherColors.accentCyan, size: 18) : null,
-                        onTap: () {
-                          ref.read(recommendationsProvider.notifier).setCustomSongSeed(song);
-                          Navigator.pop(context);
-                        },
-                      );
-                    }).toList(),
-                  ),
+                        }
+                      : null,
+                ),
               ],
             ),
           ),

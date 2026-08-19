@@ -357,15 +357,9 @@ class AudioNotifier extends StateNotifier<AudioState> {
       );
 
       _updateAudioFormatInfo(restoredSong);
-      globalAudioHandler.setMediaFromSong(restoredSong);
-
-      if (snapshot.wasPlaying) {
-        await _ensurePlaybackStarted();
-      } else {
-        await _audioService.pause();
-        if (mounted) {
-          state = state.copyWith(status: PlaybackStatus.paused);
-        }
+      await _audioService.pause();
+      if (mounted) {
+        state = state.copyWith(status: PlaybackStatus.paused);
       }
 
       _isRestoringSession = false;
