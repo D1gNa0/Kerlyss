@@ -129,7 +129,7 @@ class YoutubeProxyServer {
     Object? lastError;
 
     final clientOptions = [
-      [YoutubeApiClient.android],
+      [YoutubeApiClient.mweb, YoutubeApiClient.tv],
       [YoutubeApiClient.ios],
       [YoutubeApiClient.androidVr],
       <YoutubeApiClient>[], // default client list fallback
@@ -548,8 +548,11 @@ class YoutubeProxyServer {
   /// Resolves the direct stream URL for a given video ID using decentralized Piped API instance rotation.
   static Future<String?> _resolvePipedFallbackUrl(String videoId) async {
     final baseInstances = [
+      'https://pipedapi.mha.fi',
+      'https://piped-api.garudalinux.org',
+      'https://pipedapi.drgns.space',
+      'https://pipedapi.lunar.icu',
       'https://api.piped.private.coffee',
-      'https://pipedapi.kavin.rocks',
     ];
 
     // Try last successful instance first to avoid iteration latency
@@ -604,8 +607,11 @@ class YoutubeProxyServer {
   /// Searches for a video ID on decentralized Piped API instances as a fallback for lazy search queries.
   static Future<String?> _searchPipedFallback(String queryStr) async {
     final baseInstances = [
+      'https://pipedapi.mha.fi',
+      'https://piped-api.garudalinux.org',
+      'https://pipedapi.drgns.space',
+      'https://pipedapi.lunar.icu',
       'https://api.piped.private.coffee',
-      'https://pipedapi.kavin.rocks',
     ];
 
     final instances = List<String>.from(baseInstances);
