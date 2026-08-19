@@ -307,15 +307,21 @@ class YoutubeProxyServer {
               _reportRateLimit(streamError);
             }
             resolvedFallbackUrl = await _resolvePipedFallbackUrl(videoId);
+            if (resolvedFallbackUrl == null && deezerId != null && deezerId.isNotEmpty) {
+              resolvedFallbackUrl = await _fetchDeezerPreviewFallbackUrl(deezerId);
+            }
             if (resolvedFallbackUrl == null) {
               rethrow;
             }
           }
         } else {
-          Log.i('YoutubeProxyServer: YouTube is rate-limited. Skipping direct stream extraction and trying Piped...');
+          Log.i('YoutubeProxyServer: YouTube is rate-limited. Skipping direct stream extraction and trying fallbacks...');
           resolvedFallbackUrl = await _resolvePipedFallbackUrl(videoId);
+          if (resolvedFallbackUrl == null && deezerId != null && deezerId.isNotEmpty) {
+            resolvedFallbackUrl = await _fetchDeezerPreviewFallbackUrl(deezerId);
+          }
           if (resolvedFallbackUrl == null) {
-            throw Exception('YouTube rate-limited and Piped stream fallback failed for videoId: $videoId');
+            throw Exception('YouTube rate-limited and fallbacks failed for videoId: $videoId');
           }
         }
 
@@ -658,6 +664,32 @@ class YoutubeProxyServer {
           _lastSuccessfulInstance = null; // Reset if failed
         }
       }
+    }
+    return null;
+  }
+
+  /// Resolves direct Deezer CDN stream as emergency fallback when YouTube IP rate limit occurs.
+  static Future<String?> _fetchDeezerPreviewFallbackUrl(String deezerId) async {
+    final rawId = deezerId.replaceAll('deezer_', '').trim();
+    if (rawId.isEmpty) return null;
+
+    try {
+      final client = HttpClient()
+        ..connectionTimeout = const Duration(milliseconds: 2500);
+      final request = await client.getUrl(Uri.parse('https://api.deezer.com/track/$rawId'));
+      final response = await request.close();
+
+      if (response.statusCode == 200) {
+        final bodyJson = await response.transform(utf8.decoder).join();
+        final data = jsonDecode(bodyJson) as Map<String, dynamic>;
+        final previewUrl = data['preview'] as String?;
+        if (previewUrl != null && previewUrl.isNotEmpty) {
+          Log.i('YoutubeProxyServer: Resolved direct Deezer CDN fallback stream for $deezerId → $previewUrl');
+          return previewUrl;
+        }
+      }
+    } catch (e) {
+      Log.w('YoutubeProxyServer: Deezer preview fallback failed for $deezerId: $e');
     }
     return null;
   }
