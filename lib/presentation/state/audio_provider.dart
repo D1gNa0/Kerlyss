@@ -178,6 +178,23 @@ class AudioNotifier extends StateNotifier<AudioState> {
       _subs.add(_audioService.errorStream.listen((error) {
         if (!mounted) return;
         Log.e('AudioNotifier: Playback error detected: $error');
+        if (error.contains('cannot find the path specified') || error.contains('sourceNotSupportedError')) {
+          Log.w('AudioNotifier: Missing local file or unsupported path for "${state.currentSong.title}". Unlinking invalid path...');
+          if (state.currentSong.id.isNotEmpty) {
+            _isarService.getSongById(state.currentSong.id).then((dbSong) {
+              if (dbSong != null && dbSong.localPath != null) {
+                dbSong.localPath = null;
+                _isarService.saveSong(dbSong);
+              }
+            }).catchError((e) {
+              Log.w('Failed to clear invalid localPath: $e');
+            });
+          }
+          if (state.currentIndex + 1 < state.playlist.length) {
+            next();
+          }
+          return;
+        }
         String userMessage = 'Playback failed';
         if (error.contains('403') || error.contains('Forbidden')) {
           userMessage = 'Stream unavailable - try downloading the song';
