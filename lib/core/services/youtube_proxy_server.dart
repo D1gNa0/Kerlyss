@@ -4,6 +4,7 @@ import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import 'package:kerlyss/core/services/logger_service.dart';
 import 'package:kerlyss/presentation/theme/aether_colors.dart';
 import 'package:kerlyss/core/services/stream_resolution_cache.dart';
+import 'package:kerlyss/main.dart';
 
 class _CachedPipedUrl {
   final String url;
@@ -200,6 +201,14 @@ class YoutubeProxyServer {
       final deezerId = request.uri.queryParameters['deezer_id'];
 
       Log.i('🌐 [PROXY_REQ] Request received -> queryId=$queryId, queryStr="$queryStr", deezerId=$deezerId');
+
+      if (AetherHttpOverrides.isOfflineMode) {
+        Log.w('YoutubeProxyServer: Offline mode active — rejecting proxy request.');
+        request.response.statusCode = HttpStatus.serviceUnavailable;
+        request.response.write('Offline Mode Active');
+        await request.response.close();
+        return;
+      }
 
       if ((queryId == null || queryId.isEmpty) && 
           (queryStr == null || queryStr.isEmpty) &&
