@@ -1100,8 +1100,8 @@
                 }, 2000);
             });
         }
-        // Fetch Version & Checksums Helper
-        fetch('version.json')
+        // Fetch Single Source-of-Truth Version & Checksums
+        fetch('https://raw.githubusercontent.com/D1gNa0/Kerlyss/main/version.json')
             .then(res => res.json())
             .then(data => {
                 if(data.version) {
