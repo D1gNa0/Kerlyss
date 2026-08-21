@@ -580,6 +580,20 @@ class AudioNotifier extends StateNotifier<AudioState> {
       _forcePlayingUntil = DateTime.now().add(const Duration(milliseconds: 1200));
       await _audioService.play();
 
+      final eq = globalAudioHandler.equalizer;
+      if (eq != null) {
+        try {
+          final settings = await _isarService.getSettings();
+          await eq.setEnabled(settings.equalizerEnabled);
+          if (settings.equalizerEnabled) {
+            final params = await eq.parameters;
+            for (int i = 0; i < params.bands.length && i < settings.eqBandGains.length; i++) {
+              await params.bands[i].setGain(settings.eqBandGains[i]);
+            }
+          }
+        } catch (_) {}
+      }
+
       // just_audio_windows occasionally drops the first play intent right after load.
       // Retry once to ensure user-initiated taps actually start playback.
       if (!_audioService.playing) {
