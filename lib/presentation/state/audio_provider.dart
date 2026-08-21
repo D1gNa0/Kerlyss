@@ -402,9 +402,13 @@ class AudioNotifier extends StateNotifier<AudioState> {
   }
 
   void _setPlaybackError(String context, Object error) {
-    Log.e('AudioNotifier: $context failed: $error');
+    final cleanMsg = error.toString().replaceAll('Exception:', '').replaceAll('HttpException:', '').trim();
+    Log.e('AudioNotifier: $context failed: $cleanMsg');
     if (!mounted) return;
-    state = state.copyWith(status: PlaybackStatus.error);
+    state = state.copyWith(
+      status: PlaybackStatus.error,
+      errorMessage: cleanMsg.isNotEmpty ? cleanMsg : 'Stream network or resolution error',
+    );
   }
 
   void _syncStatusFromEngine() {

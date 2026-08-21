@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../state/navigation_provider.dart';
 import '../state/audio_provider.dart';
+import '../state/audio_state.dart';
 import '../state/keyboard_shortcuts_provider.dart';
 import 'home_view.dart';
 import 'playlists_view.dart';
@@ -83,6 +84,52 @@ class _MainShellViewState extends ConsumerState<MainShellView> {
   @override
   Widget build(BuildContext context) {
     final currentIndex = ref.watch(navigationProvider);
+
+    ref.listen<AudioState>(audioProvider, (AudioState? previous, AudioState next) {
+      if (next.status == PlaybackStatus.error && next.errorMessage != null && previous?.errorMessage != next.errorMessage) {
+        final songTitle = next.currentSong.title.isNotEmpty ? '"${next.currentSong.title}"' : 'this track';
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            backgroundColor: AetherColors.ultraDarkGray,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Row(
+              children: [
+                Icon(Icons.error_outline_rounded, color: AetherColors.error, size: 22),
+                SizedBox(width: 10),
+                Text('PLAYBACK ERROR', style: TextStyle(color: Colors.white, fontSize: 13, letterSpacing: 1.5, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Unable to play $songTitle:',
+                  style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  next.errorMessage!,
+                  style: const TextStyle(color: AetherColors.accentCyan, fontSize: 12),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Please check your internet connection, or try playing another song.',
+                  style: TextStyle(color: AetherColors.textSecondary, fontSize: 11, height: 1.4),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('DISMISS', style: TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        );
+      }
+    });
 
     return PopScope(
       canPop: currentIndex == 0,
