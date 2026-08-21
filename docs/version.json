@@ -1,4 +1,4 @@
 {
-  "version": "1.2.2",
-  "releaseNotes": "Kerlyss v1.2.2 Release! Stability Improvements & New Adaptive Icons. Added Patreon support link, redesigned Android icons, fixed playback seeking, and improved queue state handling."
+  "version": "1.2.3",
+  "releaseNotes": "Kerlyss v1.2.3 is out! Fixed playback error popups, Android touch button targets, lock screen artwork, headphone next/prev controls, strict offline mode, and volume persistence."
 }
