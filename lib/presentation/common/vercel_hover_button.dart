@@ -134,6 +134,7 @@ class _AetherIconButtonState extends State<AetherIconButton> {
       onEnter: (_) => setState(() => _isHovered = enabled),
       onExit: (_) => setState(() => _isHovered = false),
       child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: widget.onPressed,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),

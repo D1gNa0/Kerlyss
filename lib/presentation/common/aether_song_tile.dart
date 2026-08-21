@@ -148,10 +148,10 @@ class AetherSongTile extends ConsumerWidget {
                       icon: Icons.download_rounded,
                       color: Colors.white70,
                       size: 18,
-                      buttonSize: 36,
+                      buttonSize: 42,
                       onPressed: onDownload,
                     ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 4),
                 ],
 
                 // Heart/Favorite Toggle (Tier 1: Crimson Red)
@@ -160,10 +160,10 @@ class AetherSongTile extends ConsumerWidget {
                   icon: isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
                   color: isFav ? AetherColors.error : Colors.white70,
                   size: 18,
-                  buttonSize: 36,
+                  buttonSize: 42,
                   onPressed: () => ref.read(libraryProvider.notifier).toggleFavorite(song),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 4),
 
                 // More Options
                 _buildMoreMenu(context, ref, isDownloaded),
@@ -182,7 +182,7 @@ class AetherSongTile extends ConsumerWidget {
           tooltip: 'Show menu',
           icon: Icons.more_vert_rounded,
           size: 18,
-          buttonSize: 36,
+          buttonSize: 42,
           color: Colors.white70,
           onPressed: () async {
             final renderBox = btnContext.findRenderObject() as RenderBox?;
