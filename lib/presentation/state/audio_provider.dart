@@ -83,7 +83,10 @@ class AudioNotifier extends StateNotifier<AudioState> {
   }
 
   void _init() {
-        _subs.add(_audioService.playbackStatusStream.listen((status) {
+    globalAudioHandler.onNextRequested = () async => next();
+    globalAudioHandler.onPreviousRequested = () async => previous();
+
+    _subs.add(_audioService.playbackStatusStream.listen((status) {
       if (!mounted) return;
 
       // Ignore idle/buffering status if we are in a loading state to prevent flickering

@@ -15,6 +15,7 @@ class AppSettingsState {
   final List<double> eqBandGains;
   final String theme;
   final bool animationsEnabled;
+  final bool isOfflineMode;
   final List<String> dislikedSongIds;
   final List<String> dislikedArtists;
 
@@ -27,6 +28,7 @@ class AppSettingsState {
     required this.eqBandGains,
     required this.theme,
     required this.animationsEnabled,
+    this.isOfflineMode = false,
     this.dislikedSongIds = const [],
     this.dislikedArtists = const [],
   });
@@ -40,6 +42,7 @@ class AppSettingsState {
         eqBandGains: [0.0, 0.0, 0.0, 0.0, 0.0],
         theme: 'Deep Matte',
         animationsEnabled: true,
+        isOfflineMode: false,
         dislikedSongIds: [],
         dislikedArtists: [],
       );
@@ -53,6 +56,7 @@ class AppSettingsState {
         eqBandGains: List<double>.from(model.eqBandGains),
         theme: model.theme,
         animationsEnabled: model.animationsEnabled,
+        isOfflineMode: model.isOfflineMode,
         dislikedSongIds: List<String>.from(model.dislikedSongIds),
         dislikedArtists: List<String>.from(model.dislikedArtists),
       );
@@ -68,6 +72,7 @@ class AppSettingsState {
       ..eqBandGains = List<double>.from(eqBandGains)
       ..theme = theme
       ..animationsEnabled = animationsEnabled
+      ..isOfflineMode = isOfflineMode
       ..dislikedSongIds = List<String>.from(dislikedSongIds)
       ..dislikedArtists = List<String>.from(dislikedArtists);
   }
@@ -82,6 +87,7 @@ class AppSettingsState {
     List<double>? eqBandGains,
     String? theme,
     bool? animationsEnabled,
+    bool? isOfflineMode,
     List<String>? dislikedSongIds,
     List<String>? dislikedArtists,
   }) {
@@ -96,6 +102,7 @@ class AppSettingsState {
       eqBandGains: eqBandGains ?? this.eqBandGains,
       theme: theme ?? this.theme,
       animationsEnabled: animationsEnabled ?? this.animationsEnabled,
+      isOfflineMode: isOfflineMode ?? this.isOfflineMode,
       dislikedSongIds: dislikedSongIds ?? this.dislikedSongIds,
       dislikedArtists: dislikedArtists ?? this.dislikedArtists,
     );
@@ -189,8 +196,12 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
     await _saveSettings(state.copyWith(animationsEnabled: enabled));
   }
 
-  Future<void> toggleAnimations() async {
-    await _saveSettings(state.copyWith(animationsEnabled: !state.animationsEnabled));
+  Future<void> setOfflineMode(bool enabled) async {
+    await _saveSettings(state.copyWith(isOfflineMode: enabled));
+  }
+
+  Future<void> toggleOfflineMode() async {
+    await _saveSettings(state.copyWith(isOfflineMode: !state.isOfflineMode));
   }
 
   Future<void> setCustomDownloadsPath(String? path) async {

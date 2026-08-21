@@ -72,6 +72,19 @@ class SettingsView extends ConsumerWidget {
             const SizedBox(height: 28),
           ],
           _SettingsSection(
+            title: 'NETWORK & OFFLINE',
+            children: [
+              _SwitchTile(
+                label: 'Offline Mode',
+                subtitle: 'Show downloaded tracks only & disable online network calls',
+                icon: Icons.wifi_off_rounded,
+                value: settings.isOfflineMode,
+                onChanged: (val) => ref.read(appSettingsProvider.notifier).setOfflineMode(val),
+              ),
+            ],
+          ),
+          const SizedBox(height: 28),
+          _SettingsSection(
             title: 'AUDIO FX & EQUALIZER',
             children: [
               _EqPresetTile(),
@@ -493,5 +506,57 @@ Future<void> _handleFolderChange({
   await ref.read(appSettingsProvider.notifier).setCustomDownloadsPath(isReset ? null : targetPath);
   ref.invalidate(defaultDownloadsDirProvider);
   ref.invalidate(downloadedSongsProvider);
+}
+
+class _SwitchTile extends StatelessWidget {
+  final String label;
+  final String? subtitle;
+  final IconData icon;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const _SwitchTile({
+    required this.label,
+    this.subtitle,
+    required this.icon,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        children: [
+          Icon(icon, color: value ? AetherColors.accentCyan : Colors.white70, size: 18),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
+                ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle!,
+                    style: const TextStyle(color: AetherColors.textSecondary, fontSize: 11),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          Switch(
+            value: value,
+            activeColor: AetherColors.accentCyan,
+            onChanged: onChanged,
+          ),
+        ],
+      ),
+    );
+  }
 }
 

@@ -14,6 +14,7 @@ class AppSettingsModel {
   List<double> eqBandGains = [0.0, 0.0, 0.0, 0.0, 0.0];
   String theme = 'Deep Matte';
   bool animationsEnabled = true;
+  bool isOfflineMode = false;
   List<String> dislikedSongIds = [];
   List<String> dislikedArtists = [];
 }

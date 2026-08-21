@@ -84,55 +84,63 @@ class _MainShellViewState extends ConsumerState<MainShellView> {
   Widget build(BuildContext context) {
     final currentIndex = ref.watch(navigationProvider);
 
-    return Scaffold(
-      backgroundColor: AetherColors.deepMatteBlack,
-      body: Stack(
-        children: [
-          // Content Stack
-          Padding(
-            padding: EdgeInsets.only(
-              top: !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS) ? 40 : 0,
-              bottom: 140, // Ensure room for persistent MiniPlayer + Nav
-            ),
-            child: SafeArea(
-              top: true,
-              bottom: false,
-              child: IndexedStack(
-                index: currentIndex,
-                children: const [
-                  HomeView(),
-                  DiscoveryView(),
-                  PlaylistsView(),
-                ],
+    return PopScope(
+      canPop: currentIndex == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && currentIndex != 0) {
+          ref.read(navigationProvider.notifier).setIndex(0);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AetherColors.deepMatteBlack,
+        body: Stack(
+          children: [
+            // Content Stack
+            Padding(
+              padding: EdgeInsets.only(
+                top: !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS) ? 40 : 0,
+                bottom: 140, // Ensure room for persistent MiniPlayer + Nav
+              ),
+              child: SafeArea(
+                top: true,
+                bottom: false,
+                child: IndexedStack(
+                  index: currentIndex,
+                  children: const [
+                    HomeView(),
+                    DiscoveryView(),
+                    PlaylistsView(),
+                  ],
+                ),
               ),
             ),
-          ),
 
-          // Custom Desktop Title Bar
-          const AetherTitleBar(),
+            // Custom Desktop Title Bar
+            const AetherTitleBar(),
 
-          // Global Player & Navigation
-          const Align(
-            alignment: Alignment.bottomCenter,
-            child: SafeArea(
-              top: false,
-              bottom: true,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Global Download Progress Indicator
-                  _DownloadProgressOverlay(),
+            // Global Player & Navigation
+            const Align(
+              alignment: Alignment.bottomCenter,
+              child: SafeArea(
+                top: false,
+                bottom: true,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Global Download Progress Indicator
+                    _DownloadProgressOverlay(),
 
-                  // Global Persistent Player
-                  MiniPlayer(),
-                  
-                  // Navigation Bar
-                  AetherBottomNav(),
-                ],
+                    // Global Persistent Player
+                    MiniPlayer(),
+                    
+                    // Navigation Bar
+                    AetherBottomNav(),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -6,6 +6,7 @@ import 'discovery_components/discovery_recommendations.dart';
 import 'discovery_components/discovery_error_state.dart';
 
 
+import '../state/app_settings_provider.dart';
 import '../state/download_state_provider.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -176,8 +177,14 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
             ),
           ),
 
-          // Result Body
-          if (RegExp(r'https?://open\.spotify\.com/playlist/[a-zA-Z0-9]+').hasMatch(searchState.query.trim()))
+          if (ref.watch(appSettingsProvider).isOfflineMode)
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+                child: _OfflineModeNotice(),
+              ),
+            )
+          else if (RegExp(r'https?://open\.spotify\.com/playlist/[a-zA-Z0-9]+').hasMatch(searchState.query.trim()))
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
@@ -259,7 +266,44 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('CLOSE', style: TextStyle(color: Color(0x57FFFFFF))),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
+class _OfflineModeNotice extends StatelessWidget {
+  const _OfflineModeNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AetherColors.ultraDarkGray.withValues(alpha: 0.8),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AetherColors.accentCyan.withValues(alpha: 0.3)),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.wifi_off_rounded, color: AetherColors.accentCyan, size: 28),
+          SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'OFFLINE MODE ACTIVE',
+                  style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1.2),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Online search and streaming are disabled. Turn off Offline Mode in Settings to discover online music.',
+                  style: TextStyle(color: AetherColors.textSecondary, fontSize: 11, height: 1.4),
+                ),
+              ],
+            ),
           ),
         ],
       ),

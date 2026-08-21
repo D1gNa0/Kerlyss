@@ -1,3 +1,4 @@
+import 'core/services/analytics_service.dart';
 import 'core/services/app_storage_paths.dart';
 import 'core/services/app_window_listener.dart';
 import 'dart:io';
@@ -64,6 +65,7 @@ void main() async {
 
   final isarService = IsarDatabaseService();
   await isarService.init();
+  AnalyticsService().logAppOpen();
 
   final settings = await isarService.getSettings();
   AppStoragePaths.customDownloadsPath = settings.customDownloadsPath;
