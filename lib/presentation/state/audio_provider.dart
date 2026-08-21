@@ -776,6 +776,10 @@ class AudioNotifier extends StateNotifier<AudioState> {
     }
 
     // 3. Streaming (Remote Source)
+    if (AetherHttpOverrides.isOfflineMode) {
+      throw const SocketException('Track is not downloaded for offline playback.');
+    }
+
     final headers = {
       'User-Agent': AetherColors.androidUserAgent,
     };
