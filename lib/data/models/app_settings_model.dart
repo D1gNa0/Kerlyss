@@ -15,6 +15,7 @@ class AppSettingsModel {
   String theme = 'Deep Matte';
   bool animationsEnabled = true;
   bool isOfflineMode = false;
+  double volume = 1.0;
   List<String> dislikedSongIds = [];
   List<String> dislikedArtists = [];
 }

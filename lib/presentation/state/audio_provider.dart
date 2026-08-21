@@ -886,8 +886,13 @@ class AudioNotifier extends StateNotifier<AudioState> {
   }
 
   void setVolume(double volume) {
-    _audioService.setVolume(volume);
-    state = state.copyWith(volume: volume);
+    final clamped = volume.clamp(0.0, 1.0);
+    _audioService.setVolume(clamped);
+    state = state.copyWith(volume: clamped);
+    _isarService.getSettings().then((m) {
+      m.volume = clamped;
+      _isarService.saveSettings(m);
+    }).catchError((_) {});
     _schedulePersistSession();
   }
 

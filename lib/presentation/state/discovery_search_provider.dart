@@ -4,6 +4,7 @@ import '../../domain/entities/song_entity.dart';
 import '../../domain/repositories/song_repository.dart';
 import '../../data/repositories/repository_providers.dart';
 import '../../core/services/stream_resolution_cache.dart';
+import '../../main.dart';
 
 enum SearchMode {
   songs,
@@ -97,6 +98,16 @@ class DiscoverySearchNotifier extends StateNotifier<DiscoverySearchState> {
   }
 
   Future<void> _performSearch(String query) async {
+    if (AetherHttpOverrides.isOfflineMode) {
+      if (!mounted) return;
+      state = state.copyWith(
+        isLoading: false,
+        results: [],
+        error: 'Offline Mode is active. Turn off Offline Mode in Settings to search.',
+      );
+      return;
+    }
+
     try {
       final results = await _repository.searchSongs(query);
       if (!mounted) return;

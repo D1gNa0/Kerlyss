@@ -56,9 +56,11 @@ class KerlyssAudioHandler extends BaseAudioHandler with SeekHandler {
       title: song.title,
       artist: song.artist,
       duration: song.duration,
-      // Windows SMTC blocks to download remote thumbnails, causing 1-2s delay before playback continues.
-      // We purposefully set this to null for now on Windows.
-      artUri: null,
+      // On Android, pass remote artUri so notification & lock screen media controls render album art natively.
+      // On Windows, keep null to prevent SMTC image download stalls.
+      artUri: Platform.isAndroid && (song.artworkUrl?.isNotEmpty ?? false)
+          ? Uri.parse(song.artworkUrl!)
+          : null,
     ));
   }
 

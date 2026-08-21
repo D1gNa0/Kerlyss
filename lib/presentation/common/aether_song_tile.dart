@@ -51,6 +51,13 @@ class AetherSongTile extends ConsumerWidget {
     // Check if downloaded: either by localPath or download state
     final isDownloaded = hasLocalPath || downloadState.alreadyDownloadedIds.contains(song.id);
 
+    final audioState = ref.watch(audioProvider);
+    final isCurrentSong = audioState.currentSong.id.isNotEmpty &&
+        (audioState.currentSong.id == song.id ||
+            (audioState.currentSong.title.isNotEmpty &&
+                audioState.currentSong.title.toLowerCase() == song.title.toLowerCase()));
+    final isPlayingCurrent = isCurrentSong && audioState.status == PlaybackStatus.playing;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
       child: VercelHoverButton(
@@ -59,32 +66,66 @@ class AetherSongTile extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Row(
           children: [
-            Stack(
-              alignment: Alignment.bottomRight,
-              children: [
-                AetherNetworkImage(
-                  url: song.albumArtUrl ?? 'https://picsum.photos/seed/placeholder/200/200',
-                  width: 44,
-                  height: 44,
-                  borderRadius: 10,
-                  fit: BoxFit.cover,
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(2),
-                  child: SourceBadge(source: song.sourceType),
-                ),
-              ],
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: isCurrentSong
+                    ? Border.all(color: AetherColors.accentCyan, width: 2)
+                    : null,
+                boxShadow: isCurrentSong
+                    ? [
+                        BoxShadow(
+                          color: AetherColors.accentCyan.withValues(alpha: 0.3),
+                          blurRadius: 10,
+                        )
+                      ]
+                    : null,
+              ),
+              child: Stack(
+                alignment: Alignment.bottomRight,
+                children: [
+                  AetherNetworkImage(
+                    url: song.albumArtUrl ?? 'https://picsum.photos/seed/placeholder/200/200',
+                    width: 44,
+                    height: 44,
+                    borderRadius: 10,
+                    fit: BoxFit.cover,
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(2),
+                    child: SourceBadge(source: song.sourceType),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    song.title,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 15, fontWeight: FontWeight.bold),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          song.title,
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: isCurrentSong ? AetherColors.accentCyan : Colors.white,
+                              ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (isCurrentSong) ...[
+                        const SizedBox(width: 6),
+                        Icon(
+                          isPlayingCurrent ? Icons.graphic_eq_rounded : Icons.pause_circle_filled_rounded,
+                          color: AetherColors.accentCyan,
+                          size: 16,
+                        ),
+                      ],
+                    ],
                   ),
                   const SizedBox(height: 2),
                   Text(

@@ -6,6 +6,7 @@ import '../common/vercel_hover_button.dart';
 import '../state/navigation_provider.dart';
 import '../state/audio_state.dart';
 import '../theme/aether_colors.dart';
+import '../state/app_settings_provider.dart';
 import '../state/playlist_provider.dart';
 import '../state/audio_provider.dart';
 import '../state/library_provider.dart';
@@ -328,7 +329,7 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
           _isLoading
               ? const Center(child: CircularProgressIndicator(color: Colors.white10))
               : _loadedSongs!.isEmpty
-                  ? _buildEmptyState()
+                  ? _buildEmptyState(isOffline: ref.watch(appSettingsProvider).isOfflineMode)
                   : _buildSongList(),
           
           // Global Persistent Player (Bottom Anchored)
@@ -345,17 +346,24 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
     );
   }
 
-  Widget _buildEmptyState() {
-    return const Center(
+  Widget _buildEmptyState({bool isOffline = false}) {
+    return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.music_note_rounded, color: Colors.white10, size: 48),
-          SizedBox(height: 16),
+          Icon(isOffline ? Icons.wifi_off_rounded : Icons.music_note_rounded, color: Colors.white24, size: 48),
+          const SizedBox(height: 16),
           Text(
-            'NO SONGS IN THIS PLAYLIST',
-            style: TextStyle(color: Colors.white24, letterSpacing: 2, fontSize: 10),
+            isOffline ? 'OFFLINE MODE: NO DOWNLOADED SONGS IN PLAYLIST' : 'NO SONGS IN THIS PLAYLIST',
+            style: const TextStyle(color: Colors.white38, letterSpacing: 2, fontSize: 11, fontWeight: FontWeight.bold),
           ),
+          if (isOffline) ...[
+            const SizedBox(height: 8),
+            const Text(
+              'Turn off Offline Mode in Settings to view online tracks.',
+              style: TextStyle(color: Colors.white24, fontSize: 10),
+            ),
+          ],
         ],
       ),
     );

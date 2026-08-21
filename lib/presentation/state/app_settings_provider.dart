@@ -6,6 +6,8 @@ import '../../data/datasources/local/isar_database_service.dart';
 import '../../data/models/app_settings_model.dart';
 import '../../data/repositories/repository_providers.dart';
 
+import '../../main.dart';
+
 class AppSettingsState {
   final String? customDownloadsPath;
   final String audioQuality;
@@ -16,6 +18,7 @@ class AppSettingsState {
   final String theme;
   final bool animationsEnabled;
   final bool isOfflineMode;
+  final double volume;
   final List<String> dislikedSongIds;
   final List<String> dislikedArtists;
 
@@ -29,6 +32,7 @@ class AppSettingsState {
     required this.theme,
     required this.animationsEnabled,
     this.isOfflineMode = false,
+    this.volume = 1.0,
     this.dislikedSongIds = const [],
     this.dislikedArtists = const [],
   });
@@ -43,6 +47,7 @@ class AppSettingsState {
         theme: 'Deep Matte',
         animationsEnabled: true,
         isOfflineMode: false,
+        volume: 1.0,
         dislikedSongIds: [],
         dislikedArtists: [],
       );
@@ -57,6 +62,7 @@ class AppSettingsState {
         theme: model.theme,
         animationsEnabled: model.animationsEnabled,
         isOfflineMode: model.isOfflineMode,
+        volume: model.volume,
         dislikedSongIds: List<String>.from(model.dislikedSongIds),
         dislikedArtists: List<String>.from(model.dislikedArtists),
       );
@@ -73,6 +79,7 @@ class AppSettingsState {
       ..theme = theme
       ..animationsEnabled = animationsEnabled
       ..isOfflineMode = isOfflineMode
+      ..volume = volume
       ..dislikedSongIds = List<String>.from(dislikedSongIds)
       ..dislikedArtists = List<String>.from(dislikedArtists);
   }
@@ -88,6 +95,7 @@ class AppSettingsState {
     String? theme,
     bool? animationsEnabled,
     bool? isOfflineMode,
+    double? volume,
     List<String>? dislikedSongIds,
     List<String>? dislikedArtists,
   }) {
@@ -103,6 +111,7 @@ class AppSettingsState {
       theme: theme ?? this.theme,
       animationsEnabled: animationsEnabled ?? this.animationsEnabled,
       isOfflineMode: isOfflineMode ?? this.isOfflineMode,
+      volume: volume ?? this.volume,
       dislikedSongIds: dislikedSongIds ?? this.dislikedSongIds,
       dislikedArtists: dislikedArtists ?? this.dislikedArtists,
     );
@@ -150,6 +159,7 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
       final model = await _isarService.getSettings();
       state = AppSettingsState.fromModel(model);
       AppStoragePaths.customDownloadsPath = state.customDownloadsPath;
+      AetherHttpOverrides.isOfflineMode = state.isOfflineMode;
     } catch (e, stackTrace) {
       Log.e('Failed to load app settings from Isar: $e', e, stackTrace);
     }
@@ -157,6 +167,7 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
 
   Future<void> _saveSettings(AppSettingsState newState) async {
     state = newState;
+    AetherHttpOverrides.isOfflineMode = state.isOfflineMode;
     try {
       await _isarService.saveSettings(newState.toModel());
     } catch (e, stackTrace) {
@@ -194,6 +205,10 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
 
   Future<void> setAnimationsEnabled(bool enabled) async {
     await _saveSettings(state.copyWith(animationsEnabled: enabled));
+  }
+
+  Future<void> setVolume(double val) async {
+    await _saveSettings(state.copyWith(volume: val.clamp(0.0, 1.0)));
   }
 
   Future<void> setOfflineMode(bool enabled) async {

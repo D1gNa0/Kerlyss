@@ -20,10 +20,21 @@ import 'package:audio_service/audio_service.dart';
 import 'core/services/kerlyss_audio_handler.dart';
 
 class AetherHttpOverrides extends HttpOverrides {
+  static bool isOfflineMode = false;
+
   @override
   HttpClient createHttpClient(SecurityContext? context) {
-    return super.createHttpClient(context)
-      ..userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+    final client = super.createHttpClient(context);
+    client.userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+    
+    client.findProxy = (uri) {
+      if (isOfflineMode && uri.host != '127.0.0.1' && uri.host != 'localhost') {
+        throw SocketException('Offline Mode Enabled — External network access to ${uri.host} is blocked.');
+      }
+      return 'DIRECT';
+    };
+
+    return client;
   }
 }
 
