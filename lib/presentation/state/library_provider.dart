@@ -7,6 +7,7 @@ import '../../domain/entities/audio_source_type.dart';
 import 'download_state_provider.dart';
 import 'downloaded_songs_provider.dart';
 import 'playlist_provider.dart';
+import 'cloud_sync_provider.dart';
 import '../../core/services/logger_service.dart';
 
 class LibraryState {
@@ -184,6 +185,7 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
       }
       // Silently refresh in background to ensure sync with DB
       await loadLibrary();
+      _ref.read(cloudSyncProvider.notifier).schedulePush();
     } catch (e, stack) {
       Log.e('LibraryProvider: toggleFavorite ERROR: $e', e, stack);
       // Revert if failed (simple implementation: just reload)

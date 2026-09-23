@@ -18,4 +18,9 @@ class AppSettingsModel {
   double volume = 1.0;
   List<String> dislikedSongIds = [];
   List<String> dislikedArtists = [];
+
+  // Cloud Sync (Google Drive AppData)
+  bool cloudSyncEnabled = false;
+  String? googleAccountEmail;
+  DateTime? lastCloudSyncAt;
 }

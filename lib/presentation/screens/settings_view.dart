@@ -14,6 +14,7 @@ import '../../core/services/logger_service.dart';
 import '../../core/services/update_service.dart';
 import 'package:path/path.dart' as p;
 import '../state/downloaded_songs_provider.dart';
+import '../state/cloud_sync_provider.dart';
 import '../../data/datasources/local/isar_database_service.dart';
 import '../../data/repositories/repository_providers.dart';
 import 'settings_components/equalizer_dialog.dart';
@@ -71,6 +72,13 @@ class SettingsView extends ConsumerWidget {
             ),
             const SizedBox(height: 28),
           ],
+          _SettingsSection(
+            title: 'ACCOUNT & CLOUD SYNC',
+            children: const [
+              _CloudSyncTile(),
+            ],
+          ),
+          const SizedBox(height: 28),
           _SettingsSection(
             title: 'NETWORK & OFFLINE',
             children: [
@@ -559,4 +567,91 @@ class _SwitchTile extends StatelessWidget {
     );
   }
 }
+
+class _CloudSyncTile extends ConsumerWidget {
+  const _CloudSyncTile();
+
+  String _formatTime(DateTime? dt) {
+    if (dt == null) return 'Never synced';
+    final diff = DateTime.now().difference(dt);
+    if (diff.inSeconds < 60) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final syncState = ref.watch(cloudSyncProvider);
+    final notifier = ref.read(cloudSyncProvider.notifier);
+
+    if (!syncState.isConnected) {
+      return _SettingsTile(
+        label: 'Google Drive Sync',
+        value: syncState.isSyncing ? 'Connecting...' : (syncState.errorMessage ?? 'Tap to connect account'),
+        icon: Icons.cloud_outlined,
+        trailingAction: syncState.isSyncing
+            ? const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2, color: AetherColors.accentCyan),
+              )
+            : const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.white38),
+        onTap: syncState.isSyncing ? () {} : () => notifier.connect(),
+      );
+    }
+
+    return Column(
+      children: [
+        _SettingsTile(
+          label: 'Google Account',
+          value: syncState.userEmail ?? 'Connected',
+          icon: Icons.cloud_done_rounded,
+          onTap: () {},
+          trailingAction: TextButton(
+            onPressed: () async {
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  backgroundColor: AetherColors.ultraDarkGray,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  title: const Text('DISCONNECT GOOGLE DRIVE?', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                  content: const Text('Local playlists and favorites will remain safe on this device.', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('CANCEL', style: TextStyle(color: Colors.white54))),
+                    TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('DISCONNECT', style: TextStyle(color: Colors.redAccent))),
+                  ],
+                ),
+              );
+              if (confirm == true) {
+                await notifier.disconnect();
+              }
+            },
+            child: const Text(
+              'DISCONNECT',
+              style: TextStyle(color: Colors.redAccent, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1),
+            ),
+          ),
+        ),
+        _SettingsTile(
+          label: 'Cloud Sync Status',
+          value: syncState.isSyncing ? 'Syncing now...' : 'Last: ${_formatTime(syncState.lastSyncedAt)}',
+          icon: Icons.sync_rounded,
+          onTap: syncState.isSyncing ? () {} : () => notifier.syncNow(),
+          trailingAction: syncState.isSyncing
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: AetherColors.accentCyan),
+                )
+              : IconButton(
+                  icon: const Icon(Icons.refresh_rounded, size: 18, color: AetherColors.accentCyan),
+                  onPressed: () => notifier.syncNow(),
+                ),
+        ),
+      ],
+    );
+  }
+}
+
 

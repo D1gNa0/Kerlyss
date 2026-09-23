@@ -27,35 +27,70 @@ const AppSettingsModelSchema = CollectionSchema(
       name: r'audioQuality',
       type: IsarType.string,
     ),
-    r'customDownloadsPath': PropertySchema(
+    r'cloudSyncEnabled': PropertySchema(
       id: 2,
+      name: r'cloudSyncEnabled',
+      type: IsarType.bool,
+    ),
+    r'customDownloadsPath': PropertySchema(
+      id: 3,
       name: r'customDownloadsPath',
       type: IsarType.string,
     ),
+    r'dislikedArtists': PropertySchema(
+      id: 4,
+      name: r'dislikedArtists',
+      type: IsarType.stringList,
+    ),
+    r'dislikedSongIds': PropertySchema(
+      id: 5,
+      name: r'dislikedSongIds',
+      type: IsarType.stringList,
+    ),
     r'eqBandGains': PropertySchema(
-      id: 3,
+      id: 6,
       name: r'eqBandGains',
       type: IsarType.doubleList,
     ),
     r'eqPreset': PropertySchema(
-      id: 4,
+      id: 7,
       name: r'eqPreset',
       type: IsarType.string,
     ),
     r'equalizerEnabled': PropertySchema(
-      id: 5,
+      id: 8,
       name: r'equalizerEnabled',
       type: IsarType.bool,
     ),
     r'gaplessPlayback': PropertySchema(
-      id: 6,
+      id: 9,
       name: r'gaplessPlayback',
       type: IsarType.bool,
     ),
+    r'googleAccountEmail': PropertySchema(
+      id: 10,
+      name: r'googleAccountEmail',
+      type: IsarType.string,
+    ),
+    r'isOfflineMode': PropertySchema(
+      id: 11,
+      name: r'isOfflineMode',
+      type: IsarType.bool,
+    ),
+    r'lastCloudSyncAt': PropertySchema(
+      id: 12,
+      name: r'lastCloudSyncAt',
+      type: IsarType.dateTime,
+    ),
     r'theme': PropertySchema(
-      id: 7,
+      id: 13,
       name: r'theme',
       type: IsarType.string,
+    ),
+    r'volume': PropertySchema(
+      id: 14,
+      name: r'volume',
+      type: IsarType.double,
     )
   },
   estimateSize: _appSettingsModelEstimateSize,
@@ -85,8 +120,28 @@ int _appSettingsModelEstimateSize(
       bytesCount += 3 + value.length * 3;
     }
   }
+  bytesCount += 3 + object.dislikedArtists.length * 3;
+  {
+    for (var i = 0; i < object.dislikedArtists.length; i++) {
+      final value = object.dislikedArtists[i];
+      bytesCount += value.length * 3;
+    }
+  }
+  bytesCount += 3 + object.dislikedSongIds.length * 3;
+  {
+    for (var i = 0; i < object.dislikedSongIds.length; i++) {
+      final value = object.dislikedSongIds[i];
+      bytesCount += value.length * 3;
+    }
+  }
   bytesCount += 3 + object.eqBandGains.length * 8;
   bytesCount += 3 + object.eqPreset.length * 3;
+  {
+    final value = object.googleAccountEmail;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
   bytesCount += 3 + object.theme.length * 3;
   return bytesCount;
 }
@@ -99,12 +154,19 @@ void _appSettingsModelSerialize(
 ) {
   writer.writeBool(offsets[0], object.animationsEnabled);
   writer.writeString(offsets[1], object.audioQuality);
-  writer.writeString(offsets[2], object.customDownloadsPath);
-  writer.writeDoubleList(offsets[3], object.eqBandGains);
-  writer.writeString(offsets[4], object.eqPreset);
-  writer.writeBool(offsets[5], object.equalizerEnabled);
-  writer.writeBool(offsets[6], object.gaplessPlayback);
-  writer.writeString(offsets[7], object.theme);
+  writer.writeBool(offsets[2], object.cloudSyncEnabled);
+  writer.writeString(offsets[3], object.customDownloadsPath);
+  writer.writeStringList(offsets[4], object.dislikedArtists);
+  writer.writeStringList(offsets[5], object.dislikedSongIds);
+  writer.writeDoubleList(offsets[6], object.eqBandGains);
+  writer.writeString(offsets[7], object.eqPreset);
+  writer.writeBool(offsets[8], object.equalizerEnabled);
+  writer.writeBool(offsets[9], object.gaplessPlayback);
+  writer.writeString(offsets[10], object.googleAccountEmail);
+  writer.writeBool(offsets[11], object.isOfflineMode);
+  writer.writeDateTime(offsets[12], object.lastCloudSyncAt);
+  writer.writeString(offsets[13], object.theme);
+  writer.writeDouble(offsets[14], object.volume);
 }
 
 AppSettingsModel _appSettingsModelDeserialize(
@@ -116,13 +178,20 @@ AppSettingsModel _appSettingsModelDeserialize(
   final object = AppSettingsModel();
   object.animationsEnabled = reader.readBool(offsets[0]);
   object.audioQuality = reader.readString(offsets[1]);
-  object.customDownloadsPath = reader.readStringOrNull(offsets[2]);
-  object.eqBandGains = reader.readDoubleList(offsets[3]) ?? [];
-  object.eqPreset = reader.readString(offsets[4]);
-  object.equalizerEnabled = reader.readBool(offsets[5]);
-  object.gaplessPlayback = reader.readBool(offsets[6]);
+  object.cloudSyncEnabled = reader.readBool(offsets[2]);
+  object.customDownloadsPath = reader.readStringOrNull(offsets[3]);
+  object.dislikedArtists = reader.readStringList(offsets[4]) ?? [];
+  object.dislikedSongIds = reader.readStringList(offsets[5]) ?? [];
+  object.eqBandGains = reader.readDoubleList(offsets[6]) ?? [];
+  object.eqPreset = reader.readString(offsets[7]);
+  object.equalizerEnabled = reader.readBool(offsets[8]);
+  object.gaplessPlayback = reader.readBool(offsets[9]);
+  object.googleAccountEmail = reader.readStringOrNull(offsets[10]);
   object.id = id;
-  object.theme = reader.readString(offsets[7]);
+  object.isOfflineMode = reader.readBool(offsets[11]);
+  object.lastCloudSyncAt = reader.readDateTimeOrNull(offsets[12]);
+  object.theme = reader.readString(offsets[13]);
+  object.volume = reader.readDouble(offsets[14]);
   return object;
 }
 
@@ -138,17 +207,31 @@ P _appSettingsModelDeserializeProp<P>(
     case 1:
       return (reader.readString(offset)) as P;
     case 2:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 3:
-      return (reader.readDoubleList(offset) ?? []) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 4:
-      return (reader.readString(offset)) as P;
+      return (reader.readStringList(offset) ?? []) as P;
     case 5:
-      return (reader.readBool(offset)) as P;
+      return (reader.readStringList(offset) ?? []) as P;
     case 6:
-      return (reader.readBool(offset)) as P;
+      return (reader.readDoubleList(offset) ?? []) as P;
     case 7:
       return (reader.readString(offset)) as P;
+    case 8:
+      return (reader.readBool(offset)) as P;
+    case 9:
+      return (reader.readBool(offset)) as P;
+    case 10:
+      return (reader.readStringOrNull(offset)) as P;
+    case 11:
+      return (reader.readBool(offset)) as P;
+    case 12:
+      return (reader.readDateTimeOrNull(offset)) as P;
+    case 13:
+      return (reader.readString(offset)) as P;
+    case 14:
+      return (reader.readDouble(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
   }
@@ -395,6 +478,16 @@ extension AppSettingsModelQueryFilter
   }
 
   QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      cloudSyncEnabledEqualTo(bool value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'cloudSyncEnabled',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
       customDownloadsPathIsNull() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(const FilterCondition.isNull(
@@ -545,6 +638,460 @@ extension AppSettingsModelQueryFilter
         property: r'customDownloadsPath',
         value: '',
       ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      dislikedArtistsElementEqualTo(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'dislikedArtists',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      dislikedArtistsElementGreaterThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'dislikedArtists',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      dislikedArtistsElementLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'dislikedArtists',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      dislikedArtistsElementBetween(
+    String lower,
+    String upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'dislikedArtists',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      dislikedArtistsElementStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'dislikedArtists',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      dislikedArtistsElementEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'dislikedArtists',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      dislikedArtistsElementContains(String value,
+          {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'dislikedArtists',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      dislikedArtistsElementMatches(String pattern,
+          {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'dislikedArtists',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      dislikedArtistsElementIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'dislikedArtists',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      dislikedArtistsElementIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'dislikedArtists',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      dislikedArtistsLengthEqualTo(int length) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'dislikedArtists',
+        length,
+        true,
+        length,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      dislikedArtistsIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'dislikedArtists',
+        0,
+        true,
+        0,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      dislikedArtistsIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'dislikedArtists',
+        0,
+        false,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      dislikedArtistsLengthLessThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'dislikedArtists',
+        0,
+        true,
+        length,
+        include,
+      );
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      dislikedArtistsLengthGreaterThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'dislikedArtists',
+        length,
+        include,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      dislikedArtistsLengthBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'dislikedArtists',
+        lower,
+        includeLower,
+        upper,
+        includeUpper,
+      );
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      dislikedSongIdsElementEqualTo(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'dislikedSongIds',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      dislikedSongIdsElementGreaterThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'dislikedSongIds',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      dislikedSongIdsElementLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'dislikedSongIds',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      dislikedSongIdsElementBetween(
+    String lower,
+    String upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'dislikedSongIds',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      dislikedSongIdsElementStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'dislikedSongIds',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      dislikedSongIdsElementEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'dislikedSongIds',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      dislikedSongIdsElementContains(String value,
+          {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'dislikedSongIds',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      dislikedSongIdsElementMatches(String pattern,
+          {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'dislikedSongIds',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      dislikedSongIdsElementIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'dislikedSongIds',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      dislikedSongIdsElementIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'dislikedSongIds',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      dislikedSongIdsLengthEqualTo(int length) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'dislikedSongIds',
+        length,
+        true,
+        length,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      dislikedSongIdsIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'dislikedSongIds',
+        0,
+        true,
+        0,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      dislikedSongIdsIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'dislikedSongIds',
+        0,
+        false,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      dislikedSongIdsLengthLessThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'dislikedSongIds',
+        0,
+        true,
+        length,
+        include,
+      );
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      dislikedSongIdsLengthGreaterThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'dislikedSongIds',
+        length,
+        include,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      dislikedSongIdsLengthBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'dislikedSongIds',
+        lower,
+        includeLower,
+        upper,
+        includeUpper,
+      );
     });
   }
 
@@ -860,6 +1407,160 @@ extension AppSettingsModelQueryFilter
   }
 
   QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      googleAccountEmailIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'googleAccountEmail',
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      googleAccountEmailIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'googleAccountEmail',
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      googleAccountEmailEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'googleAccountEmail',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      googleAccountEmailGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'googleAccountEmail',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      googleAccountEmailLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'googleAccountEmail',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      googleAccountEmailBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'googleAccountEmail',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      googleAccountEmailStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'googleAccountEmail',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      googleAccountEmailEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'googleAccountEmail',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      googleAccountEmailContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'googleAccountEmail',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      googleAccountEmailMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'googleAccountEmail',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      googleAccountEmailIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'googleAccountEmail',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      googleAccountEmailIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'googleAccountEmail',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
       idEqualTo(Id value) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.equalTo(
@@ -907,6 +1608,90 @@ extension AppSettingsModelQueryFilter
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.between(
         property: r'id',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      isOfflineModeEqualTo(bool value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'isOfflineMode',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      lastCloudSyncAtIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'lastCloudSyncAt',
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      lastCloudSyncAtIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'lastCloudSyncAt',
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      lastCloudSyncAtEqualTo(DateTime? value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'lastCloudSyncAt',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      lastCloudSyncAtGreaterThan(
+    DateTime? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'lastCloudSyncAt',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      lastCloudSyncAtLessThan(
+    DateTime? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'lastCloudSyncAt',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      lastCloudSyncAtBetween(
+    DateTime? lower,
+    DateTime? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'lastCloudSyncAt',
         lower: lower,
         includeLower: includeLower,
         upper: upper,
@@ -1050,6 +1835,72 @@ extension AppSettingsModelQueryFilter
       ));
     });
   }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      volumeEqualTo(
+    double value, {
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'volume',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      volumeGreaterThan(
+    double value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'volume',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      volumeLessThan(
+    double value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'volume',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      volumeBetween(
+    double lower,
+    double upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'volume',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        epsilon: epsilon,
+      ));
+    });
+  }
 }
 
 extension AppSettingsModelQueryObject
@@ -1085,6 +1936,20 @@ extension AppSettingsModelQuerySortBy
       sortByAudioQualityDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'audioQuality', Sort.desc);
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterSortBy>
+      sortByCloudSyncEnabled() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'cloudSyncEnabled', Sort.asc);
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterSortBy>
+      sortByCloudSyncEnabledDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'cloudSyncEnabled', Sort.desc);
     });
   }
 
@@ -1144,6 +2009,48 @@ extension AppSettingsModelQuerySortBy
     });
   }
 
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterSortBy>
+      sortByGoogleAccountEmail() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'googleAccountEmail', Sort.asc);
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterSortBy>
+      sortByGoogleAccountEmailDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'googleAccountEmail', Sort.desc);
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterSortBy>
+      sortByIsOfflineMode() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isOfflineMode', Sort.asc);
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterSortBy>
+      sortByIsOfflineModeDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isOfflineMode', Sort.desc);
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterSortBy>
+      sortByLastCloudSyncAt() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'lastCloudSyncAt', Sort.asc);
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterSortBy>
+      sortByLastCloudSyncAtDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'lastCloudSyncAt', Sort.desc);
+    });
+  }
+
   QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterSortBy> sortByTheme() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'theme', Sort.asc);
@@ -1154,6 +2061,20 @@ extension AppSettingsModelQuerySortBy
       sortByThemeDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'theme', Sort.desc);
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterSortBy>
+      sortByVolume() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'volume', Sort.asc);
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterSortBy>
+      sortByVolumeDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'volume', Sort.desc);
     });
   }
 }
@@ -1185,6 +2106,20 @@ extension AppSettingsModelQuerySortThenBy
       thenByAudioQualityDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'audioQuality', Sort.desc);
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterSortBy>
+      thenByCloudSyncEnabled() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'cloudSyncEnabled', Sort.asc);
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterSortBy>
+      thenByCloudSyncEnabledDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'cloudSyncEnabled', Sort.desc);
     });
   }
 
@@ -1244,6 +2179,20 @@ extension AppSettingsModelQuerySortThenBy
     });
   }
 
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterSortBy>
+      thenByGoogleAccountEmail() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'googleAccountEmail', Sort.asc);
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterSortBy>
+      thenByGoogleAccountEmailDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'googleAccountEmail', Sort.desc);
+    });
+  }
+
   QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterSortBy> thenById() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'id', Sort.asc);
@@ -1257,6 +2206,34 @@ extension AppSettingsModelQuerySortThenBy
     });
   }
 
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterSortBy>
+      thenByIsOfflineMode() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isOfflineMode', Sort.asc);
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterSortBy>
+      thenByIsOfflineModeDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isOfflineMode', Sort.desc);
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterSortBy>
+      thenByLastCloudSyncAt() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'lastCloudSyncAt', Sort.asc);
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterSortBy>
+      thenByLastCloudSyncAtDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'lastCloudSyncAt', Sort.desc);
+    });
+  }
+
   QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterSortBy> thenByTheme() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'theme', Sort.asc);
@@ -1267,6 +2244,20 @@ extension AppSettingsModelQuerySortThenBy
       thenByThemeDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'theme', Sort.desc);
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterSortBy>
+      thenByVolume() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'volume', Sort.asc);
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterSortBy>
+      thenByVolumeDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'volume', Sort.desc);
     });
   }
 }
@@ -1288,10 +2279,31 @@ extension AppSettingsModelQueryWhereDistinct
   }
 
   QueryBuilder<AppSettingsModel, AppSettingsModel, QDistinct>
+      distinctByCloudSyncEnabled() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'cloudSyncEnabled');
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QDistinct>
       distinctByCustomDownloadsPath({bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'customDownloadsPath',
           caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QDistinct>
+      distinctByDislikedArtists() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'dislikedArtists');
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QDistinct>
+      distinctByDislikedSongIds() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'dislikedSongIds');
     });
   }
 
@@ -1323,10 +2335,39 @@ extension AppSettingsModelQueryWhereDistinct
     });
   }
 
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QDistinct>
+      distinctByGoogleAccountEmail({bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'googleAccountEmail',
+          caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QDistinct>
+      distinctByIsOfflineMode() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'isOfflineMode');
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QDistinct>
+      distinctByLastCloudSyncAt() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'lastCloudSyncAt');
+    });
+  }
+
   QueryBuilder<AppSettingsModel, AppSettingsModel, QDistinct> distinctByTheme(
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'theme', caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QDistinct>
+      distinctByVolume() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'volume');
     });
   }
 }
@@ -1353,10 +2394,31 @@ extension AppSettingsModelQueryProperty
     });
   }
 
+  QueryBuilder<AppSettingsModel, bool, QQueryOperations>
+      cloudSyncEnabledProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'cloudSyncEnabled');
+    });
+  }
+
   QueryBuilder<AppSettingsModel, String?, QQueryOperations>
       customDownloadsPathProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'customDownloadsPath');
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, List<String>, QQueryOperations>
+      dislikedArtistsProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'dislikedArtists');
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, List<String>, QQueryOperations>
+      dislikedSongIdsProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'dislikedSongIds');
     });
   }
 
@@ -1387,9 +2449,36 @@ extension AppSettingsModelQueryProperty
     });
   }
 
+  QueryBuilder<AppSettingsModel, String?, QQueryOperations>
+      googleAccountEmailProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'googleAccountEmail');
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, bool, QQueryOperations>
+      isOfflineModeProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'isOfflineMode');
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, DateTime?, QQueryOperations>
+      lastCloudSyncAtProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'lastCloudSyncAt');
+    });
+  }
+
   QueryBuilder<AppSettingsModel, String, QQueryOperations> themeProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'theme');
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, double, QQueryOperations> volumeProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'volume');
     });
   }
 }

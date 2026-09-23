@@ -21,6 +21,9 @@ class AppSettingsState {
   final double volume;
   final List<String> dislikedSongIds;
   final List<String> dislikedArtists;
+  final bool cloudSyncEnabled;
+  final String? googleAccountEmail;
+  final DateTime? lastCloudSyncAt;
 
   const AppSettingsState({
     this.customDownloadsPath,
@@ -35,6 +38,9 @@ class AppSettingsState {
     this.volume = 1.0,
     this.dislikedSongIds = const [],
     this.dislikedArtists = const [],
+    this.cloudSyncEnabled = false,
+    this.googleAccountEmail,
+    this.lastCloudSyncAt,
   });
 
   factory AppSettingsState.initial() => const AppSettingsState(
@@ -50,6 +56,9 @@ class AppSettingsState {
         volume: 1.0,
         dislikedSongIds: [],
         dislikedArtists: [],
+        cloudSyncEnabled: false,
+        googleAccountEmail: null,
+        lastCloudSyncAt: null,
       );
 
   factory AppSettingsState.fromModel(AppSettingsModel model) => AppSettingsState(
@@ -65,6 +74,9 @@ class AppSettingsState {
         volume: model.volume,
         dislikedSongIds: List<String>.from(model.dislikedSongIds),
         dislikedArtists: List<String>.from(model.dislikedArtists),
+        cloudSyncEnabled: model.cloudSyncEnabled,
+        googleAccountEmail: model.googleAccountEmail,
+        lastCloudSyncAt: model.lastCloudSyncAt,
       );
 
   AppSettingsModel toModel() {
@@ -81,7 +93,10 @@ class AppSettingsState {
       ..isOfflineMode = isOfflineMode
       ..volume = volume
       ..dislikedSongIds = List<String>.from(dislikedSongIds)
-      ..dislikedArtists = List<String>.from(dislikedArtists);
+      ..dislikedArtists = List<String>.from(dislikedArtists)
+      ..cloudSyncEnabled = cloudSyncEnabled
+      ..googleAccountEmail = googleAccountEmail
+      ..lastCloudSyncAt = lastCloudSyncAt;
   }
 
   AppSettingsState copyWith({
@@ -98,6 +113,11 @@ class AppSettingsState {
     double? volume,
     List<String>? dislikedSongIds,
     List<String>? dislikedArtists,
+    bool? cloudSyncEnabled,
+    String? googleAccountEmail,
+    bool clearGoogleAccountEmail = false,
+    DateTime? lastCloudSyncAt,
+    bool clearLastCloudSyncAt = false,
   }) {
     return AppSettingsState(
       customDownloadsPath: clearCustomDownloadsPath
@@ -114,6 +134,13 @@ class AppSettingsState {
       volume: volume ?? this.volume,
       dislikedSongIds: dislikedSongIds ?? this.dislikedSongIds,
       dislikedArtists: dislikedArtists ?? this.dislikedArtists,
+      cloudSyncEnabled: cloudSyncEnabled ?? this.cloudSyncEnabled,
+      googleAccountEmail: clearGoogleAccountEmail
+          ? null
+          : (googleAccountEmail ?? this.googleAccountEmail),
+      lastCloudSyncAt: clearLastCloudSyncAt
+          ? null
+          : (lastCloudSyncAt ?? this.lastCloudSyncAt),
     );
   }
 
@@ -131,7 +158,10 @@ class AppSettingsState {
           theme == other.theme &&
           animationsEnabled == other.animationsEnabled &&
           listEquals(dislikedSongIds, other.dislikedSongIds) &&
-          listEquals(dislikedArtists, other.dislikedArtists);
+          listEquals(dislikedArtists, other.dislikedArtists) &&
+          cloudSyncEnabled == other.cloudSyncEnabled &&
+          googleAccountEmail == other.googleAccountEmail &&
+          lastCloudSyncAt == other.lastCloudSyncAt;
 
   @override
   int get hashCode =>
@@ -144,7 +174,10 @@ class AppSettingsState {
       theme.hashCode ^
       animationsEnabled.hashCode ^
       Object.hashAll(dislikedSongIds) ^
-      Object.hashAll(dislikedArtists);
+      Object.hashAll(dislikedArtists) ^
+      cloudSyncEnabled.hashCode ^
+      googleAccountEmail.hashCode ^
+      lastCloudSyncAt.hashCode;
 }
 
 class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
@@ -240,6 +273,26 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
     if (clean.isEmpty || state.dislikedArtists.contains(clean)) return;
     final updated = List<String>.from(state.dislikedArtists)..add(clean);
     await _saveSettings(state.copyWith(dislikedArtists: updated));
+  }
+
+  Future<void> setCloudSyncEnabled(bool enabled) async {
+    await _saveSettings(state.copyWith(cloudSyncEnabled: enabled));
+  }
+
+  Future<void> setGoogleAccountEmail(String? email) async {
+    if (email == null) {
+      await _saveSettings(state.copyWith(clearGoogleAccountEmail: true));
+    } else {
+      await _saveSettings(state.copyWith(googleAccountEmail: email));
+    }
+  }
+
+  Future<void> setLastCloudSyncAt(DateTime? dt) async {
+    if (dt == null) {
+      await _saveSettings(state.copyWith(clearLastCloudSyncAt: true));
+    } else {
+      await _saveSettings(state.copyWith(lastCloudSyncAt: dt));
+    }
   }
 }
 

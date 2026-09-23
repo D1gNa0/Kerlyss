@@ -7,6 +7,7 @@ import '../state/navigation_provider.dart';
 import '../state/audio_provider.dart';
 import '../state/audio_state.dart';
 import '../state/keyboard_shortcuts_provider.dart';
+import '../state/cloud_sync_provider.dart';
 import 'home_view.dart';
 import 'playlists_view.dart';
 import 'discovery_view.dart';
@@ -72,6 +73,7 @@ class _MainShellViewState extends ConsumerState<MainShellView> {
     
     WidgetsBinding.instance.addPostFrameCallback((_) {
       UpdateService().checkForUpdates(context);
+      ref.read(cloudSyncProvider);
     });
   }
 

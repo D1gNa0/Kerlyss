@@ -5,6 +5,7 @@ import '../../domain/repositories/song_repository.dart';
 import '../../domain/repositories/playlist_repository.dart';
 import '../../data/repositories/repository_providers.dart';
 import '../../core/services/logger_service.dart';
+import 'cloud_sync_provider.dart';
 
 class PlaylistState {
   final List<PlaylistEntity> playlists;
@@ -29,9 +30,14 @@ class PlaylistState {
 class PlaylistNotifier extends StateNotifier<PlaylistState> {
   final PlaylistRepository _playlistRepository;
   final SongRepository _songRepository;
+  final Ref? _ref;
 
-  PlaylistNotifier(this._playlistRepository, this._songRepository) : super(const PlaylistState()) {
+  PlaylistNotifier(this._playlistRepository, this._songRepository, [this._ref]) : super(const PlaylistState()) {
     loadPlaylists();
+  }
+
+  void _triggerCloudSync() {
+    _ref?.read(cloudSyncProvider.notifier).schedulePush();
   }
 
   Future<void> loadPlaylists() async {
@@ -49,6 +55,7 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
     try {
       await _playlistRepository.createPlaylist(name, []);
       await loadPlaylists();
+      _triggerCloudSync();
     } catch (e, stack) {
       Log.e('PlaylistNotifier: createPlaylist failed: $e', e, stack);
     }
@@ -60,6 +67,7 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
       state = state.copyWith(
         playlists: state.playlists.where((playlist) => playlist.id != id).toList(),
       );
+      _triggerCloudSync();
     } catch (e, stack) {
       Log.e('PlaylistNotifier: deletePlaylist failed: $e', e, stack);
     }
@@ -78,6 +86,7 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
           return existing;
         }).toList();
         state = state.copyWith(playlists: updatedPlaylists);
+        _triggerCloudSync();
       }
     } catch (e, stack) {
       Log.e('PlaylistNotifier: renamePlaylist failed: $e', e, stack);
@@ -101,6 +110,7 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
           return existing;
         }).toList();
         state = state.copyWith(playlists: updatedPlaylists);
+        _triggerCloudSync();
       }
     } catch (e, stack) {
       Log.e('PlaylistNotifier: addSongToPlaylist failed: $e', e, stack);
@@ -122,6 +132,7 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
         return existing;
       }).toList();
       state = state.copyWith(playlists: updatedPlaylists);
+      _triggerCloudSync();
     } catch (e, stack) {
       Log.e('PlaylistNotifier: removeSongFromPlaylist failed: $e', e, stack);
     }
@@ -217,5 +228,5 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
 final playlistProvider = StateNotifierProvider<PlaylistNotifier, PlaylistState>((ref) {
   final repository = ref.watch(playlistRepositoryProvider);
   final songRepository = ref.watch(songRepositoryProvider);
-  return PlaylistNotifier(repository, songRepository);
+  return PlaylistNotifier(repository, songRepository, ref);
 });
