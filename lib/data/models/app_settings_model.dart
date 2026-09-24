@@ -22,5 +22,6 @@ class AppSettingsModel {
   // Cloud Sync (Google Drive AppData)
   bool cloudSyncEnabled = false;
   String? googleAccountEmail;
+  String? googleRefreshToken;
   DateTime? lastCloudSyncAt;
 }
