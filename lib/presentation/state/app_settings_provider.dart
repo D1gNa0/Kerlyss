@@ -23,6 +23,7 @@ class AppSettingsState {
   final List<String> dislikedArtists;
   final bool cloudSyncEnabled;
   final String? googleAccountEmail;
+  final String? googleRefreshToken;
   final DateTime? lastCloudSyncAt;
 
   const AppSettingsState({
@@ -40,6 +41,7 @@ class AppSettingsState {
     this.dislikedArtists = const [],
     this.cloudSyncEnabled = false,
     this.googleAccountEmail,
+    this.googleRefreshToken,
     this.lastCloudSyncAt,
   });
 
@@ -58,6 +60,7 @@ class AppSettingsState {
         dislikedArtists: [],
         cloudSyncEnabled: false,
         googleAccountEmail: null,
+        googleRefreshToken: null,
         lastCloudSyncAt: null,
       );
 
@@ -76,6 +79,7 @@ class AppSettingsState {
         dislikedArtists: List<String>.from(model.dislikedArtists),
         cloudSyncEnabled: model.cloudSyncEnabled,
         googleAccountEmail: model.googleAccountEmail,
+        googleRefreshToken: model.googleRefreshToken,
         lastCloudSyncAt: model.lastCloudSyncAt,
       );
 
@@ -96,6 +100,7 @@ class AppSettingsState {
       ..dislikedArtists = List<String>.from(dislikedArtists)
       ..cloudSyncEnabled = cloudSyncEnabled
       ..googleAccountEmail = googleAccountEmail
+      ..googleRefreshToken = googleRefreshToken
       ..lastCloudSyncAt = lastCloudSyncAt;
   }
 
@@ -116,6 +121,8 @@ class AppSettingsState {
     bool? cloudSyncEnabled,
     String? googleAccountEmail,
     bool clearGoogleAccountEmail = false,
+    String? googleRefreshToken,
+    bool clearGoogleRefreshToken = false,
     DateTime? lastCloudSyncAt,
     bool clearLastCloudSyncAt = false,
   }) {
@@ -138,6 +145,9 @@ class AppSettingsState {
       googleAccountEmail: clearGoogleAccountEmail
           ? null
           : (googleAccountEmail ?? this.googleAccountEmail),
+      googleRefreshToken: clearGoogleRefreshToken
+          ? null
+          : (googleRefreshToken ?? this.googleRefreshToken),
       lastCloudSyncAt: clearLastCloudSyncAt
           ? null
           : (lastCloudSyncAt ?? this.lastCloudSyncAt),
@@ -161,6 +171,7 @@ class AppSettingsState {
           listEquals(dislikedArtists, other.dislikedArtists) &&
           cloudSyncEnabled == other.cloudSyncEnabled &&
           googleAccountEmail == other.googleAccountEmail &&
+          googleRefreshToken == other.googleRefreshToken &&
           lastCloudSyncAt == other.lastCloudSyncAt;
 
   @override
@@ -177,6 +188,7 @@ class AppSettingsState {
       Object.hashAll(dislikedArtists) ^
       cloudSyncEnabled.hashCode ^
       googleAccountEmail.hashCode ^
+      googleRefreshToken.hashCode ^
       lastCloudSyncAt.hashCode;
 }
 
@@ -184,10 +196,10 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
   final IsarDatabaseService _isarService;
 
   AppSettingsNotifier(this._isarService) : super(AppSettingsState.initial()) {
-    _loadSettings();
+    loadSettings();
   }
 
-  Future<void> _loadSettings() async {
+  Future<void> loadSettings() async {
     try {
       final model = await _isarService.getSettings();
       state = AppSettingsState.fromModel(model);
@@ -284,6 +296,14 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
       await _saveSettings(state.copyWith(clearGoogleAccountEmail: true));
     } else {
       await _saveSettings(state.copyWith(googleAccountEmail: email));
+    }
+  }
+
+  Future<void> setGoogleRefreshToken(String? token) async {
+    if (token == null) {
+      await _saveSettings(state.copyWith(clearGoogleRefreshToken: true));
+    } else {
+      await _saveSettings(state.copyWith(googleRefreshToken: token));
     }
   }
 

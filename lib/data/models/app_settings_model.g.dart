@@ -72,23 +72,28 @@ const AppSettingsModelSchema = CollectionSchema(
       name: r'googleAccountEmail',
       type: IsarType.string,
     ),
-    r'isOfflineMode': PropertySchema(
+    r'googleRefreshToken': PropertySchema(
       id: 11,
+      name: r'googleRefreshToken',
+      type: IsarType.string,
+    ),
+    r'isOfflineMode': PropertySchema(
+      id: 12,
       name: r'isOfflineMode',
       type: IsarType.bool,
     ),
     r'lastCloudSyncAt': PropertySchema(
-      id: 12,
+      id: 13,
       name: r'lastCloudSyncAt',
       type: IsarType.dateTime,
     ),
     r'theme': PropertySchema(
-      id: 13,
+      id: 14,
       name: r'theme',
       type: IsarType.string,
     ),
     r'volume': PropertySchema(
-      id: 14,
+      id: 15,
       name: r'volume',
       type: IsarType.double,
     )
@@ -142,6 +147,12 @@ int _appSettingsModelEstimateSize(
       bytesCount += 3 + value.length * 3;
     }
   }
+  {
+    final value = object.googleRefreshToken;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
   bytesCount += 3 + object.theme.length * 3;
   return bytesCount;
 }
@@ -163,10 +174,11 @@ void _appSettingsModelSerialize(
   writer.writeBool(offsets[8], object.equalizerEnabled);
   writer.writeBool(offsets[9], object.gaplessPlayback);
   writer.writeString(offsets[10], object.googleAccountEmail);
-  writer.writeBool(offsets[11], object.isOfflineMode);
-  writer.writeDateTime(offsets[12], object.lastCloudSyncAt);
-  writer.writeString(offsets[13], object.theme);
-  writer.writeDouble(offsets[14], object.volume);
+  writer.writeString(offsets[11], object.googleRefreshToken);
+  writer.writeBool(offsets[12], object.isOfflineMode);
+  writer.writeDateTime(offsets[13], object.lastCloudSyncAt);
+  writer.writeString(offsets[14], object.theme);
+  writer.writeDouble(offsets[15], object.volume);
 }
 
 AppSettingsModel _appSettingsModelDeserialize(
@@ -187,11 +199,12 @@ AppSettingsModel _appSettingsModelDeserialize(
   object.equalizerEnabled = reader.readBool(offsets[8]);
   object.gaplessPlayback = reader.readBool(offsets[9]);
   object.googleAccountEmail = reader.readStringOrNull(offsets[10]);
+  object.googleRefreshToken = reader.readStringOrNull(offsets[11]);
   object.id = id;
-  object.isOfflineMode = reader.readBool(offsets[11]);
-  object.lastCloudSyncAt = reader.readDateTimeOrNull(offsets[12]);
-  object.theme = reader.readString(offsets[13]);
-  object.volume = reader.readDouble(offsets[14]);
+  object.isOfflineMode = reader.readBool(offsets[12]);
+  object.lastCloudSyncAt = reader.readDateTimeOrNull(offsets[13]);
+  object.theme = reader.readString(offsets[14]);
+  object.volume = reader.readDouble(offsets[15]);
   return object;
 }
 
@@ -225,12 +238,14 @@ P _appSettingsModelDeserializeProp<P>(
     case 10:
       return (reader.readStringOrNull(offset)) as P;
     case 11:
-      return (reader.readBool(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 12:
-      return (reader.readDateTimeOrNull(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 13:
-      return (reader.readString(offset)) as P;
+      return (reader.readDateTimeOrNull(offset)) as P;
     case 14:
+      return (reader.readString(offset)) as P;
+    case 15:
       return (reader.readDouble(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -1561,6 +1576,160 @@ extension AppSettingsModelQueryFilter
   }
 
   QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      googleRefreshTokenIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'googleRefreshToken',
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      googleRefreshTokenIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'googleRefreshToken',
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      googleRefreshTokenEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'googleRefreshToken',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      googleRefreshTokenGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'googleRefreshToken',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      googleRefreshTokenLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'googleRefreshToken',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      googleRefreshTokenBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'googleRefreshToken',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      googleRefreshTokenStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'googleRefreshToken',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      googleRefreshTokenEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'googleRefreshToken',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      googleRefreshTokenContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'googleRefreshToken',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      googleRefreshTokenMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'googleRefreshToken',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      googleRefreshTokenIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'googleRefreshToken',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      googleRefreshTokenIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'googleRefreshToken',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
       idEqualTo(Id value) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.equalTo(
@@ -2024,6 +2193,20 @@ extension AppSettingsModelQuerySortBy
   }
 
   QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterSortBy>
+      sortByGoogleRefreshToken() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'googleRefreshToken', Sort.asc);
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterSortBy>
+      sortByGoogleRefreshTokenDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'googleRefreshToken', Sort.desc);
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterSortBy>
       sortByIsOfflineMode() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isOfflineMode', Sort.asc);
@@ -2193,6 +2376,20 @@ extension AppSettingsModelQuerySortThenBy
     });
   }
 
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterSortBy>
+      thenByGoogleRefreshToken() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'googleRefreshToken', Sort.asc);
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterSortBy>
+      thenByGoogleRefreshTokenDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'googleRefreshToken', Sort.desc);
+    });
+  }
+
   QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterSortBy> thenById() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'id', Sort.asc);
@@ -2344,6 +2541,14 @@ extension AppSettingsModelQueryWhereDistinct
   }
 
   QueryBuilder<AppSettingsModel, AppSettingsModel, QDistinct>
+      distinctByGoogleRefreshToken({bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'googleRefreshToken',
+          caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QDistinct>
       distinctByIsOfflineMode() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'isOfflineMode');
@@ -2453,6 +2658,13 @@ extension AppSettingsModelQueryProperty
       googleAccountEmailProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'googleAccountEmail');
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, String?, QQueryOperations>
+      googleRefreshTokenProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'googleRefreshToken');
     });
   }
 

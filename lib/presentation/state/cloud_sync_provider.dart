@@ -3,6 +3,7 @@ import '../../core/services/google_drive_sync_service.dart';
 import '../../core/services/logger_service.dart';
 import '../../data/repositories/repository_providers.dart';
 import 'app_settings_provider.dart';
+import 'playlist_provider.dart';
 
 class CloudSyncState {
   final bool isConnected;
@@ -60,8 +61,9 @@ class CloudSyncState {
 class CloudSyncNotifier extends StateNotifier<CloudSyncState> {
   final GoogleDriveSyncService _driveService;
   final AppSettingsNotifier _settingsNotifier;
+  final Ref _ref;
 
-  CloudSyncNotifier(this._driveService, this._settingsNotifier, AppSettingsState initialSettings)
+  CloudSyncNotifier(this._driveService, this._settingsNotifier, AppSettingsState initialSettings, this._ref)
       : super(CloudSyncState(
           isConnected: initialSettings.cloudSyncEnabled,
           userEmail: initialSettings.googleAccountEmail,
@@ -138,6 +140,10 @@ class CloudSyncNotifier extends StateNotifier<CloudSyncState> {
     try {
       final pullSuccess = await _driveService.pullAndMerge();
       if (pullSuccess) {
+        // Trigger UI refresh so lists instantly update
+        _ref.read(playlistProvider.notifier).loadPlaylists();
+        _settingsNotifier.loadSettings();
+
         await _driveService.pushData();
         final now = DateTime.now();
         await _settingsNotifier.setLastCloudSyncAt(now);
@@ -179,5 +185,5 @@ final cloudSyncProvider = StateNotifierProvider<CloudSyncNotifier, CloudSyncStat
   final driveService = ref.watch(googleDriveSyncServiceProvider);
   final settingsNotifier = ref.read(appSettingsProvider.notifier);
   final settingsState = ref.read(appSettingsProvider);
-  return CloudSyncNotifier(driveService, settingsNotifier, settingsState);
+  return CloudSyncNotifier(driveService, settingsNotifier, settingsState, ref);
 });

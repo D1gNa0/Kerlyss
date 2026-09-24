@@ -12,6 +12,7 @@ import '../../data/models/song_model.dart';
 import '../../domain/entities/audio_source_type.dart';
 import '../../main.dart';
 import 'logger_service.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Custom authenticated HTTP client for googleapis
 class _AuthenticatedClient extends http.BaseClient {
@@ -34,19 +35,19 @@ class _AuthenticatedClient extends http.BaseClient {
 /// Service managing synchronization of playlists, favorites, and settings
 /// using Google Drive's hidden AppData folder.
 class GoogleDriveSyncService {
-  static const String syncFileName = 'kerlyss_sync.json';
-  static const String appDataScope = 'https://www.googleapis.com/auth/drive.appdata';
+  static const String syncFileName = 'KerlyssSyncData.json';
+  static const String driveScope = 'https://www.googleapis.com/auth/drive.file';
 
-  // Windows Desktop OAuth Client ID placeholder (can be set via env or setDesktopClientId)
-  static String? desktopClientId;
-  static String? desktopClientSecret;
+  // Windows Desktop OAuth Client ID and Secret (loaded from .env)
+  static String get desktopClientId => dotenv.env['GOOGLE_OAUTH_CLIENT_ID'] ?? '';
+  static String get desktopClientSecret => dotenv.env['GOOGLE_OAUTH_CLIENT_SECRET'] ?? '';
 
   final IsarDatabaseService _isarService;
 
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: [
       'email',
-      appDataScope,
+      driveScope,
     ],
   );
 
@@ -80,6 +81,31 @@ class GoogleDriveSyncService {
           _accessToken = auth.accessToken;
           Log.i('GoogleDriveSync: Silent sign-in succeeded for ${account.email}');
           return true;
+        }
+      } else if (!kIsWeb && Platform.isWindows) {
+        final settings = await _isarService.getSettings();
+        if (settings.googleRefreshToken != null) {
+          final response = await http.post(
+            Uri.parse('https://oauth2.googleapis.com/token'),
+            body: {
+              'client_id': desktopClientId,
+              if (desktopClientSecret.isNotEmpty) 'client_secret': desktopClientSecret,
+              'refresh_token': settings.googleRefreshToken!,
+              'grant_type': 'refresh_token',
+            },
+          );
+
+          if (response.statusCode == 200) {
+            final data = jsonDecode(response.body) as Map<String, dynamic>;
+            _accessToken = data['access_token'] as String?;
+            Log.i('GoogleDriveSync: Windows silent sign-in succeeded.');
+            return true;
+          } else {
+            Log.w('GoogleDriveSync: Windows silent sign-in failed (invalid refresh token).');
+            // Clear the invalid token
+            settings.googleRefreshToken = null;
+            await _isarService.saveSettings(settings);
+          }
         }
       }
     } catch (e) {
@@ -133,11 +159,11 @@ class GoogleDriveSyncService {
 
   /// Windows Desktop loopback OAuth2 flow
   Future<bool> _signInWindowsDesktop() async {
-    if (desktopClientId == null || desktopClientId!.isEmpty) {
+    if (desktopClientId.isEmpty) {
       Log.w('GoogleDriveSync: Desktop Client ID is not configured.');
       throw StateError(
         'Google Desktop OAuth Client ID is not configured. '
-        'Please configure your Google Cloud Console credentials.',
+        'Please compile with --dart-define=OAUTH_CLIENT_ID=...',
       );
     }
 
@@ -147,10 +173,10 @@ class GoogleDriveSyncService {
       final redirectUri = 'http://localhost:${server.port}/oauth2callback';
 
       final authUri = Uri.https('accounts.google.com', '/o/oauth2/v2/auth', {
-        'client_id': desktopClientId!,
+        'client_id': desktopClientId,
         'redirect_uri': redirectUri,
         'response_type': 'code',
-        'scope': 'email $appDataScope',
+        'scope': 'email $driveScope',
         'access_type': 'offline',
         'prompt': 'consent',
       });
@@ -182,8 +208,8 @@ class GoogleDriveSyncService {
           Uri.parse('https://oauth2.googleapis.com/token'),
           body: {
             'code': code,
-            'client_id': desktopClientId!,
-            if (desktopClientSecret != null) 'client_secret': desktopClientSecret!,
+            'client_id': desktopClientId,
+            if (desktopClientSecret.isNotEmpty) 'client_secret': desktopClientSecret,
             'redirect_uri': redirectUri,
             'grant_type': 'authorization_code',
           },
@@ -192,6 +218,13 @@ class GoogleDriveSyncService {
         if (tokenResponse.statusCode == 200) {
           final data = jsonDecode(tokenResponse.body) as Map<String, dynamic>;
           _accessToken = data['access_token'] as String?;
+          final refreshToken = data['refresh_token'] as String?;
+
+          if (refreshToken != null) {
+            final settings = await _isarService.getSettings();
+            settings.googleRefreshToken = refreshToken;
+            await _isarService.saveSettings(settings);
+          }
 
           // Fetch user email
           if (_accessToken != null) {
@@ -234,7 +267,7 @@ class GoogleDriveSyncService {
 
   // --- Synchronization Operations ---
 
-  /// Pull remote data from Drive AppData folder and merge into local database
+  /// Pull remote data from Drive root and merge into local database
   Future<bool> pullAndMerge() async {
     if (AetherHttpOverrides.isOfflineMode) {
       Log.i('GoogleDriveSync: Offline mode active, skipping pull.');
@@ -249,9 +282,8 @@ class GoogleDriveSyncService {
 
     _isSyncing = true;
     try {
-      Log.i('GoogleDriveSync: Checking AppData folder for $syncFileName...');
+      Log.i('GoogleDriveSync: Checking Drive root for $syncFileName...');
       final fileList = await driveApi.files.list(
-        spaces: 'appDataFolder',
         q: "name = '$syncFileName' and trashed = false",
         $fields: 'files(id, name, modifiedTime)',
       );
@@ -287,7 +319,7 @@ class GoogleDriveSyncService {
     }
   }
 
-  /// Serialize local Isar database into JSON and upload to Drive AppData folder
+  /// Serialize local Isar database into JSON and upload to Drive root
   Future<bool> pushData() async {
     if (AetherHttpOverrides.isOfflineMode) {
       Log.i('GoogleDriveSync: Offline mode active, skipping push.');
@@ -307,9 +339,8 @@ class GoogleDriveSyncService {
       final stream = Stream.value(jsonBytes);
       final media = drive.Media(stream, jsonBytes.length);
 
-      // Check if file already exists in AppData
+      // Check if file already exists
       final fileList = await driveApi.files.list(
-        spaces: 'appDataFolder',
         q: "name = '$syncFileName' and trashed = false",
         $fields: 'files(id, name)',
       );
@@ -321,16 +352,14 @@ class GoogleDriveSyncService {
           existingFileId,
           uploadMedia: media,
         );
-        Log.i('GoogleDriveSync: Updated existing $syncFileName in AppData.');
+        Log.i('GoogleDriveSync: Updated existing $syncFileName in Drive.');
       } else {
-        final newFile = drive.File()
-          ..name = syncFileName
-          ..parents = ['appDataFolder'];
+        final newFile = drive.File()..name = syncFileName;
         await driveApi.files.create(
           newFile,
           uploadMedia: media,
         );
-        Log.i('GoogleDriveSync: Created new $syncFileName in AppData.');
+        Log.i('GoogleDriveSync: Created new $syncFileName in Drive.');
       }
       return true;
     } catch (e) {
