@@ -177,7 +177,7 @@ final googleDriveSyncServiceProvider = Provider<GoogleDriveSyncService>((ref) {
 
 final cloudSyncProvider = StateNotifierProvider<CloudSyncNotifier, CloudSyncState>((ref) {
   final driveService = ref.watch(googleDriveSyncServiceProvider);
-  final settingsNotifier = ref.watch(appSettingsProvider.notifier);
-  final settingsState = ref.watch(appSettingsProvider);
+  final settingsNotifier = ref.read(appSettingsProvider.notifier);
+  final settingsState = ref.read(appSettingsProvider);
   return CloudSyncNotifier(driveService, settingsNotifier, settingsState);
 });
