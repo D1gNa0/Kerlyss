@@ -92,6 +92,12 @@ class CloudSyncNotifier extends StateNotifier<CloudSyncState> {
       final success = await _driveService.signIn();
       if (success) {
         final email = _driveService.userEmail;
+        
+        // GoogleDriveSyncService updates Isar directly with the refresh token on Windows.
+        // We must reload the notifier state from Isar before calling setCloudSyncEnabled,
+        // otherwise our stale state will overwrite the refresh token back to null!
+        await _settingsNotifier.loadSettings();
+        
         await _settingsNotifier.setCloudSyncEnabled(true);
         await _settingsNotifier.setGoogleAccountEmail(email);
 
@@ -134,6 +140,7 @@ class CloudSyncNotifier extends StateNotifier<CloudSyncState> {
     await _driveService.signOut();
     await _settingsNotifier.setCloudSyncEnabled(false);
     await _settingsNotifier.setGoogleAccountEmail(null);
+    await _settingsNotifier.setGoogleRefreshToken(null);
 
     state = state.copyWith(
       isConnected: false,
