@@ -64,22 +64,13 @@ class AetherSongTile extends ConsumerWidget {
         onTap: onTap,
         borderRadius: 16,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        isHighlighted: isCurrentSong,
+        accentColor: AetherColors.accentCyan,
         child: Row(
           children: [
             Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
-                border: isCurrentSong
-                    ? Border.all(color: AetherColors.accentCyan, width: 2)
-                    : null,
-                boxShadow: isCurrentSong
-                    ? [
-                        BoxShadow(
-                          color: AetherColors.accentCyan.withValues(alpha: 0.3),
-                          blurRadius: 10,
-                        )
-                      ]
-                    : null,
               ),
               child: Stack(
                 alignment: Alignment.bottomRight,

@@ -4,14 +4,26 @@ import '../theme/aether_colors.dart';
 import '../common/aether_glass.dart';
 import '../state/auth_provider.dart';
 
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import '../common/aether_title_bar.dart';
+
 class ProfileView extends ConsumerWidget {
   const ProfileView({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Scaffold(
-      backgroundColor: AetherColors.deepMatteBlack,
-      appBar: AppBar(
+    final isDesktop = !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
+
+    return Container(
+      color: AetherColors.deepMatteBlack,
+      child: Stack(
+        children: [
+          Padding(
+            padding: EdgeInsets.only(top: isDesktop ? 40 : 0),
+            child: Scaffold(
+              backgroundColor: Colors.transparent,
+              appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
@@ -103,6 +115,11 @@ class ProfileView extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+            ),
+          ),
+          if (isDesktop) const AetherTitleBar(),
+        ],
       ),
     );
   }

@@ -11,6 +11,7 @@ class VercelHoverButton extends StatefulWidget {
   final Color accentColor;
   final double borderRadius;
   final EdgeInsetsGeometry padding;
+  final bool isHighlighted;
 
   const VercelHoverButton({
     super.key,
@@ -19,6 +20,7 @@ class VercelHoverButton extends StatefulWidget {
     this.accentColor = Colors.white,
     this.borderRadius = 16.0,
     this.padding = const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    this.isHighlighted = false,
   });
 
   @override
@@ -73,16 +75,20 @@ class _VercelHoverButtonState extends State<VercelHoverButton> {
               border: Border.all(
                 color: isActive
                     ? widget.accentColor.withValues(alpha: 0.28)
-                    : Colors.white.withValues(alpha: 0.06),
-                width: isActive ? 1.5 : 1.0,
+                    : (widget.isHighlighted
+                        ? widget.accentColor.withValues(alpha: 0.15)
+                        : Colors.white.withValues(alpha: 0.06)),
+                width: isActive || widget.isHighlighted ? 1.5 : 1.0,
               ),
               color: isActive
                   ? Colors.white.withValues(alpha: 0.08)
-                  : Colors.white.withValues(alpha: 0.02),
-              boxShadow: isActive
+                  : (widget.isHighlighted
+                      ? widget.accentColor.withValues(alpha: 0.04)
+                      : Colors.white.withValues(alpha: 0.02)),
+              boxShadow: isActive || widget.isHighlighted
                   ? [
                       BoxShadow(
-                        color: widget.accentColor.withValues(alpha: 0.08),
+                        color: widget.accentColor.withValues(alpha: isActive ? 0.08 : 0.04),
                         blurRadius: 16,
                         spreadRadius: -2,
                       ),

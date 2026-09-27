@@ -183,7 +183,15 @@ class GoogleDriveSyncService {
 
       await launchUrl(authUri, mode: LaunchMode.externalApplication);
 
-      final request = await server.first;
+      HttpRequest request;
+      try {
+        request = await server.first.timeout(const Duration(seconds: 90));
+      } catch (e) {
+        await server.close(force: true);
+        Log.w('GoogleDriveSync: Desktop authentication timed out or cancelled by user.');
+        return false;
+      }
+
       final code = request.uri.queryParameters['code'];
       final error = request.uri.queryParameters['error'];
 

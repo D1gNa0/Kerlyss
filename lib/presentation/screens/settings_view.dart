@@ -19,6 +19,8 @@ import '../../data/datasources/local/isar_database_service.dart';
 import '../../data/repositories/repository_providers.dart';
 import 'settings_components/equalizer_dialog.dart';
 
+import '../common/aether_title_bar.dart';
+
 final defaultDownloadsDirProvider = FutureProvider<Directory>((ref) async {
   return AppStoragePaths.downloadsDirectory();
 });
@@ -38,9 +40,17 @@ class SettingsView extends ConsumerWidget {
           error: (_, __) => 'Error loading folder',
         );
 
-    return Scaffold(
-      backgroundColor: AetherColors.deepMatteBlack,
-      appBar: AppBar(
+    final isDesktop = !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
+
+    return Container(
+      color: AetherColors.deepMatteBlack,
+      child: Stack(
+        children: [
+          Padding(
+            padding: EdgeInsets.only(top: isDesktop ? 40 : 0),
+            child: Scaffold(
+              backgroundColor: Colors.transparent,
+              appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
           onPressed: () => Navigator.pop(context),
@@ -175,6 +185,11 @@ class SettingsView extends ConsumerWidget {
               ),
             ],
           ),
+        ],
+      ),
+            ),
+          ),
+          if (isDesktop) const AetherTitleBar(),
         ],
       ),
     );
@@ -588,16 +603,15 @@ class _CloudSyncTile extends ConsumerWidget {
     if (!syncState.isConnected) {
       return _SettingsTile(
         label: 'Google Drive Sync',
-        value: syncState.isSyncing ? 'Connecting...' : (syncState.errorMessage ?? 'Tap to connect account'),
+        value: syncState.isSyncing ? 'Connecting... (Tap to cancel)' : (syncState.errorMessage ?? 'Tap to connect account'),
         icon: Icons.cloud_outlined,
         trailingAction: syncState.isSyncing
-            ? const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2, color: AetherColors.accentCyan),
+            ? IconButton(
+                icon: const Icon(Icons.close_rounded, size: 14, color: Colors.white54),
+                onPressed: () => notifier.cancelConnect(),
               )
             : const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.white38),
-        onTap: syncState.isSyncing ? () {} : () => notifier.connect(),
+        onTap: syncState.isSyncing ? () => notifier.cancelConnect() : () => notifier.connect(),
       );
     }
 

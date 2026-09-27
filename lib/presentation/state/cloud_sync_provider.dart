@@ -121,6 +121,15 @@ class CloudSyncNotifier extends StateNotifier<CloudSyncState> {
     }
   }
 
+  void cancelConnect() {
+    if (state.isSyncing) {
+      state = state.copyWith(
+        isSyncing: false,
+        errorMessage: 'Sign-in cancelled.',
+      );
+    }
+  }
+
   Future<void> disconnect() async {
     await _driveService.signOut();
     await _settingsNotifier.setCloudSyncEnabled(false);
