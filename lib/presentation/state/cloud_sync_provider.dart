@@ -83,6 +83,14 @@ class CloudSyncNotifier extends StateNotifier<CloudSyncState> {
       );
       // Auto-pull changes on startup
       await syncNow();
+    } else {
+      // Silent sign-in failed (expired/missing token). Show disconnected UI
+      // so the user can re-authenticate instead of seeing a broken "connected" state.
+      Log.w('CloudSyncNotifier: Silent sign-in failed, resetting to disconnected.');
+      state = state.copyWith(
+        isConnected: false,
+        errorMessage: 'Session expired. Please reconnect.',
+      );
     }
   }
 

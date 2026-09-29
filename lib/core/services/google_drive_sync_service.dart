@@ -53,6 +53,7 @@ class GoogleDriveSyncService {
 
   GoogleSignInAccount? _currentUser;
   String? _accessToken;
+  String? _windowsEmail;
   Timer? _debounceTimer;
   bool _isSyncing = false;
 
@@ -61,7 +62,7 @@ class GoogleDriveSyncService {
   GoogleSignInAccount? get currentUser => _currentUser;
   bool get isSignedIn => _currentUser != null || _accessToken != null;
   bool get isSyncing => _isSyncing;
-  String? get userEmail => _currentUser?.email;
+  String? get userEmail => _currentUser?.email ?? _windowsEmail;
 
   // --- Authentication ---
 
@@ -98,7 +99,22 @@ class GoogleDriveSyncService {
           if (response.statusCode == 200) {
             final data = jsonDecode(response.body) as Map<String, dynamic>;
             _accessToken = data['access_token'] as String?;
-            Log.i('GoogleDriveSync: Windows silent sign-in succeeded.');
+            
+            // Fetch and cache user email for the getter
+            if (_accessToken != null) {
+              try {
+                final userinfo = await http.get(
+                  Uri.parse('https://www.googleapis.com/oauth2/v3/userinfo'),
+                  headers: {'Authorization': 'Bearer $_accessToken'},
+                );
+                if (userinfo.statusCode == 200) {
+                  final info = jsonDecode(userinfo.body) as Map<String, dynamic>;
+                  _windowsEmail = info['email'] as String?;
+                }
+              } catch (_) {}
+            }
+            
+            Log.i('GoogleDriveSync: Windows silent sign-in succeeded for $_windowsEmail.');
             return true;
           } else {
             Log.w('GoogleDriveSync: Windows silent sign-in failed (invalid refresh token).');
@@ -147,6 +163,7 @@ class GoogleDriveSyncService {
     _debounceTimer?.cancel();
     _currentUser = null;
     _accessToken = null;
+    _windowsEmail = null;
     try {
       if (!kIsWeb && Platform.isAndroid) {
         await _googleSignIn.signOut();
@@ -242,7 +259,8 @@ class GoogleDriveSyncService {
             );
             if (userinfo.statusCode == 200) {
               final info = jsonDecode(userinfo.body) as Map<String, dynamic>;
-              Log.i('GoogleDriveSync: Windows desktop sign-in succeeded: ${info['email']}');
+              _windowsEmail = info['email'] as String?;
+              Log.i('GoogleDriveSync: Windows desktop sign-in succeeded: $_windowsEmail');
             }
           }
           return true;
