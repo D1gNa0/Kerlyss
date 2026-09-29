@@ -17,6 +17,10 @@ class AppStoragePaths {
     _cachedDownloadsDirectory = null;
   }
 
+  static set testAppRootDirectory(Directory? dir) {
+    _cachedAppRootDirectory = dir;
+  }
+
   static Future<Directory> appRootDirectory() async {
     if (_cachedAppRootDirectory != null && await _cachedAppRootDirectory!.exists()) {
       return _cachedAppRootDirectory!;

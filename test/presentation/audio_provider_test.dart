@@ -14,6 +14,7 @@ import 'package:kerlyss/data/datasources/remote/youtube_service.dart';
 import 'package:kerlyss/domain/entities/audio_source_type.dart';
 import 'package:kerlyss/domain/entities/song_entity.dart';
 import 'package:kerlyss/core/services/youtube_proxy_server.dart';
+import 'package:kerlyss/core/services/app_storage_paths.dart';
 import 'package:kerlyss/core/services/kerlyss_audio_handler.dart';
 import 'package:kerlyss/main.dart' as main_app;
 
@@ -45,11 +46,12 @@ void main() {
   late MockAndroidEqualizerParameters mockEqualizerParams;
   late MockAndroidEqualizerBand mockEqualizerBand;
 
-  final playbackStatusController = StreamController<PlaybackStatus>.broadcast();
-  final currentIndexController = StreamController<int?>.broadcast();
-  final positionController = StreamController<Duration>.broadcast();
-  final durationController = StreamController<Duration?>.broadcast();
-  final bufferedPositionController = StreamController<Duration>.broadcast();
+  late StreamController<PlaybackStatus> playbackStatusController;
+  late StreamController<int?> currentIndexController;
+  late StreamController<Duration> positionController;
+  late StreamController<Duration?> durationController;
+  late StreamController<Duration> bufferedPositionController;
+  late Directory tempAppDir;
 
   setUpAll(() {
     registerFallbackValue(SongMetadata.empty());
@@ -76,9 +78,32 @@ void main() {
     } catch (_) {
       main_app.globalAudioHandler = mockAudioHandler;
     }
+
+    tempAppDir = Directory.systemTemp.createTempSync('kerlyss_test_app_');
+    AppStoragePaths.testAppRootDirectory = tempAppDir;
+  });
+
+  tearDownAll(() {
+    try {
+      if (tempAppDir.existsSync()) {
+        tempAppDir.deleteSync(recursive: true);
+      }
+    } catch (_) {}
+    AppStoragePaths.testAppRootDirectory = null;
   });
 
   setUp(() {
+    playbackStatusController = StreamController<PlaybackStatus>.broadcast();
+    currentIndexController = StreamController<int?>.broadcast();
+    positionController = StreamController<Duration>.broadcast();
+    durationController = StreamController<Duration?>.broadcast();
+    bufferedPositionController = StreamController<Duration>.broadcast();
+
+    final sessionFile = File('${tempAppDir.path}/playback_session.json');
+    if (sessionFile.existsSync()) {
+      sessionFile.deleteSync();
+    }
+
     mockAudioService = MockAudioService();
     mockLocalDownloadLibrary = MockLocalDownloadLibrary();
     mockYoutubeService = MockYoutubeService();
@@ -97,6 +122,7 @@ void main() {
     when(() => mockAudioService.duration).thenReturn(Duration.zero);
     when(() => mockAudioService.currentIndex).thenReturn(0);
     when(() => mockAudioService.queueLength).thenReturn(0);
+    when(() => mockAudioService.pause()).thenAnswer((_) async => null);
 
     // Stub globalAudioHandler properties
     when(() => mockAudioHandler.setMediaFromSong(any())).thenReturn(null);
@@ -114,6 +140,14 @@ void main() {
     
     final mockYt = MockYoutubeExplode();
     when(() => mockYoutubeService.client).thenReturn(mockYt);
+  });
+
+  tearDown(() {
+    playbackStatusController.close();
+    currentIndexController.close();
+    positionController.close();
+    durationController.close();
+    bufferedPositionController.close();
   });
 
   group('AudioState & copyWith Tests', () {
@@ -243,6 +277,135 @@ void main() {
       expect(notifier.state.audioFormat, equals('AAC/OPUS'));
       expect(notifier.state.audioBitrate, equals('160 kbps (Est)'));
       expect(notifier.state.audioSize, equals('Streaming'));
+    });
+  });
+
+  group('AudioNotifier Pause Responsiveness Tests', () {
+    test('togglePlay transitions to paused when status is buffering', () async {
+      final notifier = AudioNotifier(
+        mockLocalDownloadLibrary,
+        mockYoutubeService,
+        mockAudioService,
+        mockIsarDatabaseService,
+        mockSongRepository,
+      );
+      addTearDown(notifier.dispose);
+
+      playbackStatusController.add(PlaybackStatus.buffering);
+      await pumpEventQueue();
+      expect(notifier.state.status, equals(PlaybackStatus.buffering));
+
+      await notifier.togglePlay();
+
+      expect(notifier.state.status, equals(PlaybackStatus.paused));
+      verify(() => mockAudioService.pause()).called(1);
+    });
+
+    test('togglePlay transitions to paused when status is playing', () async {
+      var isPlaying = true;
+      when(() => mockAudioService.playing).thenAnswer((_) => isPlaying);
+      when(() => mockAudioService.pause()).thenAnswer((_) async {
+        isPlaying = false;
+      });
+
+      final notifier = AudioNotifier(
+        mockLocalDownloadLibrary,
+        mockYoutubeService,
+        mockAudioService,
+        mockIsarDatabaseService,
+        mockSongRepository,
+      );
+      addTearDown(notifier.dispose);
+
+      playbackStatusController.add(PlaybackStatus.playing);
+      await pumpEventQueue();
+      expect(notifier.state.status, equals(PlaybackStatus.playing));
+
+      await notifier.togglePlay();
+
+      expect(notifier.state.status, equals(PlaybackStatus.paused));
+      verify(() => mockAudioService.pause()).called(1);
+    });
+
+    test('pause transitions to paused when status is buffering', () async {
+      final notifier = AudioNotifier(
+        mockLocalDownloadLibrary,
+        mockYoutubeService,
+        mockAudioService,
+        mockIsarDatabaseService,
+        mockSongRepository,
+      );
+      addTearDown(notifier.dispose);
+
+      playbackStatusController.add(PlaybackStatus.buffering);
+      await pumpEventQueue();
+      expect(notifier.state.status, equals(PlaybackStatus.buffering));
+
+      await notifier.pause();
+
+      expect(notifier.state.status, equals(PlaybackStatus.paused));
+      verify(() => mockAudioService.pause()).called(1);
+    });
+
+    test('pause transitions to paused when status is playing', () async {
+      var isPlaying = true;
+      when(() => mockAudioService.playing).thenAnswer((_) => isPlaying);
+      when(() => mockAudioService.pause()).thenAnswer((_) async {
+        isPlaying = false;
+      });
+
+      final notifier = AudioNotifier(
+        mockLocalDownloadLibrary,
+        mockYoutubeService,
+        mockAudioService,
+        mockIsarDatabaseService,
+        mockSongRepository,
+      );
+      addTearDown(notifier.dispose);
+
+      playbackStatusController.add(PlaybackStatus.playing);
+      await pumpEventQueue();
+      expect(notifier.state.status, equals(PlaybackStatus.playing));
+
+      await notifier.pause();
+
+      expect(notifier.state.status, equals(PlaybackStatus.paused));
+      verify(() => mockAudioService.pause()).called(1);
+    });
+
+    test('pause clears _forcePlayingUntil allowing subsequent stream events', () async {
+      var isPlaying = false;
+      when(() => mockAudioService.playing).thenAnswer((_) => isPlaying);
+      when(() => mockAudioService.play()).thenAnswer((_) async {
+        isPlaying = true;
+      });
+      when(() => mockAudioService.pause()).thenAnswer((_) async {
+        isPlaying = false;
+      });
+
+      final notifier = AudioNotifier(
+        mockLocalDownloadLibrary,
+        mockYoutubeService,
+        mockAudioService,
+        mockIsarDatabaseService,
+        mockSongRepository,
+      );
+      addTearDown(notifier.dispose);
+
+      // Trigger play which sets _forcePlayingUntil = now + 1200ms
+      await notifier.play();
+      expect(notifier.state.status, equals(PlaybackStatus.playing));
+
+      // Call pause which clears _forcePlayingUntil and updates status
+      await notifier.pause();
+      expect(notifier.state.status, equals(PlaybackStatus.paused));
+
+      // If _forcePlayingUntil was NOT cleared, a paused event received immediately
+      // within the 1200ms window would be ignored.
+      // With _forcePlayingUntil = null, the stream event is processed normally.
+      playbackStatusController.add(PlaybackStatus.paused);
+      await pumpEventQueue();
+      expect(notifier.state.status, equals(PlaybackStatus.paused));
     });
   });
 }

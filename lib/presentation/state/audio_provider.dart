@@ -865,9 +865,15 @@ class AudioNotifier extends StateNotifier<AudioState> {
 
   Future<void> togglePlay() async {
     try {
-      if (_audioService.playing || state.status == PlaybackStatus.playing) {
+      final isCurrentlyActive = _audioService.playing ||
+          state.status == PlaybackStatus.playing ||
+          state.status == PlaybackStatus.buffering ||
+          state.status == PlaybackStatus.loading;
+      if (isCurrentlyActive) {
+        _forcePlayingUntil = null;
         state = state.copyWith(status: PlaybackStatus.paused);
         await _audioService.pause();
+        _syncStatusFromEngine();
       } else {
         state = state.copyWith(status: PlaybackStatus.playing);
         await _ensurePlaybackStarted();
@@ -880,8 +886,10 @@ class AudioNotifier extends StateNotifier<AudioState> {
 
   Future<void> pause() async {
     try {
+      _forcePlayingUntil = null;
       state = state.copyWith(status: PlaybackStatus.paused);
       await _audioService.pause();
+      _syncStatusFromEngine();
       _schedulePersistSession();
     } catch (e) {
       _setPlaybackError('pause', e);
