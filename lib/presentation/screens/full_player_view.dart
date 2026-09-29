@@ -12,7 +12,6 @@ import 'package:kerlyss/l10n/app_localizations.dart';
 import 'queue_view.dart';
 import 'dart:ui';
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import '../../core/services/toast_service.dart';
 
 class FullPlayerView extends ConsumerWidget {

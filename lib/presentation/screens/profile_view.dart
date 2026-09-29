@@ -460,11 +460,11 @@ class ProfileView extends ConsumerWidget {
                             ],
                           ),
                           const SizedBox(height: 4),
-                          Row(
+                          const Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('App Version', style: TextStyle(color: AetherColors.textSecondary, fontSize: 11)),
-                              const Text('v1.0.0 (Aether)', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w600)),
+                              Text('App Version', style: TextStyle(color: AetherColors.textSecondary, fontSize: 11)),
+                              Text('v1.0.0 (Aether)', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w600)),
                             ],
                           ),
                         ],
