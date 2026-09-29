@@ -54,6 +54,7 @@ class GoogleDriveSyncService {
   GoogleSignInAccount? _currentUser;
   String? _accessToken;
   String? _windowsEmail;
+  String? _currentRefreshToken;
   Timer? _debounceTimer;
   bool _isSyncing = false;
 
@@ -63,6 +64,7 @@ class GoogleDriveSyncService {
   bool get isSignedIn => _currentUser != null || _accessToken != null;
   bool get isSyncing => _isSyncing;
   String? get userEmail => _currentUser?.email ?? _windowsEmail;
+  String? get currentRefreshToken => _currentRefreshToken;
 
   // --- Authentication ---
 
@@ -85,7 +87,9 @@ class GoogleDriveSyncService {
         }
       } else if (!kIsWeb && Platform.isWindows) {
         final settings = await _isarService.getSettings();
+        Log.i('GoogleDriveSync: Windows silent sign-in checking settings. Refresh token present: ${settings.googleRefreshToken != null}');
         if (settings.googleRefreshToken != null) {
+          _currentRefreshToken = settings.googleRefreshToken;
           final response = await http.post(
             Uri.parse('https://oauth2.googleapis.com/token'),
             body: {
@@ -99,6 +103,15 @@ class GoogleDriveSyncService {
           if (response.statusCode == 200) {
             final data = jsonDecode(response.body) as Map<String, dynamic>;
             _accessToken = data['access_token'] as String?;
+
+            // If a new/rotated refresh token is returned, persist it
+            final newRefreshToken = data['refresh_token'] as String?;
+            if (newRefreshToken != null && newRefreshToken.isNotEmpty && newRefreshToken != settings.googleRefreshToken) {
+              _currentRefreshToken = newRefreshToken;
+              settings.googleRefreshToken = newRefreshToken;
+              await _isarService.saveSettings(settings);
+              Log.i('GoogleDriveSync: Persisted rotated refresh token to Isar.');
+            }
             
             // Fetch and cache user email for the getter
             if (_accessToken != null) {
@@ -117,15 +130,23 @@ class GoogleDriveSyncService {
             Log.i('GoogleDriveSync: Windows silent sign-in succeeded for $_windowsEmail.');
             return true;
           } else {
-            Log.w('GoogleDriveSync: Windows silent sign-in failed (invalid refresh token).');
-            // Clear the invalid token
-            settings.googleRefreshToken = null;
-            await _isarService.saveSettings(settings);
+            Log.w('GoogleDriveSync: Windows silent sign-in token refresh failed: ${response.statusCode} - ${response.body}');
+            // Only clear the token if Google explicitly reported it as invalid/revoked
+            if (response.body.contains('invalid_grant')) {
+              settings.googleRefreshToken = null;
+              _currentRefreshToken = null;
+              await _isarService.saveSettings(settings);
+              Log.w('GoogleDriveSync: Cleared invalid_grant refresh token from Isar.');
+            }
+            return false;
           }
+        } else {
+          Log.i('GoogleDriveSync: Windows silent sign-in skipped (no stored refresh token).');
+          return false;
         }
       }
     } catch (e) {
-      Log.w('GoogleDriveSync: Silent sign-in failed: $e');
+      Log.w('GoogleDriveSync: Silent sign-in encountered error: $e');
     }
     return false;
   }
@@ -164,6 +185,7 @@ class GoogleDriveSyncService {
     _currentUser = null;
     _accessToken = null;
     _windowsEmail = null;
+    _currentRefreshToken = null;
     try {
       if (!kIsWeb && Platform.isAndroid) {
         await _googleSignIn.signOut();
@@ -244,11 +266,17 @@ class GoogleDriveSyncService {
           final data = jsonDecode(tokenResponse.body) as Map<String, dynamic>;
           _accessToken = data['access_token'] as String?;
           final refreshToken = data['refresh_token'] as String?;
+          _currentRefreshToken = refreshToken;
 
-          if (refreshToken != null) {
+          Log.i('GoogleDriveSync: Token response contains refresh_token: ${refreshToken != null && refreshToken.isNotEmpty}');
+
+          if (refreshToken != null && refreshToken.isNotEmpty) {
             final settings = await _isarService.getSettings();
             settings.googleRefreshToken = refreshToken;
             await _isarService.saveSettings(settings);
+            Log.i('GoogleDriveSync: Stored refresh token directly to Isar.');
+          } else {
+            Log.w('GoogleDriveSync: Google OAuth token exchange did NOT return a refresh_token.');
           }
 
           // Fetch user email
@@ -345,6 +373,25 @@ class GoogleDriveSyncService {
     }
   }
 
+  double _sanitizeDouble(double? val, [double fallback = 0.0]) {
+    if (val == null || val.isNaN || val.isInfinite) return fallback;
+    return val;
+  }
+
+  dynamic _sanitizeForJson(dynamic value) {
+    if (value is num) {
+      if (!value.isFinite) return 0.0;
+      return value;
+    }
+    if (value is Map) {
+      return value.map((k, v) => MapEntry(k.toString(), _sanitizeForJson(v)));
+    }
+    if (value is List) {
+      return value.map(_sanitizeForJson).toList();
+    }
+    return value;
+  }
+
   /// Serialize local Isar database into JSON and upload to Drive root
   Future<bool> pushData() async {
     if (AetherHttpOverrides.isOfflineMode) {
@@ -361,7 +408,15 @@ class GoogleDriveSyncService {
     _isSyncing = true;
     try {
       final payload = await _exportLocalData();
-      final jsonBytes = utf8.encode(jsonEncode(payload));
+      final sanitizedPayload = _sanitizeForJson(payload) as Map<String, dynamic>;
+      final jsonString = jsonEncode(
+        sanitizedPayload,
+        toEncodable: (nonEncodable) {
+          if (nonEncodable is num && !nonEncodable.isFinite) return 0.0;
+          return nonEncodable.toString();
+        },
+      );
+      final jsonBytes = utf8.encode(jsonString);
       final stream = Stream.value(jsonBytes);
       final media = drive.Media(stream, jsonBytes.length);
 
@@ -452,8 +507,8 @@ class GoogleDriveSyncService {
         'gaplessPlayback': settings.gaplessPlayback,
         'equalizerEnabled': settings.equalizerEnabled,
         'eqPreset': settings.eqPreset,
-        'eqBandGains': settings.eqBandGains,
-        'volume': settings.volume,
+        'eqBandGains': settings.eqBandGains.map((g) => _sanitizeDouble(g, 0.0)).toList(),
+        'volume': _sanitizeDouble(settings.volume, 1.0),
       },
     };
   }

@@ -62,16 +62,28 @@ class CloudSyncNotifier extends StateNotifier<CloudSyncState> {
   final GoogleDriveSyncService _driveService;
   final AppSettingsNotifier _settingsNotifier;
   final Ref _ref;
+  bool _hasAttemptedSilentSignIn = false;
 
-  CloudSyncNotifier(this._driveService, this._settingsNotifier, AppSettingsState initialSettings, this._ref)
-      : super(CloudSyncState(
-          isConnected: initialSettings.cloudSyncEnabled,
-          userEmail: initialSettings.googleAccountEmail,
-          lastSyncedAt: initialSettings.lastCloudSyncAt,
-        )) {
-    if (initialSettings.cloudSyncEnabled) {
-      _initSilentSignIn();
-    }
+  CloudSyncNotifier(this._driveService, this._settingsNotifier, this._ref)
+      : super(const CloudSyncState()) {
+    // Listen for settings to finish loading from Isar asynchronously.
+    // This fixes the race condition where AppSettingsNotifier.loadSettings()
+    // hasn't completed yet when CloudSyncNotifier is constructed.
+    _ref.listen<AppSettingsState>(
+      appSettingsProvider,
+      (previous, next) {
+        if (!_hasAttemptedSilentSignIn && next.cloudSyncEnabled) {
+          _hasAttemptedSilentSignIn = true;
+          state = state.copyWith(
+            isConnected: true,
+            userEmail: next.googleAccountEmail,
+            lastSyncedAt: next.lastCloudSyncAt,
+          );
+          _initSilentSignIn();
+        }
+      },
+      fireImmediately: true,
+    );
   }
 
   Future<void> _initSilentSignIn() async {
@@ -96,16 +108,18 @@ class CloudSyncNotifier extends StateNotifier<CloudSyncState> {
 
   Future<bool> connect() async {
     state = state.copyWith(isSyncing: true, clearErrorMessage: true);
+    _hasAttemptedSilentSignIn = true;
     try {
       final success = await _driveService.signIn();
       if (success) {
         final email = _driveService.userEmail;
+        final refreshToken = _driveService.currentRefreshToken;
         
-        // GoogleDriveSyncService updates Isar directly with the refresh token on Windows.
-        // We must reload the notifier state from Isar before calling setCloudSyncEnabled,
-        // otherwise our stale state will overwrite the refresh token back to null!
+        // Reload settings to ensure fresh state, then persist credentials
         await _settingsNotifier.loadSettings();
-        
+        if (refreshToken != null && refreshToken.isNotEmpty) {
+          await _settingsNotifier.setGoogleRefreshToken(refreshToken);
+        }
         await _settingsNotifier.setCloudSyncEnabled(true);
         await _settingsNotifier.setGoogleAccountEmail(email);
 
@@ -208,6 +222,5 @@ final googleDriveSyncServiceProvider = Provider<GoogleDriveSyncService>((ref) {
 final cloudSyncProvider = StateNotifierProvider<CloudSyncNotifier, CloudSyncState>((ref) {
   final driveService = ref.watch(googleDriveSyncServiceProvider);
   final settingsNotifier = ref.read(appSettingsProvider.notifier);
-  final settingsState = ref.read(appSettingsProvider);
-  return CloudSyncNotifier(driveService, settingsNotifier, settingsState, ref);
+  return CloudSyncNotifier(driveService, settingsNotifier, ref);
 });
