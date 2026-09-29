@@ -226,16 +226,16 @@ class _SpotifyPreImportModalState extends ConsumerState<SpotifyPreImportModal> {
                         contentPadding: EdgeInsets.zero,
                         title: const Row(
                           children: [
-                            Icon(Icons.bolt_rounded, color: Colors.amberAccent, size: 20),
+                            Icon(Icons.bolt_rounded, color: Colors.lightGreenAccent, size: 20),
                             SizedBox(width: 8),
                             Text(
-                              'Real-Time Sync',
+                              'Spotify Auto-Sync',
                               style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
                             ),
                           ],
                         ),
                         subtitle: const Text(
-                          'Automatically fetch new songs when opening this playlist',
+                          'Automatically fetch newly added tracks from Spotify when opening',
                           style: TextStyle(color: Colors.white38, fontSize: 11),
                         ),
                         onChanged: (val) => setState(() => _isRealtimeSynced = val),

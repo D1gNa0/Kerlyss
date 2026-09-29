@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../theme/aether_colors.dart';
-import '../common/aether_glass.dart';
 import '../common/vercel_hover_button.dart';
 import '../../core/services/toast_service.dart';
 import '../state/playlist_provider.dart';
@@ -13,7 +12,6 @@ import '../state/library_provider.dart';
 import '../state/download_state_provider.dart';
 import '../../domain/entities/playlist_entity.dart';
 import '../common/app_dialogs.dart';
-import '../common/vercel_hover_button.dart';
 
 class PlaylistsView extends ConsumerStatefulWidget {
   const PlaylistsView({super.key});
@@ -236,9 +234,9 @@ class _PlaylistTile extends ConsumerWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   AetherIconButton(
-                    tooltip: 'Sync Settings',
-                    icon: Icons.bolt_rounded,
-                    color: playlist.isRealtimeSynced ? AetherColors.primaryAccent : Colors.white54,
+                    tooltip: playlist.spotifySourceUrl != null ? 'Spotify Sync & Downloads' : 'Playlist Downloads',
+                    icon: playlist.spotifySourceUrl != null ? Icons.bolt_rounded : Icons.download_for_offline_rounded,
+                    color: (playlist.spotifySourceUrl != null && playlist.isRealtimeSynced) ? Colors.lightGreenAccent : Colors.white54,
                     size: 16,
                     buttonSize: 32,
                     onPressed: () => _showSyncSettings(context, ref, allDownloaded),
@@ -303,7 +301,10 @@ class _PlaylistTile extends ConsumerWidget {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
             contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-            title: const Text('SYNC & DOWNLOAD SETTINGS', style: TextStyle(color: Colors.white, fontSize: 13, letterSpacing: 2, fontWeight: FontWeight.bold)),
+            title: Text(
+              playlist.spotifySourceUrl != null ? 'SPOTIFY SYNC & DOWNLOADS' : 'PLAYLIST DOWNLOADS',
+              style: const TextStyle(color: Colors.white, fontSize: 13, letterSpacing: 2, fontWeight: FontWeight.bold),
+            ),
             content: SizedBox(
               width: MediaQuery.of(context).size.width > 420 ? 380 : MediaQuery.of(context).size.width * 0.85,
               child: SingleChildScrollView(
@@ -311,43 +312,45 @@ class _PlaylistTile extends ConsumerWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 1. Real-Time Sync Toggle
-                    SwitchListTile(
-                      value: isSynced,
-                      activeColor: Colors.lightGreenAccent,
-                      contentPadding: EdgeInsets.zero,
-                      title: const Row(
-                        children: [
-                          Icon(Icons.bolt_rounded, color: Colors.amberAccent, size: 20),
-                          SizedBox(width: 8),
-                          Expanded(
-                            child: Text('Real-Time Sync', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
-                          ),
-                        ],
+                    if (playlist.spotifySourceUrl != null) ...[
+                      // 1. Spotify Auto-Sync Toggle
+                      SwitchListTile(
+                        value: isSynced,
+                        activeColor: Colors.lightGreenAccent,
+                        contentPadding: EdgeInsets.zero,
+                        title: const Row(
+                          children: [
+                            Icon(Icons.bolt_rounded, color: Colors.lightGreenAccent, size: 20),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text('Spotify Auto-Sync', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+                            ),
+                          ],
+                        ),
+                        subtitle: const Text('Automatically fetch newly added tracks from Spotify when opening', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                        onChanged: (val) => setDialogState(() => isSynced = val),
                       ),
-                      subtitle: const Text('Automatically fetch new tracks when opening', style: TextStyle(color: Colors.white38, fontSize: 11)),
-                      onChanged: (val) => setDialogState(() => isSynced = val),
-                    ),
 
-                    // 2. Auto-Download New Tracks Toggle
-                    SwitchListTile(
-                      value: autoDownload,
-                      activeColor: Colors.cyanAccent,
-                      contentPadding: EdgeInsets.zero,
-                      title: const Row(
-                        children: [
-                          Icon(Icons.autorenew_rounded, color: Colors.cyanAccent, size: 18),
-                          SizedBox(width: 8),
-                          Expanded(
-                            child: Text('Auto-Download New Songs', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
-                          ),
-                        ],
+                      // 2. Auto-Download New Tracks Toggle
+                      SwitchListTile(
+                        value: autoDownload,
+                        activeColor: Colors.cyanAccent,
+                        contentPadding: EdgeInsets.zero,
+                        title: const Row(
+                          children: [
+                            Icon(Icons.autorenew_rounded, color: Colors.cyanAccent, size: 18),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text('Auto-Download New Songs', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+                            ),
+                          ],
+                        ),
+                        subtitle: const Text('Automatically download newly synced Spotify tracks for offline playback', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                        onChanged: (val) => setDialogState(() => autoDownload = val),
                       ),
-                      subtitle: const Text('Automatically download newly added songs when synced', style: TextStyle(color: Colors.white38, fontSize: 11)),
-                      onChanged: (val) => setDialogState(() => autoDownload = val),
-                    ),
 
-                    const Divider(color: Colors.white10, height: 24),
+                      const Divider(color: Colors.white10, height: 24),
+                    ],
 
                     // 3. Action Button: Download / Stop / Remove Offline Tracks
                     if (isBulkDownloading)
