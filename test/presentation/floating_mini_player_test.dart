@@ -7,13 +7,27 @@ import 'package:kerlyss/presentation/state/audio_state.dart';
 import 'package:kerlyss/presentation/state/library_provider.dart';
 
 class _MockAudioNotifier extends StateNotifier<AudioState> implements AudioNotifier {
-  _MockAudioNotifier()
-      : super(const AudioState(
-          status: PlaybackStatus.idle,
-          position: Duration.zero,
-          bufferedPosition: Duration.zero,
-          currentSong: SongMetadata(id: '', title: '', artist: '', duration: Duration.zero),
-        ));
+  bool toggleRepeatCalled = false;
+
+  _MockAudioNotifier({AudioState? initial})
+      : super(initial ??
+            const AudioState(
+              status: PlaybackStatus.idle,
+              position: Duration.zero,
+              bufferedPosition: Duration.zero,
+              currentSong: SongMetadata(id: '', title: '', artist: '', duration: Duration.zero),
+            ));
+
+  @override
+  void toggleRepeatMode() {
+    toggleRepeatCalled = true;
+    final next = switch (state.repeatMode) {
+      PlaybackRepeatMode.off => PlaybackRepeatMode.all,
+      PlaybackRepeatMode.all => PlaybackRepeatMode.one,
+      PlaybackRepeatMode.one => PlaybackRepeatMode.off,
+    };
+    state = state.copyWith(repeatMode: next);
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -43,5 +57,45 @@ void main() {
     );
 
     expect(find.byType(MiniPlayer), findsOneWidget);
+  });
+
+  testWidgets('MiniPlayer renders Repeat button and toggles repeat mode when active song is present', (tester) async {
+    final notifier = _MockAudioNotifier(
+      initial: const AudioState(
+        status: PlaybackStatus.playing,
+        position: Duration.zero,
+        bufferedPosition: Duration.zero,
+        repeatMode: PlaybackRepeatMode.off,
+        currentSong: SongMetadata(
+          id: 'test_song_1',
+          title: 'Echoes of Silence',
+          artist: 'Kerlyss',
+          duration: Duration(minutes: 3),
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          audioProvider.overrideWith((ref) => notifier),
+          libraryProvider.overrideWith((ref) => _MockLibraryNotifier()),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            bottomNavigationBar: MiniPlayer(),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byIcon(Icons.repeat_rounded), findsOneWidget);
+
+    // Tap the repeat button
+    await tester.tap(find.byIcon(Icons.repeat_rounded));
+    await tester.pumpAndSettle();
+
+    expect(notifier.toggleRepeatCalled, isTrue);
+    expect(notifier.state.repeatMode, equals(PlaybackRepeatMode.all));
   });
 }

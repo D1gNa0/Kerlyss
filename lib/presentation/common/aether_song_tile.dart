@@ -262,6 +262,16 @@ class AetherSongTile extends ConsumerWidget {
                     ],
                   ),
                 ),
+                const PopupMenuItem(
+                  value: 'loop_song',
+                  child: Row(
+                    children: [
+                      Icon(Icons.repeat_one_rounded, color: Colors.cyanAccent, size: 18),
+                      SizedBox(width: 10),
+                      Text('Play Again / Loop Song', style: TextStyle(color: Colors.white, fontSize: 13)),
+                    ],
+                  ),
+                ),
                 if (isDownloaded)
                   const PopupMenuItem(
                     value: 'uninstall',
@@ -296,6 +306,11 @@ class AetherSongTile extends ConsumerWidget {
                 _showUninstallDialog(context, ref);
               } else if (value == 'remove') {
                 onRemove?.call();
+              } else if (value == 'loop_song') {
+                final metadata = SongMetadata.fromEntity(song);
+                ref.read(audioProvider.notifier).playSong(metadata);
+                ref.read(audioProvider.notifier).setRepeatMode(PlaybackRepeatMode.one);
+                ToastService.show(context, 'Playing & looping "${song.title}"');
               } else if (value == 'play_next' || value == 'add_to_queue') {
                 final metadata = SongMetadata.fromEntity(song);
                 if (value == 'play_next') {

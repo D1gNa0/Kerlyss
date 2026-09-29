@@ -15,6 +15,7 @@ import '../state/library_provider.dart';
 import '../state/download_state_provider.dart';
 import '../state/track_download_provider.dart';
 import 'tap_bpm_dialog.dart';
+import '../../core/services/toast_service.dart';
 
 class MiniPlayer extends ConsumerWidget {
   const MiniPlayer({super.key});
@@ -201,8 +202,38 @@ class MiniPlayer extends ConsumerWidget {
                         color: hasSong ? Colors.white70 : Colors.white24,
                         onPressed: hasSong ? () => ref.read(audioProvider.notifier).next() : null,
                       ),
-                      const SizedBox(width: 4),
-                      const AetherVolumeButton(),
+                      const SizedBox(width: 2),
+                      AetherIconButton(
+                        tooltip: switch (audioState.repeatMode) {
+                          PlaybackRepeatMode.off => 'Repeat: Off',
+                          PlaybackRepeatMode.all => 'Repeat: Queue',
+                          PlaybackRepeatMode.one => 'Repeat: One (Play Again)',
+                        },
+                        icon: switch (audioState.repeatMode) {
+                          PlaybackRepeatMode.one => Icons.repeat_one_rounded,
+                          _ => Icons.repeat_rounded,
+                        },
+                        size: 20,
+                        buttonSize: 40,
+                        color: audioState.repeatMode != PlaybackRepeatMode.off
+                            ? AetherColors.accentCyan
+                            : (hasSong ? Colors.white70 : Colors.white24),
+                        onPressed: hasSong
+                            ? () {
+                                ref.read(audioProvider.notifier).toggleRepeatMode();
+                                final nextMode = switch (audioState.repeatMode) {
+                                  PlaybackRepeatMode.off => 'Repeat: Queue',
+                                  PlaybackRepeatMode.all => 'Repeat: Current Track (Play Again)',
+                                  PlaybackRepeatMode.one => 'Repeat: Off',
+                                };
+                                ToastService.show(context, nextMode);
+                              }
+                            : null,
+                      ),
+                      if (MediaQuery.of(context).size.width > 500) ...[
+                        const SizedBox(width: 4),
+                        const AetherVolumeButton(),
+                      ],
                       const SizedBox(width: 4),
                       AetherIconButton(
                         tooltip: 'Up Next',

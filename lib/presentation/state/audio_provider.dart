@@ -9,7 +9,7 @@ import 'package:path/path.dart' as p;
 
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:just_audio/just_audio.dart' show AudioSource;
+import 'package:just_audio/just_audio.dart' show AudioSource, LoopMode;
 // Using custom AudioServiceInterface
 
 import 'package:kerlyss/core/services/app_storage_paths.dart';
@@ -182,8 +182,8 @@ class AudioNotifier extends StateNotifier<AudioState> {
         if (!mounted) return;
         Log.e('AudioNotifier: Playback error detected: $error');
         if (error.contains('cannot find the path specified') || error.contains('sourceNotSupportedError')) {
-          Log.w('AudioNotifier: Missing local file or unsupported path for "${state.currentSong.title}". Unlinking invalid path...');
-          if (state.currentSong.id.isNotEmpty) {
+          if (state.currentSong.id.isNotEmpty && state.currentSong.title != 'Not Playing') {
+            Log.w('AudioNotifier: Missing local file or unsupported path for "${state.currentSong.title}". Unlinking invalid path...');
             _isarService.getSongById(state.currentSong.id).then((dbSong) {
               if (dbSong != null && dbSong.localPath != null) {
                 dbSong.localPath = null;
@@ -373,6 +373,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
         state = state.copyWith(status: PlaybackStatus.idle);
       }
       Log.e('AudioNotifier: Failed to restore playback session: $e');
+      unawaited(_sessionStore.clear());
     }
   }
 
@@ -435,6 +436,9 @@ class AudioNotifier extends StateNotifier<AudioState> {
       }
     });
   }
+
+  /// Plays a single song immediately.
+  Future<void> playSong(SongMetadata song) => playPlaylist([song], 0);
 
   /// Plays a playlist starting at [index].
   Future<void> playPlaylist(List<SongMetadata> playlist, int index) async {
@@ -936,6 +940,40 @@ class AudioNotifier extends StateNotifier<AudioState> {
       _audioService.seek(nextPosition);
     }
     _schedulePersistSession();
+  }
+
+  void setRepeatMode(PlaybackRepeatMode mode) {
+    state = state.copyWith(repeatMode: mode);
+    final loopMode = switch (mode) {
+      PlaybackRepeatMode.off => LoopMode.off,
+      PlaybackRepeatMode.all => LoopMode.all,
+      PlaybackRepeatMode.one => LoopMode.one,
+    };
+    try {
+      globalAudioHandler.player.setLoopMode(loopMode);
+    } catch (e) {
+      Log.w('AudioNotifier: setLoopMode failed: $e');
+    }
+    Log.i('AudioNotifier: Repeat mode set to $mode');
+    _schedulePersistSession();
+  }
+
+  void toggleRepeatMode() {
+    final nextMode = switch (state.repeatMode) {
+      PlaybackRepeatMode.off => PlaybackRepeatMode.all,
+      PlaybackRepeatMode.all => PlaybackRepeatMode.one,
+      PlaybackRepeatMode.one => PlaybackRepeatMode.off,
+    };
+    setRepeatMode(nextMode);
+  }
+
+  Future<void> replay() async {
+    try {
+      await _audioService.seek(Duration.zero);
+      await _ensurePlaybackStarted();
+    } catch (e) {
+      Log.e('AudioNotifier: replay failed: $e');
+    }
   }
 
   /// Normalizes file path separators for Windows.
