@@ -56,6 +56,11 @@ const PlaylistModelSchema = CollectionSchema(
       id: 7,
       name: r'spotifySourceUrl',
       type: IsarType.string,
+    ),
+    r'uuid': PropertySchema(
+      id: 8,
+      name: r'uuid',
+      type: IsarType.string,
     )
   },
   estimateSize: _playlistModelEstimateSize,
@@ -64,6 +69,19 @@ const PlaylistModelSchema = CollectionSchema(
   deserializeProp: _playlistModelDeserializeProp,
   idName: r'id',
   indexes: {
+    r'uuid': IndexSchema(
+      id: 2134397340427724972,
+      name: r'uuid',
+      unique: false,
+      replace: false,
+      properties: [
+        IndexPropertySchema(
+          name: r'uuid',
+          type: IndexType.hash,
+          caseSensitive: true,
+        )
+      ],
+    ),
     r'name': IndexSchema(
       id: 879695947855722453,
       name: r'name',
@@ -112,6 +130,12 @@ int _playlistModelEstimateSize(
       bytesCount += 3 + value.length * 3;
     }
   }
+  {
+    final value = object.uuid;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
   return bytesCount;
 }
 
@@ -129,6 +153,7 @@ void _playlistModelSerialize(
   writer.writeString(offsets[5], object.name);
   writer.writeStringList(offsets[6], object.songIds);
   writer.writeString(offsets[7], object.spotifySourceUrl);
+  writer.writeString(offsets[8], object.uuid);
 }
 
 PlaylistModel _playlistModelDeserialize(
@@ -147,6 +172,7 @@ PlaylistModel _playlistModelDeserialize(
   object.name = reader.readString(offsets[5]);
   object.songIds = reader.readStringList(offsets[6]) ?? [];
   object.spotifySourceUrl = reader.readStringOrNull(offsets[7]);
+  object.uuid = reader.readStringOrNull(offsets[8]);
   return object;
 }
 
@@ -172,6 +198,8 @@ P _playlistModelDeserializeProp<P>(
     case 6:
       return (reader.readStringList(offset) ?? []) as P;
     case 7:
+      return (reader.readStringOrNull(offset)) as P;
+    case 8:
       return (reader.readStringOrNull(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -323,6 +351,72 @@ extension PlaylistModelQueryWhere
         upper: upperId,
         includeUpper: includeUpper,
       ));
+    });
+  }
+
+  QueryBuilder<PlaylistModel, PlaylistModel, QAfterWhereClause> uuidIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.equalTo(
+        indexName: r'uuid',
+        value: [null],
+      ));
+    });
+  }
+
+  QueryBuilder<PlaylistModel, PlaylistModel, QAfterWhereClause>
+      uuidIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'uuid',
+        lower: [null],
+        includeLower: false,
+        upper: [],
+      ));
+    });
+  }
+
+  QueryBuilder<PlaylistModel, PlaylistModel, QAfterWhereClause> uuidEqualTo(
+      String? uuid) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.equalTo(
+        indexName: r'uuid',
+        value: [uuid],
+      ));
+    });
+  }
+
+  QueryBuilder<PlaylistModel, PlaylistModel, QAfterWhereClause> uuidNotEqualTo(
+      String? uuid) {
+    return QueryBuilder.apply(this, (query) {
+      if (query.whereSort == Sort.asc) {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'uuid',
+              lower: [],
+              upper: [uuid],
+              includeUpper: false,
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'uuid',
+              lower: [uuid],
+              includeLower: false,
+              upper: [],
+            ));
+      } else {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'uuid',
+              lower: [uuid],
+              includeLower: false,
+              upper: [],
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'uuid',
+              lower: [],
+              upper: [uuid],
+              includeUpper: false,
+            ));
+      }
     });
   }
 
@@ -1245,6 +1339,159 @@ extension PlaylistModelQueryFilter
       ));
     });
   }
+
+  QueryBuilder<PlaylistModel, PlaylistModel, QAfterFilterCondition>
+      uuidIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'uuid',
+      ));
+    });
+  }
+
+  QueryBuilder<PlaylistModel, PlaylistModel, QAfterFilterCondition>
+      uuidIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'uuid',
+      ));
+    });
+  }
+
+  QueryBuilder<PlaylistModel, PlaylistModel, QAfterFilterCondition> uuidEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'uuid',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<PlaylistModel, PlaylistModel, QAfterFilterCondition>
+      uuidGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'uuid',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<PlaylistModel, PlaylistModel, QAfterFilterCondition>
+      uuidLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'uuid',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<PlaylistModel, PlaylistModel, QAfterFilterCondition> uuidBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'uuid',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<PlaylistModel, PlaylistModel, QAfterFilterCondition>
+      uuidStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'uuid',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<PlaylistModel, PlaylistModel, QAfterFilterCondition>
+      uuidEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'uuid',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<PlaylistModel, PlaylistModel, QAfterFilterCondition>
+      uuidContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'uuid',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<PlaylistModel, PlaylistModel, QAfterFilterCondition> uuidMatches(
+      String pattern,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'uuid',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<PlaylistModel, PlaylistModel, QAfterFilterCondition>
+      uuidIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'uuid',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<PlaylistModel, PlaylistModel, QAfterFilterCondition>
+      uuidIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'uuid',
+        value: '',
+      ));
+    });
+  }
 }
 
 extension PlaylistModelQueryObject
@@ -1346,6 +1593,18 @@ extension PlaylistModelQuerySortBy
       sortBySpotifySourceUrlDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'spotifySourceUrl', Sort.desc);
+    });
+  }
+
+  QueryBuilder<PlaylistModel, PlaylistModel, QAfterSortBy> sortByUuid() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'uuid', Sort.asc);
+    });
+  }
+
+  QueryBuilder<PlaylistModel, PlaylistModel, QAfterSortBy> sortByUuidDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'uuid', Sort.desc);
     });
   }
 }
@@ -1457,6 +1716,18 @@ extension PlaylistModelQuerySortThenBy
       return query.addSortBy(r'spotifySourceUrl', Sort.desc);
     });
   }
+
+  QueryBuilder<PlaylistModel, PlaylistModel, QAfterSortBy> thenByUuid() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'uuid', Sort.asc);
+    });
+  }
+
+  QueryBuilder<PlaylistModel, PlaylistModel, QAfterSortBy> thenByUuidDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'uuid', Sort.desc);
+    });
+  }
 }
 
 extension PlaylistModelQueryWhereDistinct
@@ -1513,6 +1784,13 @@ extension PlaylistModelQueryWhereDistinct
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'spotifySourceUrl',
           caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<PlaylistModel, PlaylistModel, QDistinct> distinctByUuid(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'uuid', caseSensitive: caseSensitive);
     });
   }
 }
@@ -1575,6 +1853,12 @@ extension PlaylistModelQueryProperty
       spotifySourceUrlProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'spotifySourceUrl');
+    });
+  }
+
+  QueryBuilder<PlaylistModel, String?, QQueryOperations> uuidProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'uuid');
     });
   }
 }

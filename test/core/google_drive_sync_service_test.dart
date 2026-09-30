@@ -23,8 +23,8 @@ void main() {
     });
 
     test('syncFileName and scope are correctly defined', () {
-      expect(GoogleDriveSyncService.syncFileName, equals('kerlyss_sync.json'));
-      expect(GoogleDriveSyncService.appDataScope, equals('https://www.googleapis.com/auth/drive.appdata'));
+      expect(GoogleDriveSyncService.syncFileName, equals('KerlyssSyncData.json'));
+      expect(GoogleDriveSyncService.driveScope, equals('https://www.googleapis.com/auth/drive.file'));
     });
 
     test('offline mode blocks pullAndMerge and returns false immediately', () async {

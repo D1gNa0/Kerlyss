@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../common/aether_glass.dart';
 import '../common/aether_title_bar.dart';
 import '../common/vercel_hover_button.dart';
@@ -460,11 +461,22 @@ class ProfileView extends ConsumerWidget {
                             ],
                           ),
                           const SizedBox(height: 4),
-                          const Row(
+                          Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text('App Version', style: TextStyle(color: AetherColors.textSecondary, fontSize: 11)),
-                              Text('v1.0.0 (Aether)', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w600)),
+                              const Text('App Version', style: TextStyle(color: AetherColors.textSecondary, fontSize: 11)),
+                              FutureBuilder<PackageInfo>(
+                                future: PackageInfo.fromPlatform(),
+                                builder: (context, snapshot) {
+                                  final v = snapshot.data?.version ?? '1.3.0';
+                                  final b = snapshot.data?.buildNumber;
+                                  final display = (b != null && b.isNotEmpty) ? 'v$v+$b' : 'v$v';
+                                  return Text(
+                                    display,
+                                    style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w600),
+                                  );
+                                },
+                              ),
                             ],
                           ),
                         ],

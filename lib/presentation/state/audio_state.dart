@@ -69,6 +69,12 @@ class SongMetadata {
 }
 
 
+enum PlaybackRepeatMode {
+  off,
+  all,
+  one,
+}
+
 class AudioState {
   final SongMetadata currentSong;
   final PlaybackStatus status;
@@ -76,6 +82,7 @@ class AudioState {
   final Duration bufferedPosition;
   final bool isShuffleEnabled;
   final bool isRepeatEnabled;
+  final PlaybackRepeatMode repeatMode;
   final List<SongMetadata> playlist;
   final int currentIndex;
   final double volume;
@@ -93,6 +100,7 @@ class AudioState {
     required this.bufferedPosition,
     this.isShuffleEnabled = false,
     this.isRepeatEnabled = false,
+    this.repeatMode = PlaybackRepeatMode.off,
     this.playlist = const [],
     this.currentIndex = -1,
     this.volume = 1.0,
@@ -111,6 +119,7 @@ class AudioState {
     Duration? bufferedPosition,
     bool? isShuffleEnabled,
     bool? isRepeatEnabled,
+    PlaybackRepeatMode? repeatMode,
     List<SongMetadata>? playlist,
     int? currentIndex,
     double? volume,
@@ -132,7 +141,8 @@ class AudioState {
       position: position ?? this.position,
       bufferedPosition: bufferedPosition ?? this.bufferedPosition,
       isShuffleEnabled: isShuffleEnabled ?? this.isShuffleEnabled,
-      isRepeatEnabled: isRepeatEnabled ?? this.isRepeatEnabled,
+      isRepeatEnabled: isRepeatEnabled ?? (repeatMode != null ? repeatMode != PlaybackRepeatMode.off : this.isRepeatEnabled),
+      repeatMode: repeatMode ?? this.repeatMode,
       playlist: playlist ?? this.playlist,
       currentIndex: currentIndex ?? this.currentIndex,
       volume: volume ?? this.volume,

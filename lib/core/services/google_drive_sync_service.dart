@@ -12,6 +12,7 @@ import '../../data/models/song_model.dart';
 import '../../domain/entities/audio_source_type.dart';
 import '../../main.dart';
 import 'logger_service.dart';
+import '../utils/uuid_generator.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Custom authenticated HTTP client for googleapis
@@ -57,6 +58,7 @@ class GoogleDriveSyncService {
   String? _currentRefreshToken;
   Timer? _debounceTimer;
   bool _isSyncing = false;
+  final List<String> _newlyDiscoveredAutoDownloadSongIds = [];
 
   GoogleDriveSyncService(this._isarService);
 
@@ -65,6 +67,12 @@ class GoogleDriveSyncService {
   bool get isSyncing => _isSyncing;
   String? get userEmail => _currentUser?.email ?? _windowsEmail;
   String? get currentRefreshToken => _currentRefreshToken;
+
+  List<String> consumeNewlyDiscoveredAutoDownloadSongIds() {
+    final copy = List<String>.from(_newlyDiscoveredAutoDownloadSongIds);
+    _newlyDiscoveredAutoDownloadSongIds.clear();
+    return copy;
+  }
 
   // --- Authentication ---
 
@@ -335,6 +343,7 @@ class GoogleDriveSyncService {
     }
 
     _isSyncing = true;
+    _newlyDiscoveredAutoDownloadSongIds.clear();
     try {
       Log.i('GoogleDriveSync: Checking Drive root for $syncFileName...');
       final fileList = await driveApi.files.list(
@@ -484,15 +493,19 @@ class GoogleDriveSyncService {
       'dateAdded': s.dateAdded.toIso8601String(),
     }).toList();
 
-    final playlistsJson = playlists.map((p) => {
-      'name': p.name,
-      'songIds': p.songIds,
-      'createdAt': p.createdAt.toIso8601String(),
-      'isRealtimeSynced': p.isRealtimeSynced,
-      'autoDownloadNewTracks': p.autoDownloadNewTracks,
-      'spotifySourceUrl': p.spotifySourceUrl,
-      'coverArtUrl': p.coverArtUrl,
-      'lastSyncedAt': p.lastSyncedAt?.toIso8601String(),
+    final playlistsJson = playlists.map((p) {
+      final pUuid = (p.uuid != null && p.uuid!.isNotEmpty) ? p.uuid! : UuidGenerator.generate();
+      return {
+        'uuid': pUuid,
+        'name': p.name,
+        'songIds': p.songIds,
+        'createdAt': p.createdAt.toIso8601String(),
+        'isRealtimeSynced': p.isRealtimeSynced,
+        'autoDownloadNewTracks': p.autoDownloadNewTracks,
+        'spotifySourceUrl': p.spotifySourceUrl,
+        'coverArtUrl': p.coverArtUrl,
+        'lastSyncedAt': p.lastSyncedAt?.toIso8601String(),
+      };
     }).toList();
 
     return {
@@ -549,46 +562,123 @@ class GoogleDriveSyncService {
       }
     }
 
-    // 2. Merge Playlists
+    // 2. Merge Playlists (identify by unique UUID first to support renaming across devices without duplication)
     if (remoteData['playlists'] is List) {
       final remotePlaylists = remoteData['playlists'] as List;
       final localPlaylists = await _isarService.getAllPlaylists();
-      final localByName = {for (final p in localPlaylists) p.name: p};
+      
+      final localByUuid = <String, PlaylistModel>{};
+      final localByName = <String, PlaylistModel>{};
+      for (final p in localPlaylists) {
+        if (p.uuid != null && p.uuid!.isNotEmpty) {
+          localByUuid[p.uuid!] = p;
+        }
+        localByName[p.name] = p;
+      }
 
       for (final item in remotePlaylists) {
         if (item is Map<String, dynamic>) {
+          final remoteUuid = item['uuid'] as String?;
           final name = item['name'] as String?;
           if (name == null || name.isEmpty) continue;
 
           final rawSongIds = (item['songIds'] as List?)?.cast<String>() ?? [];
-          final existing = localByName[name];
+          final remoteLastSyncedAt = DateTime.tryParse(item['lastSyncedAt'] as String? ?? '');
+          final remoteAutoDownload = (item['autoDownloadNewTracks'] as bool?) ?? false;
+          final remoteIsRealtimeSynced = (item['isRealtimeSynced'] as bool?) ?? false;
+          final remoteSpotifyUrl = item['spotifySourceUrl'] as String?;
+          final remoteCoverArt = item['coverArtUrl'] as String?;
+
+          // Identify playlist by unique ID (UUID) first, then fallback to name for older records
+          PlaylistModel? existing;
+          if (remoteUuid != null && remoteUuid.isNotEmpty) {
+            existing = localByUuid[remoteUuid];
+          }
+          if (existing == null && localByName.containsKey(name)) {
+            final matchedByName = localByName[name]!;
+            existing = matchedByName;
+            if (remoteUuid != null && (matchedByName.uuid == null || matchedByName.uuid!.isEmpty)) {
+              matchedByName.uuid = remoteUuid;
+              localByUuid[remoteUuid] = matchedByName;
+            }
+          }
 
           if (existing == null) {
             // Brand new playlist from remote device
+            final assignedUuid = (remoteUuid != null && remoteUuid.isNotEmpty)
+                ? remoteUuid
+                : UuidGenerator.generate();
             final playlist = PlaylistModel()
+              ..uuid = assignedUuid
               ..name = name
               ..songIds = rawSongIds
               ..createdAt = DateTime.tryParse(item['createdAt'] as String? ?? '') ?? DateTime.now()
-              ..isRealtimeSynced = (item['isRealtimeSynced'] as bool?) ?? false
-              ..autoDownloadNewTracks = (item['autoDownloadNewTracks'] as bool?) ?? false
-              ..spotifySourceUrl = item['spotifySourceUrl'] as String?
-              ..coverArtUrl = item['coverArtUrl'] as String?
-              ..lastSyncedAt = DateTime.now();
+              ..isRealtimeSynced = remoteIsRealtimeSynced
+              ..autoDownloadNewTracks = remoteAutoDownload
+              ..spotifySourceUrl = remoteSpotifyUrl
+              ..coverArtUrl = remoteCoverArt
+              ..lastSyncedAt = remoteLastSyncedAt ?? DateTime.now();
             await _isarService.savePlaylist(playlist);
+            localByUuid[assignedUuid] = playlist;
+            localByName[name] = playlist;
+
+            if (remoteAutoDownload && rawSongIds.isNotEmpty) {
+              _newlyDiscoveredAutoDownloadSongIds.addAll(rawSongIds);
+            }
           } else {
-            // Playlist exists locally: merge song IDs (preserve local order + append unique remote)
-            final mergedSongIds = List<String>.from(existing.songIds);
-            for (final sid in rawSongIds) {
-              if (!mergedSongIds.contains(sid)) {
-                mergedSongIds.add(sid);
+            final local = existing;
+            final shouldAutoDownload = local.autoDownloadNewTracks || remoteAutoDownload;
+            final isRemoteNewer = remoteLastSyncedAt != null &&
+                (local.lastSyncedAt == null || remoteLastSyncedAt.isAfter(local.lastSyncedAt!));
+            final isLocalNewer = local.lastSyncedAt != null &&
+                remoteLastSyncedAt != null &&
+                local.lastSyncedAt!.isAfter(remoteLastSyncedAt);
+
+            if (isRemoteNewer) {
+              // Remote playlist is strictly newer: adopt remote state directly, including updated name!
+              // This ensures playlist renaming on one device updates the name on other devices without duplicating!
+              if (shouldAutoDownload) {
+                final newlyAdded = rawSongIds.where((sid) => !local.songIds.contains(sid));
+                _newlyDiscoveredAutoDownloadSongIds.addAll(newlyAdded);
               }
+
+              local.name = name;
+              if (remoteUuid != null && (local.uuid == null || local.uuid!.isEmpty)) {
+                local.uuid = remoteUuid;
+              }
+              local.songIds = rawSongIds;
+              local.lastSyncedAt = remoteLastSyncedAt;
+              local.isRealtimeSynced = remoteIsRealtimeSynced;
+              local.autoDownloadNewTracks = remoteAutoDownload;
+              if (remoteSpotifyUrl != null) local.spotifySourceUrl = remoteSpotifyUrl;
+              if (remoteCoverArt != null) local.coverArtUrl = remoteCoverArt;
+              await _isarService.savePlaylist(local);
+            } else if (isLocalNewer) {
+              // Local is newer: preserve local songs, name and settings; it will be pushed to Drive.
+              Log.i('GoogleDriveSync: Local playlist "${local.name}" is newer than remote. Preserving local state.');
+            } else {
+              // Timestamps equal or neither set: fallback to union merge
+              if (shouldAutoDownload) {
+                final newlyAdded = rawSongIds.where((sid) => !local.songIds.contains(sid));
+                _newlyDiscoveredAutoDownloadSongIds.addAll(newlyAdded);
+              }
+
+              if (remoteUuid != null && (local.uuid == null || local.uuid!.isEmpty)) {
+                local.uuid = remoteUuid;
+              }
+              final mergedSongIds = List<String>.from(local.songIds);
+              for (final sid in rawSongIds) {
+                if (!mergedSongIds.contains(sid)) {
+                  mergedSongIds.add(sid);
+                }
+              }
+              local.songIds = mergedSongIds;
+              local.lastSyncedAt = remoteLastSyncedAt ?? DateTime.now();
+              if (remoteCoverArt != null && local.coverArtUrl == null) {
+                local.coverArtUrl = remoteCoverArt;
+              }
+              await _isarService.savePlaylist(local);
             }
-            existing.songIds = mergedSongIds;
-            existing.lastSyncedAt = DateTime.now();
-            if (item['coverArtUrl'] != null && existing.coverArtUrl == null) {
-              existing.coverArtUrl = item['coverArtUrl'] as String?;
-            }
-            await _isarService.savePlaylist(existing);
           }
         }
       }
@@ -628,4 +718,7 @@ class GoogleDriveSyncService {
       orElse: () => AudioSourceType.youtube,
     );
   }
+
+  @visibleForTesting
+  Future<void> mergeRemoteDataForTesting(Map<String, dynamic> remoteData) => _mergeRemoteData(remoteData);
 }

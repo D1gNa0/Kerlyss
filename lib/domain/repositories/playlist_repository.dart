@@ -4,6 +4,7 @@ abstract class PlaylistRepository {
   Future<void> createPlaylist(
     String name,
     List<String> songIds, {
+    String? uuid,
     bool isRealtimeSynced = false,
     bool autoDownloadNewTracks = false,
     String? spotifySourceUrl,

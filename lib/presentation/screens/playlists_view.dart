@@ -284,42 +284,17 @@ class _PlaylistTile extends ConsumerWidget {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      AetherIconButton(
-                        tooltip: playlist.spotifySourceUrl != null
-                            ? (playlist.isRealtimeSynced ? 'Spotify Live Sync Active' : 'Playlist Settings & Sync')
-                            : 'Playlist Settings & Downloads',
-                        icon: Icons.bolt_rounded,
-                        color: (playlist.spotifySourceUrl != null && playlist.isRealtimeSynced)
-                            ? Colors.lightGreenAccent
-                            : Colors.white70,
-                        size: 16,
-                        buttonSize: 32,
-                        onPressed: () => _showSyncSettings(context, ref, allDownloaded),
-                      ),
-                      if (playlist.spotifySourceUrl != null && playlist.isRealtimeSynced)
-                        Positioned(
-                          top: 2,
-                          right: 2,
-                          child: Container(
-                            width: 7,
-                            height: 7,
-                            decoration: BoxDecoration(
-                              color: Colors.lightGreenAccent,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.lightGreenAccent.withValues(alpha: 0.6),
-                                  blurRadius: 4,
-                                  spreadRadius: 1,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                    ],
+                  AetherIconButton(
+                    tooltip: playlist.spotifySourceUrl != null
+                        ? (playlist.isRealtimeSynced ? 'Spotify Live Sync Active' : 'Playlist Settings & Sync')
+                        : 'Playlist Settings & Downloads',
+                    icon: Icons.bolt_rounded,
+                    color: (playlist.spotifySourceUrl != null && playlist.isRealtimeSynced)
+                        ? Colors.lightGreenAccent
+                        : Colors.white70,
+                    size: 16,
+                    buttonSize: 32,
+                    onPressed: () => _showSyncSettings(context, ref, allDownloaded),
                   ),
                   const SizedBox(width: 4),
                   AetherIconButton(

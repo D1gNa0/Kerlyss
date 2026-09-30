@@ -1,8 +1,7 @@
-# Subagent SDD Progress Ledger
+# Subagent SDD Progress Ledger: Profile Page, Song Repeat & Android Playback Improvements
 
-- Task 1: Extend `DownloadState` with song metadata and queue order - [x] (commit 25697b1, test clean)
-- Task 2: Update `TrackDownloadService` to pass `SongEntity` metadata - [x] (commit 25697b1, test clean)
-- Task 3: Render active download progress ring & percentage on `AetherSongTile` - [x] (commit 25697b1, test clean)
-- Task 4: Create `DownloadQueueBottomSheet` UI component - [x] (commit 25697b1, test clean)
-- Task 5: Upgrade `main_shell_view.dart` global download overlay - [x] (commit 25697b1, test clean)
-- Task 6: Add automated unit/widget tests and run `flutter test` - [x] (commit 25697b1, test clean)
+- Task 1: Fix Android Pause Responsiveness in AudioNotifier & KerlyssAudioHandler - [x] (commit f0e1dff, review clean)
+- Task 2: Standardize Playlist Electricity Icon & Simplify Refresh Label - [x] (commit d88ff0c, review clean)
+- Task 3: Build Full ProfileView UI with Google Drive Cloud Sync & Stats - [x] (commit 6be9b62, review clean)
+- Task 4: Accessible Song Repeat & "Play Again" Controls - [x] (commit 483fb0c, review clean)
+- Task 5: End-to-End Verification & Regression Testing - [x] (commit 7256082, 59/59 tests passing)

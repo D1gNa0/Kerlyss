@@ -4,6 +4,7 @@ import '../../core/services/logger_service.dart';
 import '../../data/repositories/repository_providers.dart';
 import 'app_settings_provider.dart';
 import 'playlist_provider.dart';
+import 'track_download_provider.dart';
 
 class CloudSyncState {
   final bool isConnected;
@@ -181,6 +182,16 @@ class CloudSyncNotifier extends StateNotifier<CloudSyncState> {
         // Trigger UI refresh so lists instantly update
         _ref.read(playlistProvider.notifier).loadPlaylists();
         _settingsNotifier.loadSettings();
+
+        // Check if any songs need auto-downloading from remote playlist updates
+        final autoDownloadIds = _driveService.consumeNewlyDiscoveredAutoDownloadSongIds();
+        if (autoDownloadIds.isNotEmpty) {
+          Log.i('CloudSyncNotifier: Found ${autoDownloadIds.length} new tracks to auto-download.');
+          final songs = await _ref.read(songRepositoryProvider).getSongsByIds(autoDownloadIds);
+          if (songs.isNotEmpty) {
+            _ref.read(trackDownloadServiceProvider).downloadMultiple(songs);
+          }
+        }
 
         await _driveService.pushData();
         final now = DateTime.now();

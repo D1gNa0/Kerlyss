@@ -6,6 +6,7 @@ import '../../domain/repositories/playlist_repository.dart';
 import '../../data/repositories/repository_providers.dart';
 import '../../core/services/logger_service.dart';
 import 'cloud_sync_provider.dart';
+import 'track_download_provider.dart';
 
 class PlaylistState {
   final List<PlaylistEntity> playlists;
@@ -77,7 +78,10 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
     try {
       final playlist = await _playlistRepository.getPlaylistById(id);
       if (playlist != null) {
-        final updated = playlist.copyWith(name: newName);
+        final updated = playlist.copyWith(
+          name: newName,
+          lastSyncedAt: DateTime.now(),
+        );
         await _playlistRepository.savePlaylist(updated);
         final updatedPlaylists = state.playlists.map((existing) {
           if (existing.id == id) {
@@ -101,7 +105,10 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
 
       if (!playlist.songIds.contains(song.id)) {
         final updatedIds = List<String>.from(playlist.songIds)..add(song.id);
-        final updated = playlist.copyWith(songIds: updatedIds);
+        final updated = playlist.copyWith(
+          songIds: updatedIds,
+          lastSyncedAt: DateTime.now(),
+        );
         await _playlistRepository.savePlaylist(updated);
         final updatedPlaylists = state.playlists.map((existing) {
           if (existing.id == playlistId) {
@@ -111,6 +118,11 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
         }).toList();
         state = state.copyWith(playlists: updatedPlaylists);
         _triggerCloudSync();
+
+        // If auto-download is enabled on this playlist, immediately download the added track
+        if (playlist.autoDownloadNewTracks) {
+          _ref?.read(trackDownloadServiceProvider).downloadTrack(song);
+        }
       }
     } catch (e, stack) {
       Log.e('PlaylistNotifier: addSongToPlaylist failed: $e', e, stack);
@@ -123,7 +135,10 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
       if (playlist == null) return;
 
       final updatedIds = List<String>.from(playlist.songIds)..remove(songId);
-      final updated = playlist.copyWith(songIds: updatedIds);
+      final updated = playlist.copyWith(
+        songIds: updatedIds,
+        lastSyncedAt: DateTime.now(),
+      );
       await _playlistRepository.savePlaylist(updated);
       final updatedPlaylists = state.playlists.map((existing) {
         if (existing.id == playlistId) {
@@ -163,9 +178,11 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
       final updated = playlist.copyWith(
         isRealtimeSynced: isRealtimeSynced,
         autoDownloadNewTracks: autoDownloadNewTracks,
+        lastSyncedAt: DateTime.now(),
       );
       await _playlistRepository.savePlaylist(updated);
       await loadPlaylists();
+      _triggerCloudSync();
     } catch (e, stack) {
       Log.e('PlaylistNotifier: updatePlaylistSyncSettings failed: $e', e, stack);
     }
@@ -211,6 +228,16 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
         );
         await _playlistRepository.savePlaylist(updated);
         await loadPlaylists();
+
+        // 1. Push changes to Google Drive Cloud Sync so other devices receive the new tracks
+        _triggerCloudSync();
+
+        // 2. Auto-download newly fetched Spotify songs if auto-download is turned on
+        if (playlist.autoDownloadNewTracks && newSongEntities.isNotEmpty) {
+          Log.i('PlaylistNotifier: Auto-downloading ${newSongEntities.length} new tracks in ${playlist.name}...');
+          _ref?.read(trackDownloadServiceProvider).downloadMultiple(newSongEntities);
+        }
+
         return true;
       } else {
         Log.i('PlaylistNotifier: Playlist ${playlist.name} is up to date.');

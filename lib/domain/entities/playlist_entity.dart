@@ -1,5 +1,6 @@
 class PlaylistEntity {
   final int? id;
+  final String? uuid;
   final String name;
   final List<String> songIds;
   final DateTime createdAt;
@@ -11,6 +12,7 @@ class PlaylistEntity {
 
   PlaylistEntity({
     this.id,
+    this.uuid,
     required this.name,
     required this.songIds,
     required this.createdAt,
@@ -23,6 +25,7 @@ class PlaylistEntity {
 
   PlaylistEntity copyWith({
     int? id,
+    String? uuid,
     String? name,
     List<String>? songIds,
     DateTime? createdAt,
@@ -34,6 +37,7 @@ class PlaylistEntity {
   }) {
     return PlaylistEntity(
       id: id ?? this.id,
+      uuid: uuid ?? this.uuid,
       name: name ?? this.name,
       songIds: songIds ?? this.songIds,
       createdAt: createdAt ?? this.createdAt,

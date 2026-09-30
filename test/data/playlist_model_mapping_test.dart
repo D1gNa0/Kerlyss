@@ -157,5 +157,24 @@ void main() {
       expect(updated.coverArtUrl, equals('https://example.com/cover.jpg'));
       expect(updated.lastSyncedAt, equals(now));
     });
+
+    test('Mapping PlaylistModel and PlaylistEntity preserves uuid', () {
+      final now = DateTime.now();
+      final model = PlaylistModel()
+        ..id = 10
+        ..uuid = 'test-uuid-1234'
+        ..name = 'UUID Playlist'
+        ..songIds = ['s1']
+        ..createdAt = now;
+
+      final entity = model.toEntity();
+      expect(entity.uuid, equals('test-uuid-1234'));
+
+      final backToModel = PlaylistModel.fromEntity(entity);
+      expect(backToModel.uuid, equals('test-uuid-1234'));
+
+      final copied = entity.copyWith(uuid: 'new-uuid-5678');
+      expect(copied.uuid, equals('new-uuid-5678'));
+    });
   });
 }

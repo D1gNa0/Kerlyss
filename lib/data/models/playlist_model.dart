@@ -7,6 +7,9 @@ part 'playlist_model.g.dart';
 class PlaylistModel {
   Id id = Isar.autoIncrement;
 
+  @Index()
+  String? uuid;
+
   @Index(unique: true, replace: true)
   late String name;
 
@@ -27,6 +30,7 @@ class PlaylistModel {
   PlaylistEntity toEntity() {
     return PlaylistEntity(
       id: id == Isar.autoIncrement ? null : id,
+      uuid: uuid,
       name: name,
       songIds: songIds,
       createdAt: createdAt,
@@ -40,6 +44,7 @@ class PlaylistModel {
 
   static PlaylistModel fromEntity(PlaylistEntity entity) {
     final model = PlaylistModel()
+      ..uuid = entity.uuid
       ..name = entity.name
       ..songIds = entity.songIds
       ..createdAt = entity.createdAt

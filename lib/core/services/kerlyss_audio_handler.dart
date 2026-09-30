@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:audio_service/audio_service.dart';
 import 'package:just_audio/just_audio.dart';
 import '../../presentation/state/audio_state.dart';
+import 'logger_service.dart';
 
 /// Global Audio Handler for Kerlyss.
 /// This connects just_audio to the system media controls (Notification, Lock Screen, Desktop).
@@ -30,7 +31,12 @@ class KerlyssAudioHandler extends BaseAudioHandler with SeekHandler {
 
   KerlyssAudioHandler() {
     // 1. Listen for playback state changes from just_audio and push to audio_service
-    _player.playbackEventStream.listen(_broadcastState);
+    _player.playbackEventStream.listen(
+      _broadcastState,
+      onError: (error) {
+        Log.w('KerlyssAudioHandler: Playback event error: $error');
+      },
+    );
 
     // 2. Listen for current song changes (mapped to MediaItem)
     _player.durationStream.listen((duration) {

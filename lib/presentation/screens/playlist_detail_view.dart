@@ -484,48 +484,23 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 AetherIconButton(
-                                  tooltip: currentPlaylist.spotifySourceUrl != null ? 'Sync with Cloud & Spotify' : 'Sync with Google Drive',
+                                  tooltip: 'Refresh',
                                   icon: _isSyncing ? Icons.hourglass_top_rounded : Icons.refresh_rounded,
                                   size: 16,
                                   buttonSize: 34,
                                   onPressed: _isSyncing ? null : _triggerManualSync,
                                 ),
-                                Stack(
-                                  clipBehavior: Clip.none,
-                                  children: [
-                                    AetherIconButton(
-                                      tooltip: currentPlaylist.spotifySourceUrl != null
-                                          ? (currentPlaylist.isRealtimeSynced ? 'Spotify Live Sync Active' : 'Playlist Settings & Sync')
-                                          : 'Playlist Settings & Downloads',
-                                      icon: Icons.bolt_rounded,
-                                      color: (currentPlaylist.spotifySourceUrl != null && currentPlaylist.isRealtimeSynced)
-                                          ? Colors.lightGreenAccent
-                                          : Colors.white70,
-                                      size: 16,
-                                      buttonSize: 34,
-                                      onPressed: () => _showSyncSettingsDialog(context, currentPlaylist),
-                                    ),
-                                    if (currentPlaylist.spotifySourceUrl != null && currentPlaylist.isRealtimeSynced)
-                                      Positioned(
-                                        top: 3,
-                                        right: 3,
-                                        child: Container(
-                                          width: 7,
-                                          height: 7,
-                                          decoration: BoxDecoration(
-                                            color: Colors.lightGreenAccent,
-                                            shape: BoxShape.circle,
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: Colors.lightGreenAccent.withValues(alpha: 0.6),
-                                                blurRadius: 4,
-                                                spreadRadius: 1,
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                  ],
+                                AetherIconButton(
+                                  tooltip: currentPlaylist.spotifySourceUrl != null
+                                      ? (currentPlaylist.isRealtimeSynced ? 'Spotify Live Sync Active' : 'Playlist Settings & Sync')
+                                      : 'Playlist Settings & Downloads',
+                                  icon: Icons.bolt_rounded,
+                                  color: (currentPlaylist.spotifySourceUrl != null && currentPlaylist.isRealtimeSynced)
+                                      ? Colors.lightGreenAccent
+                                      : Colors.white70,
+                                  size: 16,
+                                  buttonSize: 34,
+                                  onPressed: () => _showSyncSettingsDialog(context, currentPlaylist),
                                 ),
                                 AetherIconButton(
                                   tooltip: 'Rename Playlist',

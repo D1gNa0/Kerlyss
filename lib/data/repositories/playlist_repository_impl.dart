@@ -2,6 +2,7 @@ import '../../domain/repositories/playlist_repository.dart';
 import '../datasources/local/isar_database_service.dart';
 import '../models/playlist_model.dart';
 import '../../core/services/logger_service.dart';
+import '../../core/utils/uuid_generator.dart';
 import '../../domain/entities/playlist_entity.dart';
 
 class PlaylistRepositoryImpl implements PlaylistRepository {
@@ -13,6 +14,7 @@ class PlaylistRepositoryImpl implements PlaylistRepository {
   Future<void> createPlaylist(
     String name,
     List<String> songIds, {
+    String? uuid,
     bool isRealtimeSynced = false,
     bool autoDownloadNewTracks = false,
     String? spotifySourceUrl,
@@ -20,12 +22,14 @@ class PlaylistRepositoryImpl implements PlaylistRepository {
   }) async {
     try {
       final playlist = PlaylistModel()
+        ..uuid = uuid ?? UuidGenerator.generate()
         ..name = name
         ..songIds = songIds
         ..isRealtimeSynced = isRealtimeSynced
         ..autoDownloadNewTracks = autoDownloadNewTracks
         ..spotifySourceUrl = spotifySourceUrl
-        ..coverArtUrl = coverArtUrl;
+        ..coverArtUrl = coverArtUrl
+        ..lastSyncedAt = DateTime.now();
       await _dbService.savePlaylist(playlist);
     } catch (e, stack) {
       Log.e('PlaylistRepositoryImpl: createPlaylist failed: $e', e, stack);
@@ -37,7 +41,15 @@ class PlaylistRepositoryImpl implements PlaylistRepository {
   Future<List<PlaylistEntity>> getAllPlaylists() async {
     try {
       final models = await _dbService.getAllPlaylists();
-      return models.map((m) => m.toEntity()).toList();
+      final entities = <PlaylistEntity>[];
+      for (final m in models) {
+        if (m.uuid == null || m.uuid!.isEmpty) {
+          m.uuid = UuidGenerator.generate();
+          await _dbService.savePlaylist(m);
+        }
+        entities.add(m.toEntity());
+      }
+      return entities;
     } catch (e, stack) {
       Log.e('PlaylistRepositoryImpl: getAllPlaylists failed: $e', e, stack);
       rethrow;

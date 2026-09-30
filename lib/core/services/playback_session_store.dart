@@ -29,6 +29,9 @@ class PlaybackSessionStore {
   static const String _fileName = 'playback_session.json';
 
   Future<void> save(PlaybackSessionSnapshot snapshot) async {
+    if (Platform.environment.containsKey('FLUTTER_TEST')) {
+      return;
+    }
     try {
       final root = await AppStoragePaths.appRootDirectory();
       final file = File('${root.path}${Platform.pathSeparator}$_fileName');
@@ -51,7 +54,23 @@ class PlaybackSessionStore {
     }
   }
 
+  Future<void> clear() async {
+    if (Platform.environment.containsKey('FLUTTER_TEST')) {
+      return;
+    }
+    try {
+      final root = await AppStoragePaths.appRootDirectory();
+      final file = File('${root.path}${Platform.pathSeparator}$_fileName');
+      if (await file.exists()) {
+        await file.delete();
+      }
+    } catch (_) {}
+  }
+
   Future<PlaybackSessionSnapshot?> load() async {
+    if (Platform.environment.containsKey('FLUTTER_TEST')) {
+      return null;
+    }
     try {
       final root = await AppStoragePaths.appRootDirectory();
       final file = File('${root.path}${Platform.pathSeparator}$_fileName');
