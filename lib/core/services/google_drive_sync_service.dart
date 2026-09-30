@@ -460,8 +460,8 @@ class GoogleDriveSyncService {
     }
   }
 
-  /// Schedule a debounced push (e.g. 4 seconds after a playlist or favorite is modified)
-  void scheduleDebouncedPush({Duration delay = const Duration(seconds: 4)}) {
+  /// Schedule a debounced push (e.g. 1 second after a playlist or favorite is modified)
+  void scheduleDebouncedPush({Duration delay = const Duration(seconds: 1)}) {
     if (!isSignedIn) return;
     if (AetherHttpOverrides.isOfflineMode) return;
 

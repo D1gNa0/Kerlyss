@@ -78,9 +78,11 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
     try {
       final playlist = await _playlistRepository.getPlaylistById(id);
       if (playlist != null) {
+        final now = DateTime.now().toUtc();
         final updated = playlist.copyWith(
           name: newName,
-          lastSyncedAt: DateTime.now(),
+          updatedAt: now,
+          lastSyncedAt: now,
         );
         await _playlistRepository.savePlaylist(updated);
         final updatedPlaylists = state.playlists.map((existing) {
@@ -104,10 +106,12 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
       if (playlist == null) return;
 
       if (!playlist.songIds.contains(song.id)) {
+        final now = DateTime.now().toUtc();
         final updatedIds = List<String>.from(playlist.songIds)..add(song.id);
         final updated = playlist.copyWith(
           songIds: updatedIds,
-          lastSyncedAt: DateTime.now(),
+          updatedAt: now,
+          lastSyncedAt: now,
         );
         await _playlistRepository.savePlaylist(updated);
         final updatedPlaylists = state.playlists.map((existing) {
@@ -134,10 +138,12 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
       final playlist = await _playlistRepository.getPlaylistById(playlistId);
       if (playlist == null) return;
 
+      final now = DateTime.now().toUtc();
       final updatedIds = List<String>.from(playlist.songIds)..remove(songId);
       final updated = playlist.copyWith(
         songIds: updatedIds,
-        lastSyncedAt: DateTime.now(),
+        updatedAt: now,
+        lastSyncedAt: now,
       );
       await _playlistRepository.savePlaylist(updated);
       final updatedPlaylists = state.playlists.map((existing) {
@@ -175,10 +181,12 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
       final playlist = await _playlistRepository.getPlaylistById(playlistId);
       if (playlist == null) return;
 
+      final now = DateTime.now().toUtc();
       final updated = playlist.copyWith(
         isRealtimeSynced: isRealtimeSynced,
         autoDownloadNewTracks: autoDownloadNewTracks,
-        lastSyncedAt: DateTime.now(),
+        updatedAt: now,
+        lastSyncedAt: now,
       );
       await _playlistRepository.savePlaylist(updated);
       await loadPlaylists();
@@ -221,10 +229,12 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
 
       if (newSongIds.isNotEmpty) {
         Log.i('PlaylistNotifier: Found ${newSongIds.length} new tracks for ${playlist.name}');
+        final now = DateTime.now().toUtc();
         final updatedIds = List<String>.from(playlist.songIds)..addAll(newSongIds);
         final updated = playlist.copyWith(
           songIds: updatedIds,
-          lastSyncedAt: DateTime.now(),
+          updatedAt: now,
+          lastSyncedAt: now,
         );
         await _playlistRepository.savePlaylist(updated);
         await loadPlaylists();
