@@ -1,4 +1,4 @@
 {
-  "version": "1.3.1",
-  "releaseNotes": "Kerlyss v1.3.1-beta.1: Repeat/play again controls, instant Android pause responsiveness, playlist UUID synchronization (fixes renaming duplication bug across cloud devices), dynamic app version, and clean sync indicator."
+  "version": "1.3.0",
+  "releaseNotes": "Kerlyss v1.3.0 is out! Introduces Google Drive Cloud Sync across Android and Windows, persistent sign-in sessions, custom downloads directory picker, 5-band equalizer, audio metadata inspector, and active song highlighting."
 }
