@@ -10,12 +10,20 @@ class PlaylistModel {
   @Index()
   String? uuid;
 
-  @Index(unique: true, replace: true)
+  @Index()
   late String name;
 
   late List<String> songIds;
   
   DateTime createdAt = DateTime.now();
+
+  @Index()
+  DateTime? updatedAt;
+
+  @Index()
+  bool isDeleted = false;
+
+  DateTime? deletedAt;
 
   bool isRealtimeSynced = false;
 
@@ -34,6 +42,9 @@ class PlaylistModel {
       name: name,
       songIds: songIds,
       createdAt: createdAt,
+      updatedAt: updatedAt ?? createdAt,
+      isDeleted: isDeleted,
+      deletedAt: deletedAt,
       isRealtimeSynced: isRealtimeSynced,
       autoDownloadNewTracks: autoDownloadNewTracks,
       spotifySourceUrl: spotifySourceUrl,
@@ -48,6 +59,9 @@ class PlaylistModel {
       ..name = entity.name
       ..songIds = entity.songIds
       ..createdAt = entity.createdAt
+      ..updatedAt = entity.updatedAt ?? entity.createdAt
+      ..isDeleted = entity.isDeleted
+      ..deletedAt = entity.deletedAt
       ..isRealtimeSynced = entity.isRealtimeSynced
       ..autoDownloadNewTracks = entity.autoDownloadNewTracks
       ..spotifySourceUrl = entity.spotifySourceUrl

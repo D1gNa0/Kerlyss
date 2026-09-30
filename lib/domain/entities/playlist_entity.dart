@@ -4,6 +4,9 @@ class PlaylistEntity {
   final String name;
   final List<String> songIds;
   final DateTime createdAt;
+  final DateTime? updatedAt;
+  final bool isDeleted;
+  final DateTime? deletedAt;
   final bool isRealtimeSynced;
   final bool autoDownloadNewTracks;
   final String? spotifySourceUrl;
@@ -16,6 +19,9 @@ class PlaylistEntity {
     required this.name,
     required this.songIds,
     required this.createdAt,
+    this.updatedAt,
+    this.isDeleted = false,
+    this.deletedAt,
     this.isRealtimeSynced = false,
     this.autoDownloadNewTracks = false,
     this.spotifySourceUrl,
@@ -29,6 +35,10 @@ class PlaylistEntity {
     String? name,
     List<String>? songIds,
     DateTime? createdAt,
+    DateTime? updatedAt,
+    bool? isDeleted,
+    DateTime? deletedAt,
+    bool clearDeletedAt = false,
     bool? isRealtimeSynced,
     bool? autoDownloadNewTracks,
     String? spotifySourceUrl,
@@ -41,6 +51,9 @@ class PlaylistEntity {
       name: name ?? this.name,
       songIds: songIds ?? this.songIds,
       createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      isDeleted: isDeleted ?? this.isDeleted,
+      deletedAt: clearDeletedAt ? null : (deletedAt ?? this.deletedAt),
       isRealtimeSynced: isRealtimeSynced ?? this.isRealtimeSynced,
       autoDownloadNewTracks: autoDownloadNewTracks ?? this.autoDownloadNewTracks,
       spotifySourceUrl: spotifySourceUrl ?? this.spotifySourceUrl,

@@ -176,5 +176,38 @@ void main() {
       final copied = entity.copyWith(uuid: 'new-uuid-5678');
       expect(copied.uuid, equals('new-uuid-5678'));
     });
+
+    test('Mapping PlaylistModel and PlaylistEntity preserves updatedAt, isDeleted, and deletedAt', () {
+      final now = DateTime.now();
+      final deleteTime = now.add(const Duration(minutes: 5));
+      final updateTime = now.add(const Duration(minutes: 10));
+
+      final model = PlaylistModel()
+        ..id = 15
+        ..uuid = 'test-uuid-sync'
+        ..name = 'Tombstone Playlist'
+        ..songIds = ['s1', 's2']
+        ..createdAt = now
+        ..updatedAt = updateTime
+        ..isDeleted = true
+        ..deletedAt = deleteTime;
+
+      final entity = model.toEntity();
+      expect(entity.updatedAt, equals(updateTime));
+      expect(entity.isDeleted, isTrue);
+      expect(entity.deletedAt, equals(deleteTime));
+
+      final backToModel = PlaylistModel.fromEntity(entity);
+      expect(backToModel.updatedAt, equals(updateTime));
+      expect(backToModel.isDeleted, isTrue);
+      expect(backToModel.deletedAt, equals(deleteTime));
+
+      final copied = entity.copyWith(
+        isDeleted: false,
+        clearDeletedAt: true,
+      );
+      expect(copied.isDeleted, isFalse);
+      expect(copied.deletedAt, isNull);
+    });
   });
 }
