@@ -98,12 +98,35 @@ class IsarDatabaseService {
   }
 
   Future<List<PlaylistModel>> getAllPlaylists() async {
+    return await isar.playlistModels.filter().isDeletedEqualTo(false).findAll();
+  }
+
+  Future<List<PlaylistModel>> getAllPlaylistsIncludingDeleted() async {
     return await isar.playlistModels.where().findAll();
   }
 
   Future<void> deletePlaylist(int id) async {
     await isar.writeTxn(() async {
-      await isar.playlistModels.delete(id);
+      final playlist = await isar.playlistModels.get(id);
+      if (playlist != null) {
+        final now = DateTime.now().toUtc();
+        playlist.isDeleted = true;
+        playlist.deletedAt = now;
+        playlist.updatedAt = now;
+        await isar.playlistModels.put(playlist);
+      }
+    });
+  }
+
+  Future<void> purgeOldDeletedPlaylists({Duration maxAge = const Duration(days: 30)}) async {
+    final cutoff = DateTime.now().toUtc().subtract(maxAge);
+    await isar.writeTxn(() async {
+      await isar.playlistModels
+          .filter()
+          .isDeletedEqualTo(true)
+          .and()
+          .deletedAtLessThan(cutoff)
+          .deleteAll();
     });
   }
 

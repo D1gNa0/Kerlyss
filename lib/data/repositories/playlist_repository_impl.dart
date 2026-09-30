@@ -21,10 +21,14 @@ class PlaylistRepositoryImpl implements PlaylistRepository {
     String? coverArtUrl,
   }) async {
     try {
+      final now = DateTime.now().toUtc();
       final playlist = PlaylistModel()
         ..uuid = uuid ?? UuidGenerator.generate()
         ..name = name
         ..songIds = songIds
+        ..createdAt = now
+        ..updatedAt = now
+        ..isDeleted = false
         ..isRealtimeSynced = isRealtimeSynced
         ..autoDownloadNewTracks = autoDownloadNewTracks
         ..spotifySourceUrl = spotifySourceUrl
@@ -70,7 +74,8 @@ class PlaylistRepositoryImpl implements PlaylistRepository {
   Future<PlaylistEntity?> getPlaylistById(int id) async {
     try {
       final model = await _dbService.getPlaylistById(id);
-      return model?.toEntity();
+      if (model == null || model.isDeleted) return null;
+      return model.toEntity();
     } catch (e, stack) {
       Log.e('PlaylistRepositoryImpl: getPlaylistById failed: $e', e, stack);
       rethrow;
