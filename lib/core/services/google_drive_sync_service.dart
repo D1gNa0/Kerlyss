@@ -535,6 +535,12 @@ class GoogleDriveSyncService {
   }
 
   Future<void> _mergeRemoteData(Map<String, dynamic> remoteData) async {
+    final remoteLastModified = DateTime.tryParse(remoteData['lastModified'] as String? ?? '');
+    final localSettings = await _isarService.getSettings();
+    final isRemoteNewerOverall = remoteLastModified != null &&
+        localSettings.lastCloudSyncAt != null &&
+        remoteLastModified.isAfter(localSettings.lastCloudSyncAt!);
+
     // 1. Merge Songs (hydrate songs metadata so titles/artists show immediately)
     if (remoteData['songs'] is List) {
       final remoteSongs = remoteData['songs'] as List;
@@ -559,11 +565,18 @@ class GoogleDriveSyncService {
               ..dateAdded = DateTime.tryParse(item['dateAdded'] as String? ?? '') ?? DateTime.now();
             await _isarService.saveSong(song);
           } else {
-            // If remote marked as favorite and local is not, merge favorite status (union)
             final remoteFav = (item['isFavorite'] as bool?) ?? false;
-            if (remoteFav && !existing.isFavorite) {
-              existing.isFavorite = true;
-              await _isarService.saveSong(existing);
+            if (isRemoteNewerOverall) {
+              if (existing.isFavorite != remoteFav) {
+                existing.isFavorite = remoteFav;
+                await _isarService.saveSong(existing);
+              }
+            } else {
+              // If remote is not newer, union merge favorites
+              if (remoteFav && !existing.isFavorite) {
+                existing.isFavorite = true;
+                await _isarService.saveSong(existing);
+              }
             }
           }
         }
@@ -738,7 +751,6 @@ class GoogleDriveSyncService {
     }
 
     // 3. Merge Settings (disliked songs/artists union)
-    final localSettings = await _isarService.getSettings();
     bool settingsChanged = false;
 
     if (remoteData['dislikedSongIds'] is List) {

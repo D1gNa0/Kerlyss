@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/repositories/song_repository.dart';
 import '../../data/repositories/repository_providers.dart';
 import '../../domain/repositories/playlist_repository.dart';
+import 'cloud_sync_provider.dart';
+import 'playlist_provider.dart';
 
 
 enum ImportStatus { idle, analyzing, resolving, complete, error }
@@ -47,8 +49,9 @@ class ImportState {
 class ImportStateNotifier extends StateNotifier<ImportState> {
   final SongRepository _repository;
   final PlaylistRepository _playlistRepo;
+  final Ref? _ref;
 
-  ImportStateNotifier(this._repository, this._playlistRepo) : super(const ImportState());
+  ImportStateNotifier(this._repository, this._playlistRepo, [this._ref]) : super(const ImportState());
 
   void setStatus(ImportStatus status, {String? errorMessage}) {
     state = state.copyWith(status: status, errorMessage: errorMessage);
@@ -134,6 +137,12 @@ class ImportStateNotifier extends StateNotifier<ImportState> {
           );
 
           Log.i('Spotify Import: Successfully completed import of "${playlistData.name}"');
+
+          // Reload playlist state so UI shows the new playlist immediately
+          _ref?.read(playlistProvider.notifier).loadPlaylists();
+          // Trigger cloud sync so the imported playlist is pushed to Google Drive
+          _ref?.read(cloudSyncProvider.notifier).schedulePush();
+
           setStatus(ImportStatus.complete);
         } else {
           Log.w('Spotify Import: Failed to resolve any tracks for "${playlistData.name}"');
@@ -152,5 +161,5 @@ class ImportStateNotifier extends StateNotifier<ImportState> {
 final importStateProvider = StateNotifierProvider<ImportStateNotifier, ImportState>((ref) {
   final repository = ref.watch(songRepositoryProvider);
   final playlistRepo = ref.watch(playlistRepositoryProvider);
-  return ImportStateNotifier(repository, playlistRepo);
+  return ImportStateNotifier(repository, playlistRepo, ref);
 });

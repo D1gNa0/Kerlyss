@@ -1,0 +1,10 @@
+{
+  "id": "msg_welcome_beta",
+  "showMessage": false,
+  "title": "Developer Message",
+  "message": "Welcome to the Kerlyss Beta! Enjoy seamless music streaming, offline downloads, and real-time cloud sync.",
+  "actionLabel": "Visit Website",
+  "actionUrl": "https://d1gna0.github.io/Kerlyss/",
+  "dismissable": true,
+  "priority": "info"
+}

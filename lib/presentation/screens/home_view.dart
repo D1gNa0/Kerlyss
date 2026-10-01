@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../theme/aether_colors.dart';
@@ -11,6 +13,7 @@ import '../common/aether_glass.dart';
 import '../common/vercel_hover_button.dart';
 import '../common/aether_link_bar.dart';
 import '../state/library_provider.dart';
+import '../state/cloud_sync_provider.dart';
 import 'profile_view.dart';
 import 'settings_view.dart';
 import '../common/aether_song_tile.dart';
@@ -45,14 +48,23 @@ class HomeView extends ConsumerWidget {
     final selectedCategory = ref.watch(_libraryCategoryProvider);
     final l10n = AppLocalizations.of(context)!;
 
+    final isDesktop = !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: DropTarget(
         onDragEntered: (_) => ref.read(_isDraggingProvider.notifier).state = true,
         onDragExited: (_) => ref.read(_isDraggingProvider.notifier).state = false,
         onDragDone: (details) => _handleDrop(context, ref, details),
-        child: CustomScrollView(
-          physics: const BouncingScrollPhysics(),
+        child: RefreshIndicator(
+          color: AetherColors.accentCyan,
+          backgroundColor: AetherColors.ultraDarkGray,
+          onRefresh: () async {
+            await ref.read(cloudSyncProvider.notifier).syncNow();
+            await ref.read(libraryProvider.notifier).loadLibrary();
+          },
+          child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
             // Header
             SliverAppBar(
@@ -66,6 +78,23 @@ class HomeView extends ConsumerWidget {
                 title: Text('HOME LIBRARY', style: Theme.of(context).textTheme.displayMedium),
               ),
               actions: [
+                if (isDesktop)
+                  AetherIconButton(
+                    tooltip: 'Refresh Library',
+                    icon: Icons.refresh_rounded,
+                    size: 18,
+                    buttonSize: 36,
+                    color: Colors.white70,
+                    onPressed: () async {
+                      ToastService.show(context, 'Refreshing library...');
+                      await ref.read(cloudSyncProvider.notifier).syncNow();
+                      await ref.read(libraryProvider.notifier).loadLibrary();
+                      if (context.mounted) {
+                        ToastService.show(context, 'Library refreshed!');
+                      }
+                    },
+                  ),
+                if (isDesktop) const SizedBox(width: 4),
                 AetherIconButton(
                   tooltip: 'Profile',
                   icon: Icons.person_outline_rounded,
@@ -155,6 +184,7 @@ class HomeView extends ConsumerWidget {
 
             const SliverToBoxAdapter(child: SizedBox(height: 180)),
           ],
+        ),
         ),
       ),
     );

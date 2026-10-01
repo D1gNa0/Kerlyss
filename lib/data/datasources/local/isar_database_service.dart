@@ -98,7 +98,8 @@ class IsarDatabaseService {
   }
 
   Future<List<PlaylistModel>> getAllPlaylists() async {
-    return await isar.playlistModels.filter().isDeletedEqualTo(false).findAll();
+    final all = await isar.playlistModels.where().findAll();
+    return all.where((p) => !p.isDeleted).toList();
   }
 
   Future<List<PlaylistModel>> getAllPlaylistsIncludingDeleted() async {

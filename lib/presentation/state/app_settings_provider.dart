@@ -5,6 +5,7 @@ import '../../core/services/logger_service.dart';
 import '../../data/datasources/local/isar_database_service.dart';
 import '../../data/models/app_settings_model.dart';
 import '../../data/repositories/repository_providers.dart';
+import 'cloud_sync_provider.dart';
 
 import '../../main.dart';
 
@@ -194,8 +195,9 @@ class AppSettingsState {
 
 class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
   final IsarDatabaseService _isarService;
+  final Ref? _ref;
 
-  AppSettingsNotifier(this._isarService) : super(AppSettingsState.initial()) {
+  AppSettingsNotifier(this._isarService, [this._ref]) : super(AppSettingsState.initial()) {
     loadSettings();
   }
 
@@ -210,38 +212,41 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
     }
   }
 
-  Future<void> _saveSettings(AppSettingsState newState) async {
+  Future<void> _saveSettings(AppSettingsState newState, {bool syncCloud = false}) async {
     state = newState;
     AetherHttpOverrides.isOfflineMode = state.isOfflineMode;
     try {
       await _isarService.saveSettings(newState.toModel());
+      if (syncCloud && newState.cloudSyncEnabled) {
+        _ref?.read(cloudSyncProvider.notifier).schedulePush();
+      }
     } catch (e, stackTrace) {
       Log.e('Failed to save app settings to Isar: $e', e, stackTrace);
     }
   }
 
   Future<void> setAudioQuality(String val) async {
-    await _saveSettings(state.copyWith(audioQuality: val));
+    await _saveSettings(state.copyWith(audioQuality: val), syncCloud: true);
   }
 
   Future<void> setGaplessPlayback(bool enabled) async {
-    await _saveSettings(state.copyWith(gaplessPlayback: enabled));
+    await _saveSettings(state.copyWith(gaplessPlayback: enabled), syncCloud: true);
   }
 
   Future<void> toggleGapless() async {
-    await _saveSettings(state.copyWith(gaplessPlayback: !state.gaplessPlayback));
+    await _saveSettings(state.copyWith(gaplessPlayback: !state.gaplessPlayback), syncCloud: true);
   }
 
   Future<void> setEqualizerEnabled(bool enabled) async {
-    await _saveSettings(state.copyWith(equalizerEnabled: enabled));
+    await _saveSettings(state.copyWith(equalizerEnabled: enabled), syncCloud: true);
   }
 
   Future<void> setEqPreset(String preset) async {
-    await _saveSettings(state.copyWith(eqPreset: preset));
+    await _saveSettings(state.copyWith(eqPreset: preset), syncCloud: true);
   }
 
   Future<void> setEqBandGains(List<double> gains) async {
-    await _saveSettings(state.copyWith(eqBandGains: gains));
+    await _saveSettings(state.copyWith(eqBandGains: gains), syncCloud: true);
   }
 
   Future<void> setTheme(String val) async {
@@ -253,7 +258,7 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
   }
 
   Future<void> setVolume(double val) async {
-    await _saveSettings(state.copyWith(volume: val.clamp(0.0, 1.0)));
+    await _saveSettings(state.copyWith(volume: val.clamp(0.0, 1.0)), syncCloud: true);
   }
 
   Future<void> setOfflineMode(bool enabled) async {
@@ -277,14 +282,27 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
   Future<void> addDislikedSong(String songId) async {
     if (songId.isEmpty || state.dislikedSongIds.contains(songId)) return;
     final updated = List<String>.from(state.dislikedSongIds)..add(songId);
-    await _saveSettings(state.copyWith(dislikedSongIds: updated));
+    await _saveSettings(state.copyWith(dislikedSongIds: updated), syncCloud: true);
+  }
+
+  Future<void> removeDislikedSong(String songId) async {
+    if (!state.dislikedSongIds.contains(songId)) return;
+    final updated = List<String>.from(state.dislikedSongIds)..remove(songId);
+    await _saveSettings(state.copyWith(dislikedSongIds: updated), syncCloud: true);
   }
 
   Future<void> addDislikedArtist(String artistName) async {
     final clean = artistName.trim();
     if (clean.isEmpty || state.dislikedArtists.contains(clean)) return;
     final updated = List<String>.from(state.dislikedArtists)..add(clean);
-    await _saveSettings(state.copyWith(dislikedArtists: updated));
+    await _saveSettings(state.copyWith(dislikedArtists: updated), syncCloud: true);
+  }
+
+  Future<void> removeDislikedArtist(String artistName) async {
+    final clean = artistName.trim();
+    if (!state.dislikedArtists.contains(clean)) return;
+    final updated = List<String>.from(state.dislikedArtists)..remove(clean);
+    await _saveSettings(state.copyWith(dislikedArtists: updated), syncCloud: true);
   }
 
   Future<void> setCloudSyncEnabled(bool enabled) async {
@@ -318,5 +336,5 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
 
 final appSettingsProvider = StateNotifierProvider<AppSettingsNotifier, AppSettingsState>((ref) {
   final isarService = ref.watch(isarDatabaseServiceProvider);
-  return AppSettingsNotifier(isarService);
+  return AppSettingsNotifier(isarService, ref);
 });

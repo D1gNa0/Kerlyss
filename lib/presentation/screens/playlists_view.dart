@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../theme/aether_colors.dart';
@@ -139,6 +141,23 @@ class _PlaylistsViewState extends ConsumerState<PlaylistsView> {
                   return const SizedBox.shrink();
                 },
               ),
+              // Windows-only refresh button (since pull-to-refresh is mobile-only)
+              if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS))
+                AetherIconButton(
+                  tooltip: 'Refresh Playlists',
+                  icon: Icons.refresh_rounded,
+                  color: Colors.white70,
+                  size: 18,
+                  buttonSize: 36,
+                  onPressed: () async {
+                    ToastService.show(context, 'Refreshing playlists...');
+                    await ref.read(cloudSyncProvider.notifier).syncNow();
+                    await ref.read(playlistProvider.notifier).loadPlaylists();
+                    if (context.mounted) {
+                      ToastService.show(context, 'Playlists refreshed!');
+                    }
+                  },
+                ),
               const SizedBox(width: 4),
               AetherIconButton(
                 tooltip: 'Downloads',
@@ -257,10 +276,17 @@ class _PlaylistTile extends ConsumerWidget {
       }
     }
 
+    final syncState = ref.watch(cloudSyncProvider);
+    final isPending = syncState.isPlaylistPending(playlist.uuid);
+
     return VercelHoverButton(
       onTap: onSelect,
       borderRadius: 20,
       padding: const EdgeInsets.all(16),
+      bottomIndicatorColor: syncState.isConnected
+          ? (isPending ? Colors.amberAccent : AetherColors.accentCyan)
+          : null,
+      bottomIndicatorHeight: 2.5,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

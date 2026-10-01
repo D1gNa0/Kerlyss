@@ -185,7 +185,7 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
       }
       // Silently refresh in background to ensure sync with DB
       await loadLibrary();
-      _ref.read(cloudSyncProvider.notifier).schedulePush();
+      _ref.read(cloudSyncProvider.notifier).markSongPending(song.id);
     } catch (e, stack) {
       Log.e('LibraryProvider: toggleFavorite ERROR: $e', e, stack);
       // Revert if failed (simple implementation: just reload)

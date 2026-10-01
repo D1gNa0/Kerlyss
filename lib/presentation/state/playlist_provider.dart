@@ -41,10 +41,21 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
     _ref?.read(cloudSyncProvider.notifier).schedulePush();
   }
 
+  /// Mark a playlist as having pending un-synced changes in the cloud sync state.
+  void _markPendingSync(String? uuid) {
+    if (uuid != null) {
+      _ref?.read(cloudSyncProvider.notifier).markPlaylistPending(uuid);
+    }
+  }
+
   Future<void> loadPlaylists() async {
     try {
       state = state.copyWith(isLoading: true);
       final playlists = await _playlistRepository.getAllPlaylists();
+      if (playlists.isEmpty) {
+        Log.w('PlaylistNotifier: loadPlaylists returned 0 playlists — '
+              'Isar may have been wiped or schema-migrated.');
+      }
       state = state.copyWith(playlists: playlists, isLoading: false);
     } catch (e, stack) {
       Log.e('PlaylistNotifier: loadPlaylists failed: $e', e, stack);
@@ -56,6 +67,9 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
     try {
       await _playlistRepository.createPlaylist(name, []);
       await loadPlaylists();
+      // Find the newly created playlist to mark it pending
+      final created = state.playlists.where((p) => p.name == name).lastOrNull;
+      _markPendingSync(created?.uuid);
       _triggerCloudSync();
     } catch (e, stack) {
       Log.e('PlaylistNotifier: createPlaylist failed: $e', e, stack);
@@ -64,10 +78,13 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
 
   Future<void> deletePlaylist(int id) async {
     try {
+      // Get the playlist before deleting to access its UUID
+      final playlist = state.playlists.where((p) => p.id == id).firstOrNull;
       await _playlistRepository.deletePlaylist(id);
       state = state.copyWith(
         playlists: state.playlists.where((playlist) => playlist.id != id).toList(),
       );
+      _markPendingSync(playlist?.uuid);
       _triggerCloudSync();
     } catch (e, stack) {
       Log.e('PlaylistNotifier: deletePlaylist failed: $e', e, stack);
@@ -92,6 +109,7 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
           return existing;
         }).toList();
         state = state.copyWith(playlists: updatedPlaylists);
+        _markPendingSync(playlist.uuid);
         _triggerCloudSync();
       }
     } catch (e, stack) {
@@ -121,6 +139,7 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
           return existing;
         }).toList();
         state = state.copyWith(playlists: updatedPlaylists);
+        _markPendingSync(playlist.uuid);
         _triggerCloudSync();
 
         // If auto-download is enabled on this playlist, immediately download the added track
@@ -153,6 +172,7 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
         return existing;
       }).toList();
       state = state.copyWith(playlists: updatedPlaylists);
+      _markPendingSync(playlist.uuid);
       _triggerCloudSync();
     } catch (e, stack) {
       Log.e('PlaylistNotifier: removeSongFromPlaylist failed: $e', e, stack);
@@ -190,6 +210,7 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
       );
       await _playlistRepository.savePlaylist(updated);
       await loadPlaylists();
+      _markPendingSync(playlist.uuid);
       _triggerCloudSync();
     } catch (e, stack) {
       Log.e('PlaylistNotifier: updatePlaylistSyncSettings failed: $e', e, stack);
@@ -240,6 +261,7 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
         await loadPlaylists();
 
         // 1. Push changes to Google Drive Cloud Sync so other devices receive the new tracks
+        _markPendingSync(playlist.uuid);
         _triggerCloudSync();
 
         // 2. Auto-download newly fetched Spotify songs if auto-download is turned on

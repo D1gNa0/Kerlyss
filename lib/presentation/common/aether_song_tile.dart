@@ -14,6 +14,7 @@ import '../state/audio_provider.dart';
 import 'source_badge.dart';
 import 'fix_track_match_dialog.dart';
 import '../../core/services/toast_service.dart';
+import '../state/cloud_sync_provider.dart';
 
 class AetherSongTile extends ConsumerWidget {
   final SongEntity song;
@@ -57,6 +58,8 @@ class AetherSongTile extends ConsumerWidget {
             (audioState.currentSong.title.isNotEmpty &&
                 audioState.currentSong.title.toLowerCase() == song.title.toLowerCase()));
     final isPlayingCurrent = isCurrentSong && audioState.status == PlaybackStatus.playing;
+    final syncState = ref.watch(cloudSyncProvider);
+    final isSongPending = syncState.isSongPending(song.id);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
@@ -66,6 +69,12 @@ class AetherSongTile extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         isHighlighted: isCurrentSong,
         accentColor: AetherColors.accentCyan,
+        bottomIndicatorColor: syncState.isConnected
+            ? (isSongPending
+                ? Colors.amberAccent
+                : AetherColors.accentCyan.withValues(alpha: 0.35))
+            : null,
+        bottomIndicatorHeight: 2.0,
         child: Row(
           children: [
             Container(

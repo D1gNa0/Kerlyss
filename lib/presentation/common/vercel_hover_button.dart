@@ -12,6 +12,8 @@ class VercelHoverButton extends StatefulWidget {
   final double borderRadius;
   final EdgeInsetsGeometry padding;
   final bool isHighlighted;
+  final Color? bottomIndicatorColor;
+  final double bottomIndicatorHeight;
 
   const VercelHoverButton({
     super.key,
@@ -21,6 +23,8 @@ class VercelHoverButton extends StatefulWidget {
     this.borderRadius = 16.0,
     this.padding = const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
     this.isHighlighted = false,
+    this.bottomIndicatorColor,
+    this.bottomIndicatorHeight = 2.5,
   });
 
   @override
@@ -95,7 +99,32 @@ class _VercelHoverButtonState extends State<VercelHoverButton> {
                     ]
                   : [],
             ),
-            child: widget.child,
+            child: widget.bottomIndicatorColor != null
+                ? Stack(
+                    children: [
+                      widget.child,
+                      Positioned(
+                        left: widget.borderRadius * 0.75,
+                        right: widget.borderRadius * 0.75,
+                        bottom: 0,
+                        child: Container(
+                          height: widget.bottomIndicatorHeight,
+                          decoration: BoxDecoration(
+                            color: widget.bottomIndicatorColor,
+                            borderRadius: BorderRadius.circular(widget.bottomIndicatorHeight),
+                            boxShadow: [
+                              BoxShadow(
+                                color: widget.bottomIndicatorColor!.withValues(alpha: 0.5),
+                                blurRadius: 6,
+                                spreadRadius: 0.5,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                : widget.child,
           ),
         ),
       ),

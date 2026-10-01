@@ -18,6 +18,7 @@ import '../common/aether_title_bar.dart';
 import '../theme/aether_colors.dart';
 import '../state/download_state_provider.dart';
 import '../../core/services/update_service.dart';
+import '../../core/services/developer_message_service.dart';
 import 'download_components/download_queue_bottom_sheet.dart';
 
 class MainShellView extends ConsumerStatefulWidget {
@@ -73,6 +74,7 @@ class _MainShellViewState extends ConsumerState<MainShellView> {
     
     WidgetsBinding.instance.addPostFrameCallback((_) {
       UpdateService().checkForUpdates(context);
+      DeveloperMessageService().checkForMessages(context);
       ref.read(cloudSyncProvider);
     });
   }

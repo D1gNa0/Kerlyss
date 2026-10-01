@@ -12,6 +12,8 @@ class CloudSyncState {
   final String? userEmail;
   final DateTime? lastSyncedAt;
   final String? errorMessage;
+  final Set<String> pendingSyncPlaylistUuids;
+  final Set<String> pendingSyncSongIds;
 
   const CloudSyncState({
     this.isConnected = false,
@@ -19,7 +21,21 @@ class CloudSyncState {
     this.userEmail,
     this.lastSyncedAt,
     this.errorMessage,
+    this.pendingSyncPlaylistUuids = const {},
+    this.pendingSyncSongIds = const {},
   });
+
+  bool isPlaylistPending(String? uuid) =>
+      isConnected && uuid != null && pendingSyncPlaylistUuids.contains(uuid);
+
+  bool isPlaylistSynced(String? uuid) =>
+      isConnected && (uuid == null || !pendingSyncPlaylistUuids.contains(uuid));
+
+  bool isSongPending(String songId) =>
+      isConnected && pendingSyncSongIds.contains(songId);
+
+  bool isSongSynced(String songId) =>
+      isConnected && !pendingSyncSongIds.contains(songId);
 
   CloudSyncState copyWith({
     bool? isConnected,
@@ -29,6 +45,8 @@ class CloudSyncState {
     DateTime? lastSyncedAt,
     String? errorMessage,
     bool clearErrorMessage = false,
+    Set<String>? pendingSyncPlaylistUuids,
+    Set<String>? pendingSyncSongIds,
   }) {
     return CloudSyncState(
       isConnected: isConnected ?? this.isConnected,
@@ -36,6 +54,8 @@ class CloudSyncState {
       userEmail: clearUserEmail ? null : (userEmail ?? this.userEmail),
       lastSyncedAt: lastSyncedAt ?? this.lastSyncedAt,
       errorMessage: clearErrorMessage ? null : (errorMessage ?? this.errorMessage),
+      pendingSyncPlaylistUuids: pendingSyncPlaylistUuids ?? this.pendingSyncPlaylistUuids,
+      pendingSyncSongIds: pendingSyncSongIds ?? this.pendingSyncSongIds,
     );
   }
 
@@ -48,7 +68,11 @@ class CloudSyncState {
           isSyncing == other.isSyncing &&
           userEmail == other.userEmail &&
           lastSyncedAt == other.lastSyncedAt &&
-          errorMessage == other.errorMessage;
+          errorMessage == other.errorMessage &&
+          pendingSyncPlaylistUuids.length == other.pendingSyncPlaylistUuids.length &&
+          pendingSyncPlaylistUuids.containsAll(other.pendingSyncPlaylistUuids) &&
+          pendingSyncSongIds.length == other.pendingSyncSongIds.length &&
+          pendingSyncSongIds.containsAll(other.pendingSyncSongIds);
 
   @override
   int get hashCode =>
@@ -56,7 +80,9 @@ class CloudSyncState {
       isSyncing.hashCode ^
       userEmail.hashCode ^
       lastSyncedAt.hashCode ^
-      errorMessage.hashCode;
+      errorMessage.hashCode ^
+      pendingSyncPlaylistUuids.length.hashCode ^
+      pendingSyncSongIds.length.hashCode;
 }
 
 class CloudSyncNotifier extends StateNotifier<CloudSyncState> {
@@ -104,6 +130,8 @@ class CloudSyncNotifier extends StateNotifier<CloudSyncState> {
         isConnected: false,
         errorMessage: 'Session expired. Please reconnect.',
       );
+      // Ensure local playlists are still loaded even though cloud is disconnected
+      _ref.read(playlistProvider.notifier).loadPlaylists();
     }
   }
 
@@ -169,6 +197,8 @@ class CloudSyncNotifier extends StateNotifier<CloudSyncState> {
       isConnected: false,
       clearUserEmail: true,
       clearErrorMessage: true,
+      pendingSyncPlaylistUuids: {},
+      pendingSyncSongIds: {},
     );
   }
 
@@ -199,6 +229,8 @@ class CloudSyncNotifier extends StateNotifier<CloudSyncState> {
         state = state.copyWith(
           isSyncing: false,
           lastSyncedAt: now,
+          pendingSyncPlaylistUuids: {},
+          pendingSyncSongIds: {},
         );
         return true;
       } else {
@@ -222,6 +254,34 @@ class CloudSyncNotifier extends StateNotifier<CloudSyncState> {
     if (state.isConnected) {
       _driveService.scheduleDebouncedPush();
     }
+  }
+
+  /// Mark a playlist UUID as having pending un-synced changes.
+  void markPlaylistPending(String uuid) {
+    if (state.isConnected) {
+      state = state.copyWith(
+        pendingSyncPlaylistUuids: {...state.pendingSyncPlaylistUuids, uuid},
+      );
+      schedulePush();
+    }
+  }
+
+  /// Mark a song ID as having pending un-synced changes.
+  void markSongPending(String songId) {
+    if (state.isConnected) {
+      state = state.copyWith(
+        pendingSyncSongIds: {...state.pendingSyncSongIds, songId},
+      );
+      schedulePush();
+    }
+  }
+
+  /// Clear all pending sync markers (called after successful push).
+  void clearAllPending() {
+    state = state.copyWith(
+      pendingSyncPlaylistUuids: {},
+      pendingSyncSongIds: {},
+    );
   }
 }
 
