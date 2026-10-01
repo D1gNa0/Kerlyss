@@ -45,7 +45,7 @@ android {
     defaultConfig {
         applicationId "com.d1gna0.kerlyss"
         minSdkVersion flutter.minSdkVersion
-        targetSdkVersion 36
+        targetSdkVersion 34
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
     }
@@ -56,6 +56,10 @@ android {
             keyPassword = keystoreProperties['keyPassword']
             storeFile = keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
             storePassword = keystoreProperties['storePassword']
+            enableV1Signing = true
+            enableV2Signing = true
+            v1SigningEnabled true
+            v2SigningEnabled true
         }
     }
 

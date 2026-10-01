@@ -27,7 +27,7 @@ subprojects {
             project.android {
                 // Force modern SDK and namespace fallback for AGP 8 stability
                 compileSdk = 36
-                buildToolsVersion = "36.0.0-rc1"
+                buildToolsVersion = "36.1.0"
                 if (namespace == null) {
                     namespace project.group
                 }
