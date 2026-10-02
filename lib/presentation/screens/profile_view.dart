@@ -468,7 +468,7 @@ class ProfileView extends ConsumerWidget {
                               FutureBuilder<PackageInfo>(
                                 future: PackageInfo.fromPlatform(),
                                 builder: (context, snapshot) {
-                                  final v = snapshot.data?.version ?? '1.3.0';
+                                  final v = snapshot.data?.version ?? '1.3.2';
                                   final b = snapshot.data?.buildNumber;
                                   final display = (b != null && b.isNotEmpty) ? 'v$v+$b' : 'v$v';
                                   return Text(
