@@ -800,33 +800,337 @@
         }
 
         /* --- Responsive Styles --- */
-        @media (max-width: 992px) {
+        @media (max-width: 1024px) {
+            html {
+                scroll-snap-type: none !important;
+            }
+            section {
+                scroll-snap-align: none !important;
+            }
             .bento-grid {
                 grid-template-columns: repeat(2, 1fr);
             }
         }
 
-        @media (max-width: 768px) {
-            .container { padding: 0 18px; }
-            .nav-inner { height: 64px; }
-            .brand { gap: 8px; }
-            .brand-icon { width: 32px; height: 32px; border-radius: 8px; }
-            .brand-name { font-size: 1rem; }
-            .nav-links { display: none; }
-            .nav-cta { padding: 7px 14px; font-size: 0.8rem; }
-            .hero { padding-top: 110px; padding-bottom: 45px; }
-            .bento-grid { grid-template-columns: 1fr; }
-            .btn-group { flex-direction: column; width: 100%; }
-            .btn { width: 100%; justify-content: center; }
-            .arch-card { padding: 28px 18px; }
-            .chart-node-hub { width: 100%; max-width: 280px; }
-            .chart-bottom { grid-template-columns: 1fr; gap: 12px; }
-            .chart-connectors { display: none; }
-            .chart-node-device { margin-top: 6px; }
+        @media (hover: none) and (pointer: coarse) {
+            html {
+                scroll-snap-type: none !important;
+            }
+            section {
+                scroll-snap-align: none !important;
+            }
         }
 
-        @media (max-width: 480px) {
-            .version-badge { display: none; }
+        @media (max-width: 768px) {
+            .container { 
+                padding: 0 16px; 
+            }
+            
+            /* Navigation */
+            .nav-inner { 
+                height: 58px; 
+            }
+            .brand { 
+                gap: 8px; 
+            }
+            .brand-icon { 
+                width: 28px; 
+                height: 28px; 
+                border-radius: 7px; 
+            }
+            .brand-name { 
+                font-size: 0.95rem; 
+                letter-spacing: 0.04em;
+            }
+            .version-badge {
+                font-size: 0.68rem;
+                padding: 1px 6px;
+            }
+            .nav-links { 
+                display: none; 
+            }
+            .nav-cta { 
+                padding: 6px 14px; 
+                font-size: 0.78rem; 
+                font-weight: 700;
+            }
+
+            /* Hero Section */
+            .hero { 
+                padding-top: 88px; 
+                padding-bottom: 34px; 
+            }
+            .hero-app-icon {
+                width: 64px !important;
+                height: 64px !important;
+                border-radius: 14px !important;
+            }
+            .hero-pill {
+                font-size: 0.72rem;
+                padding: 4px 11px;
+                margin-bottom: 16px;
+            }
+            .hero-title {
+                font-size: clamp(1.75rem, 6.8vw, 2.25rem);
+                line-height: 1.18;
+                letter-spacing: -0.03em;
+                margin-bottom: 14px;
+            }
+            .hero-desc {
+                font-size: 0.92rem;
+                line-height: 1.55;
+                margin-bottom: 22px;
+                padding: 0 4px;
+            }
+            
+            /* Hero CTAs */
+            .btn-group { 
+                flex-direction: column; 
+                width: 100%; 
+                max-width: 320px;
+                margin: 0 auto 10px auto;
+                gap: 10px;
+            }
+            .support-group {
+                width: 100%;
+                max-width: 320px;
+                margin: 0 auto 18px auto;
+            }
+            .btn { 
+                width: 100%; 
+                justify-content: center; 
+                padding: 12px 20px;
+                font-size: 0.88rem;
+            }
+            .sys-req {
+                font-size: 0.72rem;
+                gap: 8px;
+                flex-wrap: wrap;
+                justify-content: center;
+                text-align: center;
+            }
+
+            /* Section Headers */
+            .section-header {
+                margin-bottom: 20px;
+            }
+            .section-tag {
+                font-size: 0.68rem;
+                margin-bottom: 6px;
+                letter-spacing: 0.1em;
+            }
+            .section-title {
+                font-size: clamp(1.35rem, 5.2vw, 1.7rem);
+                letter-spacing: -0.02em;
+                margin-bottom: 8px;
+            }
+            .section-subtitle {
+                font-size: 0.86rem;
+                line-height: 1.5;
+                padding: 0 4px;
+            }
+
+            /* Architecture Server Tree Chart */
+            .architecture-section {
+                padding: 18px 0 38px 0;
+            }
+            .arch-card { 
+                padding: 22px 14px; 
+                border-radius: 20px;
+            }
+            .server-chart {
+                margin: 20px auto 14px auto;
+                width: 100%;
+            }
+            .chart-node-hub { 
+                width: 100%; 
+                max-width: 250px; 
+                padding: 14px 16px;
+                border-radius: 14px;
+            }
+            .chart-node-hub .chart-node-icon {
+                width: 38px;
+                height: 38px;
+                border-radius: 10px;
+                margin-bottom: 6px;
+            }
+            .chart-node-hub .chart-node-title {
+                font-size: 0.95rem;
+            }
+            .chart-node-hub .chart-node-sub {
+                font-size: 0.74rem;
+            }
+            .chart-connectors { 
+                height: 36px;
+                display: flex;
+                width: 100%;
+            }
+            .chart-bottom { 
+                display: grid;
+                grid-template-columns: repeat(3, 1fr); 
+                gap: 6px; 
+                width: 100%;
+            }
+            .chart-node-device { 
+                padding: 12px 4px;
+                border-radius: 12px;
+            }
+            .chart-node-device .chart-node-icon {
+                width: 32px;
+                height: 32px;
+                border-radius: 8px;
+                margin-bottom: 6px;
+            }
+            .chart-node-device .chart-node-title {
+                font-size: 0.72rem;
+                line-height: 1.2;
+                margin-bottom: 2px;
+            }
+            .chart-node-device .chart-node-sub {
+                font-size: 0.62rem;
+                color: var(--accent-emerald);
+            }
+            .arch-badges {
+                gap: 6px;
+                padding-top: 16px;
+            }
+            .arch-badge {
+                padding: 5px 9px;
+                font-size: 0.72rem;
+                gap: 5px;
+            }
+
+            /* Bento Grid (Features) */
+            .features-section {
+                padding: 24px 0 38px 0;
+            }
+            .bento-grid { 
+                grid-template-columns: 1fr; 
+                gap: 10px;
+            }
+            .bento-card {
+                padding: 14px 16px;
+                border-radius: 14px;
+            }
+            .bento-icon {
+                width: 34px;
+                height: 34px;
+                border-radius: 9px;
+                margin-bottom: 8px;
+            }
+            .bento-title {
+                font-size: 0.94rem;
+                margin-bottom: 3px;
+            }
+            .bento-desc {
+                font-size: 0.83rem;
+                line-height: 1.45;
+            }
+
+            /* FAQ */
+            .faq-section {
+                padding: 24px 0 38px 0;
+            }
+            .faq-container {
+                gap: 8px;
+            }
+            .faq-question {
+                padding: 14px 16px;
+                font-size: 0.9rem;
+                line-height: 1.35;
+            }
+            .faq-toggle {
+                width: 24px;
+                height: 24px;
+            }
+            .faq-answer {
+                padding: 0 16px;
+                font-size: 0.84rem;
+                line-height: 1.5;
+            }
+            .faq-item.active .faq-answer {
+                padding-bottom: 14px;
+            }
+
+            /* Checksums */
+            .checksum-section {
+                padding: 20px 0 44px 0;
+            }
+            .checksum-card {
+                padding: 18px 14px;
+                border-radius: 18px;
+            }
+            .checksum-title-box h3 {
+                font-size: 1.15rem;
+            }
+            .checksum-title-box p {
+                font-size: 0.82rem;
+            }
+            .checksum-item {
+                padding: 12px;
+                border-radius: 12px;
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+            }
+            .checksum-name {
+                font-size: 0.84rem;
+            }
+            .checksum-hash {
+                font-size: 0.68rem;
+                line-height: 1.35;
+                word-break: break-all;
+            }
+            .btn-copy {
+                width: 100%;
+                text-align: center;
+                padding: 7px 12px;
+                font-size: 0.74rem;
+            }
+
+            /* Footer */
+            footer {
+                padding: 28px 0 22px 0;
+                font-size: 0.8rem;
+            }
+            .footer-inner {
+                flex-direction: column;
+                text-align: center;
+                gap: 16px;
+                margin-bottom: 14px;
+            }
+            .footer-links {
+                justify-content: center;
+                gap: 10px 16px;
+            }
+            .footer-sub {
+                text-align: center;
+                font-size: 0.76rem;
+            }
+        }
+
+        @media (max-width: 420px) {
+            .container { 
+                padding: 0 12px; 
+            }
+            .version-badge { 
+                display: none; 
+            }
+            .chart-node-hub {
+                max-width: 220px;
+            }
+            .chart-node-device {
+                padding: 10px 2px;
+            }
+            .chart-node-device .chart-node-title {
+                font-size: 0.67rem;
+            }
+            .chart-node-device .chart-node-sub {
+                font-size: 0.56rem;
+            }
+            .bento-card {
+                padding: 12px 14px;
+            }
         }
     </style>
 </head>
@@ -862,7 +1166,7 @@
         <!-- Hero Section -->
         <section class="hero container" id="downloads">
             <div style="margin-bottom: 22px;">
-                <img src="icon.png" alt="Kerlyss App Icon" style="width: 84px; height: 84px; border-radius: 18px; box-shadow: 0 16px 38px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.1); object-fit: contain;">
+                <img src="icon.png" alt="Kerlyss App Icon" class="hero-app-icon" style="width: 84px; height: 84px; border-radius: 18px; box-shadow: 0 16px 38px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.1); object-fit: contain;">
             </div>
 
             <div class="hero-pill">
