@@ -1,10 +1,10 @@
 {
-  "id": "msg_sync_fix_apology_v1",
+  "id": "msg_sync_fix_apology_v2",
   "showMessage": true,
   "title": "A Quick Note from the Dev",
   "message": "Hi everyone! I'm the developer of Kerlyss. Really sorry for the inconvenience with the previous update — I caused a bit of a mess with the sync issues. I hope everything is running smoothly now!\n\nIf you run into any trouble or have ideas for new features, you can always DM me on Instagram (@melihkerema).",
-  "actionLabel": "DM on Instagram",
-  "actionUrl": "https://www.instagram.com/melihkerema/",
+  "actionLabel": "OK",
+  "actionUrl": "",
   "dismissable": true,
   "priority": "info"
 }

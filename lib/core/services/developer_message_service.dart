@@ -156,43 +156,45 @@ class DeveloperMessageService {
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () {
-              if (dismissable) {
-                _saveDismissedId(id);
-              }
-              Navigator.pop(dialogContext);
-            },
-            child: Text(
-              dismissable ? 'Dismiss' : 'Close',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
-            ),
-          ),
-          if (actionLabel != null && actionUrl != null && actionUrl.isNotEmpty)
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: accentColor.withValues(alpha: 0.2),
-                foregroundColor: accentColor,
-                elevation: 0,
-                side: BorderSide(color: accentColor.withValues(alpha: 0.4)),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          if (actionUrl != null && actionUrl.isNotEmpty)
+            TextButton(
+              onPressed: () {
+                if (dismissable) {
+                  _saveDismissedId(id);
+                }
+                Navigator.pop(dialogContext);
+              },
+              child: Text(
+                dismissable ? 'Dismiss' : 'Close',
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
               ),
-              onPressed: () async {
+            ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: accentColor.withValues(alpha: 0.2),
+              foregroundColor: accentColor,
+              elevation: 0,
+              side: BorderSide(color: accentColor.withValues(alpha: 0.4)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () async {
+              if (actionUrl != null && actionUrl.isNotEmpty) {
                 try {
                   final uri = Uri.parse(actionUrl);
                   await launchUrl(uri, mode: LaunchMode.externalApplication);
                 } catch (e) {
                   Log.e('DeveloperMessageService: Could not launch URL: $e');
                 }
-                if (dismissable) {
-                  _saveDismissedId(id);
-                }
-                if (dialogContext.mounted) {
-                  Navigator.pop(dialogContext);
-                }
-              },
-              child: Text(actionLabel),
-            ),
+              }
+              if (dismissable) {
+                _saveDismissedId(id);
+              }
+              if (dialogContext.mounted) {
+                Navigator.pop(dialogContext);
+              }
+            },
+            child: Text(actionLabel?.isNotEmpty == true ? actionLabel! : 'OK'),
+          ),
         ],
       ),
     );
