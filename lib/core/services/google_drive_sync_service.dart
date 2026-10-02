@@ -415,6 +415,14 @@ class GoogleDriveSyncService {
     final remoteData = jsonDecode(jsonString) as Map<String, dynamic>;
 
     await _mergeRemoteData(remoteData);
+    final now = DateTime.now();
+    try {
+      final updatedSettings = await _isarService.getSettings();
+      updatedSettings.lastCloudSyncAt = now;
+      await _isarService.saveSettings(updatedSettings);
+    } catch (e) {
+      Log.w('GoogleDriveSync: Failed to update lastCloudSyncAt: $e');
+    }
     Log.i('GoogleDriveSync: Pull and merge completed successfully.');
     return true;
   }
@@ -464,6 +472,13 @@ class GoogleDriveSyncService {
   double _sanitizeDouble(double? val, [double fallback = 0.0]) {
     if (val == null || val.isNaN || val.isInfinite) return fallback;
     return val;
+  }
+
+  DateTime? _parseDateTime(dynamic val) {
+    if (val == null) return null;
+    if (val is int) return DateTime.fromMillisecondsSinceEpoch(val);
+    if (val is String && val.isNotEmpty) return DateTime.tryParse(val);
+    return null;
   }
 
   dynamic _sanitizeForJson(dynamic value) {
@@ -618,7 +633,7 @@ class GoogleDriveSyncService {
 
     return {
       'version': 1,
-      'lastModified': DateTime.now().millisecondsSinceEpoch,
+      'lastModified': DateTime.now().toUtc().toIso8601String(),
       'playlists': playlistsJson,
       'songs': songsJson,
       'dislikedSongIds': settings.dislikedSongIds,
@@ -635,7 +650,7 @@ class GoogleDriveSyncService {
   }
 
   Future<void> _mergeRemoteData(Map<String, dynamic> remoteData) async {
-    final remoteLastModified = DateTime.tryParse(remoteData['lastModified'] as String? ?? '');
+    final remoteLastModified = _parseDateTime(remoteData['lastModified']);
     final localSettings = await _isarService.getSettings();
     final isRemoteNewerOverall = remoteLastModified != null &&
         localSettings.lastCloudSyncAt != null &&
@@ -645,24 +660,28 @@ class GoogleDriveSyncService {
     if (remoteData['songs'] is List) {
       final remoteSongs = remoteData['songs'] as List;
       for (final item in remoteSongs) {
-        if (item is Map<String, dynamic>) {
-          final songId = item['songId'] as String?;
+        if (item is Map) {
+          final songId = item['songId']?.toString();
           if (songId == null || songId.isEmpty) continue;
 
           final existing = await _isarService.getSongById(songId);
           if (existing == null) {
             final song = SongModel()
               ..songId = songId
-              ..title = (item['title'] as String?) ?? 'Unknown Title'
-              ..artist = (item['artist'] as String?) ?? 'Unknown Artist'
-              ..album = (item['album'] as String?) ?? 'Unknown Album'
-              ..albumArtUrl = item['albumArtUrl'] as String?
-              ..durationMs = (item['durationMs'] as int?) ?? 0
-              ..sourceUrl = (item['sourceUrl'] as String?) ?? ''
-              ..sourceType = _parseSourceType(item['sourceType'] as String?)
+              ..title = item['title']?.toString() ?? 'Unknown Title'
+              ..artist = item['artist']?.toString() ?? 'Unknown Artist'
+              ..album = item['album']?.toString() ?? 'Unknown Album'
+              ..albumArtUrl = item['albumArtUrl']?.toString()
+              ..durationMs = (item['durationMs'] is num)
+                  ? (item['durationMs'] as num).toInt()
+                  : (int.tryParse(item['durationMs']?.toString() ?? '') ?? 0)
+              ..sourceUrl = item['sourceUrl']?.toString() ?? ''
+              ..sourceType = _parseSourceType(item['sourceType']?.toString())
               ..isFavorite = (item['isFavorite'] as bool?) ?? false
-              ..bpm = item['bpm'] as int?
-              ..dateAdded = DateTime.tryParse(item['dateAdded'] as String? ?? '') ?? DateTime.now();
+              ..bpm = (item['bpm'] is num)
+                  ? (item['bpm'] as num).toInt()
+                  : int.tryParse(item['bpm']?.toString() ?? '')
+              ..dateAdded = _parseDateTime(item['dateAdded']) ?? DateTime.now();
             await _isarService.saveSong(song);
           } else {
             final remoteFav = (item['isFavorite'] as bool?) ?? false;
@@ -705,22 +724,22 @@ class GoogleDriveSyncService {
       }
 
       for (final item in remotePlaylists) {
-        if (item is Map<String, dynamic>) {
-          final remoteUuid = item['uuid'] as String?;
-          final name = item['name'] as String?;
+        if (item is Map) {
+          final remoteUuid = item['uuid']?.toString();
+          final name = item['name']?.toString();
           if (name == null || name.isEmpty) continue;
 
-          final rawSongIds = (item['songIds'] as List?)?.cast<String>() ?? [];
-          final remoteCreatedAt = DateTime.tryParse(item['createdAt'] as String? ?? '');
-          final remoteUpdatedAt = DateTime.tryParse(item['updatedAt'] as String? ?? '') ??
-              DateTime.tryParse(item['lastSyncedAt'] as String? ?? '') ??
+          final rawSongIds = (item['songIds'] as List?)?.map((e) => e.toString()).toList() ?? <String>[];
+          final remoteCreatedAt = _parseDateTime(item['createdAt']);
+          final remoteUpdatedAt = _parseDateTime(item['updatedAt']) ??
+              _parseDateTime(item['lastSyncedAt']) ??
               remoteCreatedAt;
           final remoteIsDeleted = (item['isDeleted'] as bool?) ?? false;
-          final remoteDeletedAt = DateTime.tryParse(item['deletedAt'] as String? ?? '');
+          final remoteDeletedAt = _parseDateTime(item['deletedAt']);
           final remoteAutoDownload = (item['autoDownloadNewTracks'] as bool?) ?? false;
           final remoteIsRealtimeSynced = (item['isRealtimeSynced'] as bool?) ?? false;
-          final remoteSpotifyUrl = item['spotifySourceUrl'] as String?;
-          final remoteCoverArt = item['coverArtUrl'] as String?;
+          final remoteSpotifyUrl = item['spotifySourceUrl']?.toString();
+          final remoteCoverArt = item['coverArtUrl']?.toString();
 
           // Identify playlist by unique ID (UUID) first, then fallback to name for older records
           PlaylistModel? existing;
@@ -854,7 +873,7 @@ class GoogleDriveSyncService {
     bool settingsChanged = false;
 
     if (remoteData['dislikedSongIds'] is List) {
-      final remoteDislikedSongs = (remoteData['dislikedSongIds'] as List).cast<String>();
+      final remoteDislikedSongs = (remoteData['dislikedSongIds'] as List).map((e) => e.toString()).toList();
       final merged = Set<String>.from(localSettings.dislikedSongIds)..addAll(remoteDislikedSongs);
       if (merged.length != localSettings.dislikedSongIds.length) {
         localSettings.dislikedSongIds = merged.toList();
@@ -863,12 +882,26 @@ class GoogleDriveSyncService {
     }
 
     if (remoteData['dislikedArtists'] is List) {
-      final remoteDislikedArtists = (remoteData['dislikedArtists'] as List).cast<String>();
+      final remoteDislikedArtists = (remoteData['dislikedArtists'] as List).map((e) => e.toString()).toList();
       final merged = Set<String>.from(localSettings.dislikedArtists)..addAll(remoteDislikedArtists);
       if (merged.length != localSettings.dislikedArtists.length) {
         localSettings.dislikedArtists = merged.toList();
         settingsChanged = true;
       }
+    }
+
+    if (remoteData['settings'] is Map && isRemoteNewerOverall) {
+      final s = remoteData['settings'] as Map;
+      if (s['audioQuality'] is String) localSettings.audioQuality = s['audioQuality'] as String;
+      if (s['gaplessPlayback'] is bool) localSettings.gaplessPlayback = s['gaplessPlayback'] as bool;
+      if (s['equalizerEnabled'] is bool) localSettings.equalizerEnabled = s['equalizerEnabled'] as bool;
+      if (s['eqPreset'] is String) localSettings.eqPreset = s['eqPreset'] as String;
+      if (s['eqBandGains'] is List) {
+        localSettings.eqBandGains = (s['eqBandGains'] as List)
+            .map((g) => (g is num) ? g.toDouble() : 0.0)
+            .toList();
+      }
+      settingsChanged = true;
     }
 
     if (settingsChanged) {

@@ -341,5 +341,52 @@ void main() {
       expect(exportedPlaylist['deletedAt'], equals(DateTime(2026, 2, 1).toIso8601String()));
       expect(exportedPlaylist['updatedAt'], equals(DateTime(2026, 2, 1).toIso8601String()));
     });
+
+    test('mergeRemoteData handles integer timestamp lastModified and mixed types without error', () async {
+      final mockIsar = MockIsarDatabaseService();
+      when(() => mockIsar.getAllPlaylistsIncludingDeleted()).thenAnswer((_) async => []);
+      when(() => mockIsar.getAllPlaylists()).thenAnswer((_) async => []);
+      when(() => mockIsar.getAllSongs()).thenAnswer((_) async => []);
+      when(() => mockIsar.getSongById(any())).thenAnswer((_) async => null);
+      when(() => mockIsar.saveSong(any())).thenAnswer((_) async => 1);
+      when(() => mockIsar.savePlaylist(any())).thenAnswer((_) async => 1);
+      when(() => mockIsar.getSettings()).thenAnswer((_) async => AppSettingsModel());
+      when(() => mockIsar.saveSettings(any())).thenAnswer((_) async => 1);
+      when(() => mockIsar.purgeOldDeletedPlaylists()).thenAnswer((_) async {});
+
+      final service = GoogleDriveSyncService(mockIsar);
+
+      // Payload where lastModified is an integer (epoch milliseconds)
+      final remoteJson = {
+        'version': 1,
+        'lastModified': 1727860000000,
+        'playlists': [
+          {
+            'uuid': 'uuid-int-test',
+            'name': 'Int Timestamp Playlist',
+            'songIds': ['song_1', 'song_2'],
+            'createdAt': 1727850000000,
+            'updatedAt': 1727860000000,
+            'isRealtimeSynced': false,
+            'autoDownloadNewTracks': false,
+          }
+        ],
+        'songs': [
+          {
+            'songId': 'song_1',
+            'title': 'Test Song',
+            'artist': 'Artist',
+            'durationMs': 180000,
+            'bpm': 120,
+            'dateAdded': 1727850000000,
+          }
+        ],
+        'dislikedSongIds': ['disliked_1'],
+        'dislikedArtists': ['disliked_artist_1'],
+      };
+
+      // Should complete cleanly without throwing type cast error
+      await expectLater(service.mergeRemoteDataForTesting(remoteJson), completes);
+    });
   });
 }
