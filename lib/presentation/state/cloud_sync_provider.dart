@@ -37,6 +37,11 @@ class CloudSyncState {
   bool isSongSynced(String songId) =>
       isConnected && !pendingSyncSongIds.contains(songId);
 
+  int get pendingCount =>
+      pendingSyncPlaylistUuids.length + pendingSyncSongIds.length;
+
+  bool get hasPendingChanges => isConnected && pendingCount > 0;
+
   CloudSyncState copyWith({
     bool? isConnected,
     bool? isSyncing,
@@ -223,12 +228,21 @@ class CloudSyncNotifier extends StateNotifier<CloudSyncState> {
           }
         }
 
-        await _driveService.pushData();
+        final pushSuccess = await _driveService.pushData();
+        if (!pushSuccess) {
+          state = state.copyWith(
+            isSyncing: false,
+            errorMessage: _driveService.lastErrorMessage ?? 'Could not upload data to Google Drive.',
+          );
+          return false;
+        }
+
         final now = DateTime.now();
         await _settingsNotifier.setLastCloudSyncAt(now);
         state = state.copyWith(
           isSyncing: false,
           lastSyncedAt: now,
+          clearErrorMessage: true,
           pendingSyncPlaylistUuids: {},
           pendingSyncSongIds: {},
         );
@@ -236,7 +250,7 @@ class CloudSyncNotifier extends StateNotifier<CloudSyncState> {
       } else {
         state = state.copyWith(
           isSyncing: false,
-          errorMessage: 'Could not sync with Google Drive.',
+          errorMessage: _driveService.lastErrorMessage ?? 'Could not sync with Google Drive.',
         );
         return false;
       }
@@ -244,7 +258,7 @@ class CloudSyncNotifier extends StateNotifier<CloudSyncState> {
       Log.e('CloudSyncNotifier: Sync error: $e');
       state = state.copyWith(
         isSyncing: false,
-        errorMessage: e.toString(),
+        errorMessage: e.toString().replaceAll('Exception: ', ''),
       );
       return false;
     }

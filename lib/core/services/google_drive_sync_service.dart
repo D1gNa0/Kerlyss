@@ -58,6 +58,7 @@ class GoogleDriveSyncService {
   String? _currentRefreshToken;
   Timer? _debounceTimer;
   bool _isSyncing = false;
+  String? _lastErrorMessage;
   final List<String> _newlyDiscoveredAutoDownloadSongIds = [];
 
   GoogleDriveSyncService(this._isarService);
@@ -67,6 +68,7 @@ class GoogleDriveSyncService {
   bool get isSyncing => _isSyncing;
   String? get userEmail => _currentUser?.email ?? _windowsEmail;
   String? get currentRefreshToken => _currentRefreshToken;
+  String? get lastErrorMessage => _lastErrorMessage;
 
   List<String> consumeNewlyDiscoveredAutoDownloadSongIds() {
     final copy = List<String>.from(_newlyDiscoveredAutoDownloadSongIds);
@@ -316,11 +318,68 @@ class GoogleDriveSyncService {
 
   // --- Drive API Client Helper ---
 
-  Future<drive.DriveApi?> _getDriveApi() async {
-    if (_accessToken == null && _currentUser != null) {
-      final auth = await _currentUser!.authentication;
-      _accessToken = auth.accessToken;
+  String _formatError(Object e) {
+    final str = e.toString();
+    if (str.contains('403') || str.contains('Access Not Configured') || str.contains('API has not been used')) {
+      return 'Google Drive API is not enabled in Google Cloud Console.';
     }
+    if (str.contains('401') || str.contains('invalid_grant') || str.contains('Invalid Credentials')) {
+      return 'Google Drive session expired. Please reconnect.';
+    }
+    if (str.contains('SocketException') || str.contains('Network is unreachable') || str.contains('Failed host lookup')) {
+      return 'No internet connection.';
+    }
+    if (e is drive.DetailedApiRequestError) {
+      return e.message ?? 'Google Drive API error (${e.status}).';
+    }
+    return str.replaceAll('Exception: ', '');
+  }
+
+  // --- Drive API Client Helper ---
+
+  Future<drive.DriveApi?> _getDriveApi({bool forceRefresh = false}) async {
+    if (!kIsWeb && Platform.isAndroid) {
+      if (_currentUser == null) {
+        try {
+          _currentUser = await _googleSignIn.signInSilently();
+        } catch (_) {}
+      }
+
+      if (_currentUser != null && (_accessToken == null || forceRefresh)) {
+        try {
+          final auth = await _currentUser!.authentication;
+          _accessToken = auth.accessToken;
+          Log.i('GoogleDriveSync: Refreshed Android access token.');
+        } catch (e) {
+          Log.w('GoogleDriveSync: Failed to refresh Android authentication token: $e');
+        }
+      }
+    } else if (!kIsWeb && Platform.isWindows) {
+      if (_accessToken == null || forceRefresh) {
+        final settings = await _isarService.getSettings();
+        if (settings.googleRefreshToken != null) {
+          try {
+            final response = await http.post(
+              Uri.parse('https://oauth2.googleapis.com/token'),
+              body: {
+                'client_id': desktopClientId,
+                if (desktopClientSecret.isNotEmpty) 'client_secret': desktopClientSecret,
+                'refresh_token': settings.googleRefreshToken!,
+                'grant_type': 'refresh_token',
+              },
+            );
+            if (response.statusCode == 200) {
+              final data = jsonDecode(response.body) as Map<String, dynamic>;
+              _accessToken = data['access_token'] as String?;
+              Log.i('GoogleDriveSync: Refreshed Windows desktop access token.');
+            }
+          } catch (e) {
+            Log.w('GoogleDriveSync: Failed to refresh Windows access token: $e');
+          }
+        }
+      }
+    }
+
     if (_accessToken == null) return null;
 
     final client = _AuthenticatedClient({'Authorization': 'Bearer $_accessToken'});
@@ -329,15 +388,49 @@ class GoogleDriveSyncService {
 
   // --- Synchronization Operations ---
 
+  Future<bool> _executePull(drive.DriveApi driveApi) async {
+    Log.i('GoogleDriveSync: Checking Drive root for $syncFileName...');
+    final fileList = await driveApi.files.list(
+      q: "name = '$syncFileName' and trashed = false",
+      $fields: 'files(id, name, modifiedTime)',
+    );
+
+    if (fileList.files == null || fileList.files!.isEmpty) {
+      Log.i('GoogleDriveSync: No remote sync file found. Performing initial push.');
+      return await pushData();
+    }
+
+    final file = fileList.files!.first;
+    final fileId = file.id;
+    if (fileId == null) return false;
+
+    // Download content
+    final media = await driveApi.files.get(
+      fileId,
+      downloadOptions: drive.DownloadOptions.fullMedia,
+    ) as drive.Media;
+
+    final contentBytes = await media.stream.fold<List<int>>([], (prev, element) => prev..addAll(element));
+    final jsonString = utf8.decode(contentBytes);
+    final remoteData = jsonDecode(jsonString) as Map<String, dynamic>;
+
+    await _mergeRemoteData(remoteData);
+    Log.i('GoogleDriveSync: Pull and merge completed successfully.');
+    return true;
+  }
+
   /// Pull remote data from Drive root and merge into local database
   Future<bool> pullAndMerge() async {
+    _lastErrorMessage = null;
     if (AetherHttpOverrides.isOfflineMode) {
+      _lastErrorMessage = 'Offline Mode is active.';
       Log.i('GoogleDriveSync: Offline mode active, skipping pull.');
       return false;
     }
 
-    final driveApi = await _getDriveApi();
+    drive.DriveApi? driveApi = await _getDriveApi();
     if (driveApi == null) {
+      _lastErrorMessage = 'Not authenticated with Google Drive. Please reconnect in Profile.';
       Log.w('GoogleDriveSync: Cannot pull, not authenticated.');
       return false;
     }
@@ -345,36 +438,22 @@ class GoogleDriveSyncService {
     _isSyncing = true;
     _newlyDiscoveredAutoDownloadSongIds.clear();
     try {
-      Log.i('GoogleDriveSync: Checking Drive root for $syncFileName...');
-      final fileList = await driveApi.files.list(
-        q: "name = '$syncFileName' and trashed = false",
-        $fields: 'files(id, name, modifiedTime)',
-      );
-
-      if (fileList.files == null || fileList.files!.isEmpty) {
-        Log.i('GoogleDriveSync: No remote sync file found. Performing initial push.');
-        await pushData();
-        return true;
-      }
-
-      final file = fileList.files!.first;
-      final fileId = file.id;
-      if (fileId == null) return false;
-
-      // Download content
-      final media = await driveApi.files.get(
-        fileId,
-        downloadOptions: drive.DownloadOptions.fullMedia,
-      ) as drive.Media;
-
-      final contentBytes = await media.stream.fold<List<int>>([], (prev, element) => prev..addAll(element));
-      final jsonString = utf8.decode(contentBytes);
-      final remoteData = jsonDecode(jsonString) as Map<String, dynamic>;
-
-      await _mergeRemoteData(remoteData);
-      Log.i('GoogleDriveSync: Pull and merge completed successfully.');
-      return true;
+      return await _executePull(driveApi);
     } catch (e) {
+      if (e.toString().contains('401') || e.toString().contains('Invalid Credentials')) {
+        Log.i('GoogleDriveSync: 401 on pull, force-refreshing token and retrying...');
+        driveApi = await _getDriveApi(forceRefresh: true);
+        if (driveApi != null) {
+          try {
+            return await _executePull(driveApi);
+          } catch (retryError) {
+            _lastErrorMessage = _formatError(retryError);
+            Log.e('GoogleDriveSync: Retry pull failed: $retryError');
+            return false;
+          }
+        }
+      }
+      _lastErrorMessage = _formatError(e);
       Log.e('GoogleDriveSync: Pull and merge failed: $e');
       return false;
     } finally {
@@ -401,58 +480,79 @@ class GoogleDriveSyncService {
     return value;
   }
 
+  Future<bool> _executePush(drive.DriveApi driveApi) async {
+    final payload = await _exportLocalData();
+    final sanitizedPayload = _sanitizeForJson(payload) as Map<String, dynamic>;
+    final jsonString = jsonEncode(
+      sanitizedPayload,
+      toEncodable: (nonEncodable) {
+        if (nonEncodable is num && !nonEncodable.isFinite) return 0.0;
+        return nonEncodable.toString();
+      },
+    );
+    final jsonBytes = utf8.encode(jsonString);
+    final stream = Stream.value(jsonBytes);
+    final media = drive.Media(stream, jsonBytes.length);
+
+    // Check if file already exists
+    final fileList = await driveApi.files.list(
+      q: "name = '$syncFileName' and trashed = false",
+      $fields: 'files(id, name)',
+    );
+
+    if (fileList.files != null && fileList.files!.isNotEmpty) {
+      final existingFileId = fileList.files!.first.id!;
+      await driveApi.files.update(
+        drive.File(),
+        existingFileId,
+        uploadMedia: media,
+      );
+      Log.i('GoogleDriveSync: Updated existing $syncFileName in Drive.');
+    } else {
+      final newFile = drive.File()..name = syncFileName;
+      await driveApi.files.create(
+        newFile,
+        uploadMedia: media,
+      );
+      Log.i('GoogleDriveSync: Created new $syncFileName in Drive.');
+    }
+    return true;
+  }
+
   /// Serialize local Isar database into JSON and upload to Drive root
   Future<bool> pushData() async {
+    _lastErrorMessage = null;
     if (AetherHttpOverrides.isOfflineMode) {
+      _lastErrorMessage = 'Offline Mode is active.';
       Log.i('GoogleDriveSync: Offline mode active, skipping push.');
       return false;
     }
 
-    final driveApi = await _getDriveApi();
+    drive.DriveApi? driveApi = await _getDriveApi();
     if (driveApi == null) {
+      _lastErrorMessage = 'Not authenticated with Google Drive. Please reconnect in Profile.';
       Log.w('GoogleDriveSync: Cannot push, not authenticated.');
       return false;
     }
 
     _isSyncing = true;
     try {
-      final payload = await _exportLocalData();
-      final sanitizedPayload = _sanitizeForJson(payload) as Map<String, dynamic>;
-      final jsonString = jsonEncode(
-        sanitizedPayload,
-        toEncodable: (nonEncodable) {
-          if (nonEncodable is num && !nonEncodable.isFinite) return 0.0;
-          return nonEncodable.toString();
-        },
-      );
-      final jsonBytes = utf8.encode(jsonString);
-      final stream = Stream.value(jsonBytes);
-      final media = drive.Media(stream, jsonBytes.length);
-
-      // Check if file already exists
-      final fileList = await driveApi.files.list(
-        q: "name = '$syncFileName' and trashed = false",
-        $fields: 'files(id, name)',
-      );
-
-      if (fileList.files != null && fileList.files!.isNotEmpty) {
-        final existingFileId = fileList.files!.first.id!;
-        await driveApi.files.update(
-          drive.File(),
-          existingFileId,
-          uploadMedia: media,
-        );
-        Log.i('GoogleDriveSync: Updated existing $syncFileName in Drive.');
-      } else {
-        final newFile = drive.File()..name = syncFileName;
-        await driveApi.files.create(
-          newFile,
-          uploadMedia: media,
-        );
-        Log.i('GoogleDriveSync: Created new $syncFileName in Drive.');
-      }
-      return true;
+      return await _executePush(driveApi);
     } catch (e) {
+      if (e.toString().contains('401') || e.toString().contains('Invalid Credentials')) {
+        Log.i('GoogleDriveSync: 401 on push, force-refreshing token and retrying...');
+        driveApi = await _getDriveApi(forceRefresh: true);
+        if (driveApi != null) {
+          try {
+            return await _executePush(driveApi);
+          } catch (retryError) {
+            _lastErrorMessage = _formatError(retryError);
+            Log.e('GoogleDriveSync: Retry push failed: $retryError');
+            return false;
+          }
+        }
+      }
+      _lastErrorMessage = _formatError(e);
       Log.e('GoogleDriveSync: Push data failed: $e');
       return false;
     } finally {

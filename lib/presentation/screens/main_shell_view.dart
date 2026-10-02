@@ -20,6 +20,7 @@ import '../state/download_state_provider.dart';
 import '../../core/services/update_service.dart';
 import '../../core/services/developer_message_service.dart';
 import 'download_components/download_queue_bottom_sheet.dart';
+import '../../main.dart';
 
 class MainShellView extends ConsumerStatefulWidget {
   const MainShellView({super.key});
@@ -28,7 +29,7 @@ class MainShellView extends ConsumerStatefulWidget {
   ConsumerState<MainShellView> createState() => _MainShellViewState();
 }
 
-class _MainShellViewState extends ConsumerState<MainShellView> {
+class _MainShellViewState extends ConsumerState<MainShellView> with WidgetsBindingObserver {
   bool _handleKeyEvent(KeyEvent event) {
     if (event is! KeyDownEvent) {
       return false;
@@ -70,6 +71,7 @@ class _MainShellViewState extends ConsumerState<MainShellView> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     HardwareKeyboard.instance.addHandler(_handleKeyEvent);
     
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -80,7 +82,15 @@ class _MainShellViewState extends ConsumerState<MainShellView> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.detached) {
+      globalAudioHandler.stop();
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
     super.dispose();
   }

@@ -15,6 +15,7 @@ import '../state/download_state_provider.dart';
 import '../../domain/entities/playlist_entity.dart';
 import '../common/app_dialogs.dart';
 import '../state/cloud_sync_provider.dart';
+import '../common/cloud_sync_status_badge.dart';
 
 class PlaylistsView extends ConsumerStatefulWidget {
   const PlaylistsView({super.key});
@@ -101,46 +102,7 @@ class _PlaylistsViewState extends ConsumerState<PlaylistsView> {
             ),
             centerTitle: true,
             actions: [
-              Consumer(
-                builder: (context, ref, _) {
-                  final syncState = ref.watch(cloudSyncProvider);
-                  if (syncState.isSyncing) {
-                    return const SizedBox(
-                      width: 36,
-                      height: 36,
-                      child: Center(
-                        child: SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: AetherColors.accentCyan,
-                          ),
-                        ),
-                      ),
-                    );
-                  }
-                  if (syncState.isConnected) {
-                    return AetherIconButton(
-                      tooltip: syncState.lastSyncedAt != null
-                          ? 'Google Drive Synced - Tap to sync now'
-                          : 'Google Drive Connected - Tap to sync now',
-                      icon: Icons.cloud_done_rounded,
-                      color: AetherColors.accentCyan,
-                      size: 18,
-                      buttonSize: 36,
-                      onPressed: () async {
-                        ToastService.show(context, 'Syncing library with Google Drive...');
-                        final ok = await ref.read(cloudSyncProvider.notifier).syncNow();
-                        if (context.mounted) {
-                          ToastService.show(context, ok ? 'Cloud sync complete!' : 'Cloud sync failed.');
-                        }
-                      },
-                    );
-                  }
-                  return const SizedBox.shrink();
-                },
-              ),
+              const CloudSyncStatusBadge(),
               // Windows-only refresh button (since pull-to-refresh is mobile-only)
               if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS))
                 AetherIconButton(
@@ -283,10 +245,6 @@ class _PlaylistTile extends ConsumerWidget {
       onTap: onSelect,
       borderRadius: 20,
       padding: const EdgeInsets.all(16),
-      bottomIndicatorColor: syncState.isConnected
-          ? (isPending ? Colors.amberAccent : AetherColors.accentCyan)
-          : null,
-      bottomIndicatorHeight: 2.5,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -349,6 +307,17 @@ class _PlaylistTile extends ConsumerWidget {
                 '${playlist.songIds.length} TRACKS',
                 style: const TextStyle(color: AetherColors.textSecondary, fontSize: 11, letterSpacing: 1),
               ),
+              if (isPending) ...[
+                const SizedBox(width: 6),
+                const Tooltip(
+                  message: 'Changes pending cloud sync',
+                  child: Icon(
+                    Icons.sync_rounded,
+                    size: 13,
+                    color: Colors.amberAccent,
+                  ),
+                ),
+              ],
               const Spacer(),
               if (allDownloaded)
                 Container(

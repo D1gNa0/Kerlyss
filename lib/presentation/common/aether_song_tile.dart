@@ -69,12 +69,6 @@ class AetherSongTile extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         isHighlighted: isCurrentSong,
         accentColor: AetherColors.accentCyan,
-        bottomIndicatorColor: syncState.isConnected
-            ? (isSongPending
-                ? Colors.amberAccent
-                : AetherColors.accentCyan.withValues(alpha: 0.35))
-            : null,
-        bottomIndicatorHeight: 2.0,
         child: Row(
           children: [
             Container(
@@ -123,6 +117,17 @@ class AetherSongTile extends ConsumerWidget {
                           isPlayingCurrent ? Icons.graphic_eq_rounded : Icons.pause_circle_filled_rounded,
                           color: AetherColors.accentCyan,
                           size: 16,
+                        ),
+                      ],
+                      if (isSongPending) ...[
+                        const SizedBox(width: 6),
+                        const Tooltip(
+                          message: 'Changes pending cloud sync',
+                          child: Icon(
+                            Icons.sync_rounded,
+                            color: Colors.amberAccent,
+                            size: 14,
+                          ),
                         ),
                       ],
                     ],

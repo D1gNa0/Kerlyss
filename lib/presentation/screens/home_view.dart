@@ -22,6 +22,7 @@ import 'package:kerlyss/l10n/app_localizations.dart';
 import '../state/downloaded_songs_provider.dart';
 import '../state/download_state_provider.dart';
 import '../state/track_download_provider.dart';
+import '../common/cloud_sync_status_badge.dart';
 
 
 
@@ -78,6 +79,7 @@ class HomeView extends ConsumerWidget {
                 title: Text('HOME LIBRARY', style: Theme.of(context).textTheme.displayMedium),
               ),
               actions: [
+                const CloudSyncStatusBadge(),
                 if (isDesktop)
                   AetherIconButton(
                     tooltip: 'Refresh Library',

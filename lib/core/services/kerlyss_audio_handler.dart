@@ -105,12 +105,18 @@ class KerlyssAudioHandler extends BaseAudioHandler with SeekHandler {
 
   @override
   Future<void> stop() async {
+    playbackState.add(playbackState.value.copyWith(
+      playing: false,
+      processingState: AudioProcessingState.idle,
+    ));
+    mediaItem.add(null);
     await _player.stop();
     await super.stop();
   }
 
   @override
   Future<void> onTaskRemoved() async {
+    Log.i('KerlyssAudioHandler: onTaskRemoved triggered, stopping background audio service.');
     await stop();
     await super.onTaskRemoved();
   }

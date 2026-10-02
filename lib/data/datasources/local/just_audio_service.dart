@@ -30,6 +30,11 @@ class JustAudioService implements AudioServiceInterface {
   @override
   Stream<PlaybackStatus> get playbackStatusStream {
     return _player.playerStateStream.map((playerState) {
+      if (!playerState.playing &&
+          playerState.processingState != ProcessingState.idle &&
+          playerState.processingState != ProcessingState.completed) {
+        return PlaybackStatus.paused;
+      }
       return switch (playerState.processingState) {
         ProcessingState.idle => PlaybackStatus.idle,
         ProcessingState.loading => PlaybackStatus.loading,

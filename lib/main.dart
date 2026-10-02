@@ -53,6 +53,7 @@ void main() async {
       androidNotificationOngoing: false,
       androidShowNotificationBadge: true,
       androidStopForegroundOnPause: true,
+      androidResumeOnClick: false,
     ),
   );
 
