@@ -1,4 +1,4 @@
 {
-  "version": "1.3.0",
-  "releaseNotes": "Kerlyss v1.3.0 is out! Introduces Google Drive Cloud Sync across Android and Windows, persistent sign-in sessions, custom downloads directory picker, 5-band equalizer, audio metadata inspector, and active song highlighting."
+  "version": "1.3.2",
+  "releaseNotes": "Kerlyss v1.3.2 is live! Fixes Google Drive cloud sync reliability, resolves Android background audio pausing and media notification dismissal, introduces an upgraded minimalist UI with top bar sync status, and adds pull-to-refresh on all platforms."
 }
