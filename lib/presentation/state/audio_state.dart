@@ -117,6 +117,9 @@ class AudioState {
     this.audioSize,
   });
 
+  /// True while a song is being resolved/loaded or the engine is re-buffering.
+  bool get isLoadingTrack => status == PlaybackStatus.loading || status == PlaybackStatus.buffering;
+
   AudioState copyWith({
     SongMetadata? currentSong,
     PlaybackStatus? status,

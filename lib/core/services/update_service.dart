@@ -1,85 +1,86 @@
-import 'dart:convert';
-import 'package:dio/dio.dart';
-import 'package:package_info_plus/package_info_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../presentation/state/update_provider.dart';
+import 'app_updater.dart';
+import 'toast_service.dart';
+
+/// Thin UI entry point (kept so existing call sites keep working).
+/// The real work lives in [UpdateController] (state) and [AppUpdater] (logic).
 class UpdateService {
-  static const String _updateUrl = 'https://raw.githubusercontent.com/D1gNa0/Kerlyss/main/version.json';
   static const String _releasePageUrl = 'https://d1gna0.github.io/Kerlyss/';
 
-  Future<void> checkForUpdates(BuildContext context) async {
-    try {
-      final dio = Dio();
-      final response = await dio.get(_updateUrl);
-      
-      if (response.statusCode == 200) {
-        final data = response.data is String ? jsonDecode(response.data) : response.data;
-        final latestVersion = data['version'] as String;
-        final releaseNotes = data['releaseNotes'] as String;
+  /// [manual] = the user pressed "Check for updates" (so we also tell them when
+  /// there is nothing new or the check failed). At startup it stays silent.
+  Future<void> checkForUpdates(BuildContext context, {bool manual = false}) async {
+    final container = ProviderScope.containerOf(context);
+    final controller = container.read(updateProvider.notifier);
+    final current = container.read(updateProvider);
 
-        final packageInfo = await PackageInfo.fromPlatform();
-        final currentVersion = packageInfo.version;
+    if (current.isBusy) {
+      if (manual) ToastService.show(context, 'An update is already in progress');
+      return;
+    }
 
-        if (_isNewer(latestVersion, currentVersion)) {
-          if (context.mounted) {
-            _showUpdateDialog(context, latestVersion, releaseNotes);
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint('Update check failed: $e');
+    if (current.phase == UpdatePhase.readyToInstall) {
+      if (manual && context.mounted) _showDialog(context, controller, current);
+      return;
+    }
+
+    final result = await controller.check();
+    if (!context.mounted) return;
+
+    switch (result) {
+      case UpdateCheckResult.available:
+        _showDialog(context, controller, container.read(updateProvider));
+      case UpdateCheckResult.upToDate:
+        if (manual) ToastService.show(context, "You're on the latest version");
+      case UpdateCheckResult.failed:
+        if (manual) ToastService.show(context, "Couldn't check for updates", backgroundColor: Colors.redAccent);
     }
   }
 
-  bool _isNewer(String latest, String current) {
-    try {
-      List<int> latestParts = latest.split('.').map((e) => int.tryParse(e) ?? 0).toList();
-      List<int> currentParts = current.split('.').map((e) => int.tryParse(e) ?? 0).toList();
+  void _showDialog(BuildContext context, UpdateController controller, UpdateState state) {
+    final info = state.info;
+    if (info == null) return;
+    final ready = state.phase == UpdatePhase.readyToInstall;
+    final inApp = AppUpdater.supportsInAppUpdate;
+    final isWindows = Theme.of(context).platform == TargetPlatform.windows;
 
-      for (int i = 0; i < latestParts.length; i++) {
-        if (i >= currentParts.length) return true;
-        if (latestParts[i] > currentParts[i]) return true;
-        if (latestParts[i] < currentParts[i]) return false;
-      }
-    } catch (e) {
-      return false;
-    }
-    return false;
-  }
+    final primaryLabel = !inApp
+        ? 'Download'
+        : ready
+            ? (isWindows ? 'Restart to update' : 'Install')
+            : 'Update';
 
-  void _showUpdateDialog(BuildContext context, String version, String notes) {
-    showDialog(
+    showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         backgroundColor: const Color(0xFF1A1A1A),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
-          'Update Available: $version',
+          ready ? 'Update ready: ${info.version}' : 'Update Available: ${info.version}',
           style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'A new version of Kerlyss is ready!',
-              style: TextStyle(color: Colors.white70),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 260),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('A new version of Kerlyss is ready!', style: TextStyle(color: Colors.white70)),
+                const SizedBox(height: 12),
+                Text(info.notes, style: const TextStyle(color: Colors.white60, fontSize: 14)),
+              ],
             ),
-            const SizedBox(height: 12),
-            Text(
-              notes,
-              style: const TextStyle(color: Colors.white60, fontSize: 14),
-            ),
-          ],
+          ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Later',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
-            ),
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text('Later', style: TextStyle(color: Colors.white.withValues(alpha: 0.5))),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -88,11 +89,17 @@ class UpdateService {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
             onPressed: () async {
-              final url = Uri.parse(_releasePageUrl);
-              await launchUrl(url, mode: LaunchMode.externalApplication);
-              if (context.mounted) Navigator.pop(context);
+              Navigator.pop(dialogContext);
+              if (!inApp) {
+                // iOS / macOS / Linux: no in-app installer, open the download page.
+                await launchUrl(Uri.parse(_releasePageUrl), mode: LaunchMode.externalApplication);
+              } else if (ready) {
+                await controller.installNow();
+              } else {
+                await controller.startUpdate();
+              }
             },
-            child: const Text('Download'),
+            child: Text(primaryLabel),
           ),
         ],
       ),

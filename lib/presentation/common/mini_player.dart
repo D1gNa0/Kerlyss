@@ -15,6 +15,7 @@ import '../state/library_provider.dart';
 import '../state/download_state_provider.dart';
 import '../state/track_download_provider.dart';
 import 'tap_bpm_dialog.dart';
+import 'playback_spinner.dart';
 
 class MiniPlayer extends ConsumerWidget {
   const MiniPlayer({super.key});
@@ -62,6 +63,20 @@ class MiniPlayer extends ConsumerWidget {
           padding: EdgeInsets.zero,
           child: Stack(
             children: [
+              if (hasSong && audioState.isLoadingTrack)
+                Positioned(
+                  left: 16,
+                  right: 16,
+                  bottom: 0,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(2),
+                    child: const LinearProgressIndicator(
+                      minHeight: 2,
+                      backgroundColor: Colors.transparent,
+                      valueColor: AlwaysStoppedAnimation<Color>(AetherColors.accentCyan),
+                    ),
+                  ),
+                ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Row(
@@ -132,10 +147,14 @@ class MiniPlayer extends ConsumerWidget {
                               children: [
                                 Expanded(
                                   child: Text(
-                                    hasSong ? currentSong.artist : 'Select a song to start',
+                                    hasSong
+                                        ? (audioState.isLoadingTrack ? 'Loading…' : currentSong.artist)
+                                        : 'Select a song to start',
                                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                       fontSize: 10,
-                                      color: AetherColors.textSecondary,
+                                      color: (hasSong && audioState.isLoadingTrack)
+                                          ? AetherColors.accentCyan
+                                          : AetherColors.textSecondary,
                                     ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -184,16 +203,28 @@ class MiniPlayer extends ConsumerWidget {
                         onPressed: hasSong ? () => ref.read(audioProvider.notifier).previous() : null,
                       ),
                       const SizedBox(width: 2),
-                      AetherIconButton(
-                        tooltip: 'Play/Pause',
-                        icon: audioState.status == PlaybackStatus.playing
-                            ? Icons.pause_rounded
-                            : Icons.play_arrow_rounded,
-                        size: 24,
-                        buttonSize: 44,
-                        color: hasSong ? Colors.white : Colors.white24,
-                        onPressed: hasSong ? () => ref.read(audioProvider.notifier).togglePlay() : null,
-                      ),
+                      if (hasSong && audioState.isLoadingTrack)
+                        // Loading / buffering: spinner instead of the play icon (still tappable).
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => ref.read(audioProvider.notifier).togglePlay(),
+                          child: const SizedBox(
+                            width: 44,
+                            height: 44,
+                            child: Center(child: PlaybackSpinner(size: 22)),
+                          ),
+                        )
+                      else
+                        AetherIconButton(
+                          tooltip: 'Play/Pause',
+                          icon: audioState.status == PlaybackStatus.playing
+                              ? Icons.pause_rounded
+                              : Icons.play_arrow_rounded,
+                          size: 24,
+                          buttonSize: 44,
+                          color: hasSong ? Colors.white : Colors.white24,
+                          onPressed: hasSong ? () => ref.read(audioProvider.notifier).togglePlay() : null,
+                        ),
                       const SizedBox(width: 2),
                       AetherIconButton(
                         tooltip: 'Next Track',

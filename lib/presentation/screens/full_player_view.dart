@@ -10,6 +10,7 @@ import '../common/aether_pulse_visualizer.dart';
 import '../common/aether_network_image.dart';
 import 'package:kerlyss/l10n/app_localizations.dart';
 import 'queue_view.dart';
+import '../common/playback_spinner.dart';
 import 'dart:ui';
 import 'dart:io';
 
@@ -176,10 +177,12 @@ class FullPlayerView extends ConsumerWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        currentSong.artist.toUpperCase(),
+                        audioState.isLoadingTrack ? 'LOADING…' : currentSong.artist.toUpperCase(),
                         style: Theme.of(context).textTheme.displayMedium?.copyWith(
                               fontSize: 11,
-                              color: AetherColors.textSecondary,
+                              color: audioState.isLoadingTrack
+                                  ? AetherColors.accentCyan
+                                  : AetherColors.textSecondary,
                             ),
                       ),
                       if (currentSong.bpm != null) ...[
@@ -254,18 +257,30 @@ class FullPlayerView extends ConsumerWidget {
                         buttonSize: 44,
                         onPressed: () => ref.read(audioProvider.notifier).seekRelative(-5),
                       ),
-                      AetherIconButton(
-                        tooltip: audioState.status == PlaybackStatus.error
-                            ? (audioState.errorMessage ?? 'Playback error - tap to retry')
-                            : l10n.playPause,
-                        icon: audioState.status == PlaybackStatus.playing
-                            ? Icons.pause_rounded
-                            : Icons.play_arrow_rounded,
-                        size: 32,
-                        buttonSize: 60,
-                        color: Colors.white,
-                        onPressed: () => ref.read(audioProvider.notifier).togglePlay(),
-                      ),
+                      if (audioState.isLoadingTrack)
+                        // Loading / buffering: spinner instead of the play icon (still tappable).
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => ref.read(audioProvider.notifier).togglePlay(),
+                          child: const SizedBox(
+                            width: 60,
+                            height: 60,
+                            child: Center(child: PlaybackSpinner(size: 30)),
+                          ),
+                        )
+                      else
+                        AetherIconButton(
+                          tooltip: audioState.status == PlaybackStatus.error
+                              ? (audioState.errorMessage ?? 'Playback error - tap to retry')
+                              : l10n.playPause,
+                          icon: audioState.status == PlaybackStatus.playing
+                              ? Icons.pause_rounded
+                              : Icons.play_arrow_rounded,
+                          size: 32,
+                          buttonSize: 60,
+                          color: Colors.white,
+                          onPressed: () => ref.read(audioProvider.notifier).togglePlay(),
+                        ),
                       AetherIconButton(
                         tooltip: l10n.forward5s,
                         icon: Icons.forward_5_rounded,

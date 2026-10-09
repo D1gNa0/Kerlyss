@@ -181,7 +181,7 @@ class SettingsView extends ConsumerWidget {
                 label: 'Check for Updates',
                 value: 'Tap to check',
                 icon: Icons.system_update_rounded,
-                onTap: () => UpdateService().checkForUpdates(context),
+                onTap: () => UpdateService().checkForUpdates(context, manual: true),
               ),
             ],
           ),

@@ -70,6 +70,10 @@ class AudioNotifier extends StateNotifier<AudioState> {
   /// Counts stream failures in a row so auto-skip never chains through the whole list.
   int _consecutiveStreamFailures = 0;
 
+  /// True from the moment the user picks a song until its source is loaded. Engine events
+  /// from the PREVIOUS song are ignored meanwhile, so the loading spinner doesn't flicker.
+  bool _awaitingNewSource = false;
+
   // Cached listing of the downloads folder (see _getDownloadsIndex).
   List<_DownloadedFile>? _downloadsIndex;
   DateTime? _downloadsIndexAt;
@@ -99,6 +103,10 @@ class AudioNotifier extends StateNotifier<AudioState> {
 
     _subs.add(_audioService.playbackStatusStream.listen((status) {
       if (!mounted) return;
+      if (_awaitingNewSource &&
+          (status == PlaybackStatus.playing || status == PlaybackStatus.paused || status == PlaybackStatus.ready)) {
+        return;
+      }
       if (status == PlaybackStatus.playing) _consecutiveStreamFailures = 0;
 
       // Ignore idle/buffering status if we are in a loading state to prevent flickering
@@ -561,6 +569,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
         isShuffleEnabled: useShuffle,
         status: PlaybackStatus.loading, clearError: true,
       );
+      _awaitingNewSource = true;
       _updateAudioFormatInfo(clickedSong);
       globalAudioHandler.setMediaFromSong(clickedSong);
 
@@ -580,6 +589,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
         _isNavigatingQueue = false;
         return;
       }
+      _awaitingNewSource = false; // new song is loaded; engine events are trustworthy again
       await _ensurePlaybackStarted();
       _isNavigatingQueue = false;
       if (!mounted || requestId != _playRequestId) return;
@@ -593,6 +603,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
       unawaited(_hydrateFullQueue(queue, queueIndex, requestId));
     } catch (e) {
       _isNavigatingQueue = false;
+      _awaitingNewSource = false;
       _setPlaybackError('playPlaylist', e);
     }
   }

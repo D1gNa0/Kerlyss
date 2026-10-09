@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'playback_spinner.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/song_entity.dart';
 import '../state/library_provider.dart';
@@ -58,6 +59,7 @@ class AetherSongTile extends ConsumerWidget {
             (audioState.currentSong.title.isNotEmpty &&
                 audioState.currentSong.title.toLowerCase() == song.title.toLowerCase()));
     final isPlayingCurrent = isCurrentSong && audioState.status == PlaybackStatus.playing;
+    final isLoadingCurrent = isCurrentSong && audioState.isLoadingTrack;
     final syncState = ref.watch(cloudSyncProvider);
     final isSongPending = syncState.isSongPending(song.id);
 
@@ -113,11 +115,14 @@ class AetherSongTile extends ConsumerWidget {
                       ),
                       if (isCurrentSong) ...[
                         const SizedBox(width: 6),
-                        Icon(
-                          isPlayingCurrent ? Icons.graphic_eq_rounded : Icons.pause_circle_filled_rounded,
-                          color: AetherColors.accentCyan,
-                          size: 16,
-                        ),
+                        if (isLoadingCurrent)
+                          const PlaybackSpinner(size: 14)
+                        else
+                          Icon(
+                            isPlayingCurrent ? Icons.graphic_eq_rounded : Icons.pause_circle_filled_rounded,
+                            color: AetherColors.accentCyan,
+                            size: 16,
+                          ),
                       ],
                       if (isSongPending) ...[
                         const SizedBox(width: 6),
