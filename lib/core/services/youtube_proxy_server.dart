@@ -432,7 +432,6 @@ class YoutubeProxyServer {
               request.response.headers.set(HttpHeaders.contentRangeHeader, 'bytes $start-$end/$totalBytes');
             }
           }
-          request.response.headers.set('Access-Control-Allow-Origin', '*');
 
           headersSent = true;
 

@@ -66,6 +66,13 @@ class AudioNotifier extends StateNotifier<AudioState> {
   /// Bumped every time the user pauses or a new play request starts. Lets a pending
   /// `_ensurePlaybackStarted` notice it is outdated and NOT re-start playback after a pause.
   int _playIntent = 0;
+
+  /// Counts stream failures in a row so auto-skip never chains through the whole list.
+  int _consecutiveStreamFailures = 0;
+
+  // Cached listing of the downloads folder (see _getDownloadsIndex).
+  List<_DownloadedFile>? _downloadsIndex;
+  DateTime? _downloadsIndexAt;
   final Map<String, bool> _fetchingBpm = {};
 
   final List<StreamSubscription<dynamic>> _subs = [];
@@ -92,6 +99,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
 
     _subs.add(_audioService.playbackStatusStream.listen((status) {
       if (!mounted) return;
+      if (status == PlaybackStatus.playing) _consecutiveStreamFailures = 0;
 
       // Ignore idle/buffering status if we are in a loading state to prevent flickering
       // This ensures the spinner stays until the engine is truly Ready or Playing.
@@ -203,22 +211,58 @@ class AudioNotifier extends StateNotifier<AudioState> {
           return;
         }
         String userMessage = 'Playback failed';
+        // Skipping only helps when THIS song is broken, not when the network is down.
+        var shouldAutoSkip = true;
         if (error.contains('403') || error.contains('Forbidden')) {
-          userMessage = 'Stream unavailable - try downloading the song';
+          userMessage = 'Stream unavailable - skipping to the next song';
           YoutubeProxyServer.clearCaches();
         } else if (error.contains('SocketException') || error.contains('Network')) {
           userMessage = 'Network error - check your connection';
+          shouldAutoSkip = false;
         } else if (error.contains('timeout')) {
           userMessage = 'Connection timeout - try again';
+          shouldAutoSkip = false;
         }
         state = state.copyWith(
           status: PlaybackStatus.error,
           errorMessage: userMessage,
         );
+        if (shouldAutoSkip) _autoSkipAfterFailure();
       }));
     }
 
     _audioService.setVolume(1.0);
+  }
+
+  /// After a broken stream, move on to the next song (max 3 times in a row).
+  void _autoSkipAfterFailure() {
+    _consecutiveStreamFailures++;
+    if (_consecutiveStreamFailures > 3) return;
+    if (state.currentIndex + 1 >= state.playlist.length) return;
+    Future.delayed(const Duration(milliseconds: 1200), () {
+      if (!mounted) return;
+      if (state.status != PlaybackStatus.error) return; // user already did something else
+      next();
+    });
+  }
+
+  /// Lower-cased file names in the downloads folder, cached for 30 s so building a
+  /// queue doesn't re-scan the whole folder once per song.
+  Future<List<_DownloadedFile>> _getDownloadsIndex(Directory dir) async {
+    final cachedAt = _downloadsIndexAt;
+    final cached = _downloadsIndex;
+    if (cached != null && cachedAt != null && DateTime.now().difference(cachedAt) < const Duration(seconds: 30)) {
+      return cached;
+    }
+    final entries = <_DownloadedFile>[];
+    await for (final entity in dir.list(recursive: false)) {
+      if (entity is File) {
+        entries.add(_DownloadedFile(entity.path, p.basename(entity.path).toLowerCase()));
+      }
+    }
+    _downloadsIndex = entries;
+    _downloadsIndexAt = DateTime.now();
+    return entries;
   }
 
   Future<void> _checkAndFetchBpm(SongMetadata song) async {
@@ -666,7 +710,26 @@ class AudioNotifier extends StateNotifier<AudioState> {
     final current = list[currentIndex];
     final rest = List<SongMetadata>.from(list)..removeAt(currentIndex);
     rest.shuffle(Random());
-    return [current, ...rest];
+    return [current, ..._spreadArtists(current.artist, rest)];
+  }
+
+  /// Keeps the random order but avoids two songs by the same artist back-to-back
+  /// whenever possible (greedy pass: take the first song whose artist differs).
+  List<SongMetadata> _spreadArtists(String previousArtist, List<SongMetadata> shuffled) {
+    final remaining = List<SongMetadata>.from(shuffled);
+    final result = <SongMetadata>[];
+    var last = previousArtist.trim().toLowerCase();
+    while (remaining.isNotEmpty) {
+      var pick = remaining.indexWhere((s) {
+        final a = s.artist.trim().toLowerCase();
+        return a.isEmpty || a != last;
+      });
+      if (pick < 0) pick = 0; // only same-artist songs left
+      final song = remaining.removeAt(pick);
+      result.add(song);
+      last = song.artist.trim().toLowerCase();
+    }
+    return result;
   }
 
   /// Keeps [AudioState.originalPlaylist] in sync when "play next" is used while shuffled.
@@ -961,15 +1024,14 @@ class AudioNotifier extends StateNotifier<AudioState> {
         final downloadsDir = await AppStoragePaths.downloadsDirectory();
         if (await downloadsDir.exists()) {
           final rawId = song.id.replaceAll('deezer_', '').replaceAll('youtube_', '').replaceAll('jamendo_', '');
-          await for (final entity in downloadsDir.list(recursive: false)) {
-            if (entity is File) {
-              final fileName = p.basename(entity.path).toLowerCase();
-              if ((rawId.isNotEmpty && fileName.contains(rawId.toLowerCase())) ||
-                  (sanitizedTitle.length > 2 && fileName.contains(sanitizedTitle.toLowerCase()))) {
-                localPath = entity.path;
-                Log.i('AudioNotifier: Local downloaded file HIT for "${song.title}" → $localPath');
-                break;
-              }
+          final rawIdLower = rawId.toLowerCase();
+          final titleLower = sanitizedTitle.toLowerCase();
+          for (final file in await _getDownloadsIndex(downloadsDir)) {
+            if ((rawIdLower.isNotEmpty && file.lowerName.contains(rawIdLower)) ||
+                (sanitizedTitle.length > 2 && file.lowerName.contains(titleLower))) {
+              localPath = file.path;
+              Log.i('AudioNotifier: Local downloaded file HIT for "${song.title}" → $localPath');
+              break;
             }
           }
         }
@@ -1373,4 +1435,12 @@ class AudioNotifier extends StateNotifier<AudioState> {
     _fetchingBpm.clear();
     super.dispose();
   }
+}
+
+
+/// One entry of the cached downloads-folder listing.
+class _DownloadedFile {
+  final String path;
+  final String lowerName;
+  const _DownloadedFile(this.path, this.lowerName);
 }

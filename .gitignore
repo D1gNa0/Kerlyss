@@ -130,3 +130,8 @@ graphify-out/
 symbols/
 scratch/
 tempOps/
+
+# IDE / local tool files (do not commit)
+.idea/
+.vscode/
+.superpowers/

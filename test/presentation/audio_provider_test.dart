@@ -264,6 +264,43 @@ void main() {
       expect(notifier.state.originalPlaylist, isEmpty);
     });
 
+    test('shuffle avoids the same artist back-to-back when possible', () async {
+      final notifier = AudioNotifier(
+        mockLocalDownloadLibrary,
+        mockYoutubeService,
+        mockAudioService,
+        mockIsarDatabaseService,
+        mockSongRepository,
+      );
+
+      when(() => mockAudioService.setAudioQueue(any(), initialIndex: any(named: 'initialIndex'), play: any(named: 'play'))).thenAnswer((_) async => null);
+      when(() => mockAudioService.play()).thenAnswer((_) async => null);
+      when(() => mockAudioService.insertIntoQueue(any(), any())).thenAnswer((_) async => null);
+      when(() => mockAudioService.removeFromQueue(any())).thenAnswer((_) async => null);
+      when(() => mockAudioService.queueLength).thenReturn(1);
+      when(() => mockAudioService.currentIndex).thenReturn(0);
+
+      // 4 songs by A and 4 by B, so a perfect alternation always exists.
+      final songs = List.generate(
+        8,
+        (i) => SongMetadata(
+          id: 'http://example.com/art_$i.mp3',
+          title: 'T$i',
+          artist: i < 4 ? 'A' : 'B',
+          duration: const Duration(minutes: 3),
+        ),
+      );
+
+      await notifier.playPlaylist(songs, 0);
+      await Future.delayed(const Duration(milliseconds: 50));
+      await notifier.toggleShuffle();
+
+      final order = notifier.state.playlist;
+      for (var i = 1; i < order.length; i++) {
+        expect(order[i].artist, isNot(order[i - 1].artist));
+      }
+    });
+
     test('shufflePlay turns shuffle on and plays every song exactly once', () async {
       final notifier = AudioNotifier(
         mockLocalDownloadLibrary,
