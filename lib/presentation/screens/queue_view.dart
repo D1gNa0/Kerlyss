@@ -65,7 +65,7 @@ class QueueView extends ConsumerWidget {
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                         tileColor: isPlaying ? Colors.white.withValues(alpha: 0.05) : Colors.transparent,
                         onTap: () {
-                          ref.read(audioProvider.notifier).playPlaylist(playlist, index);
+                          ref.read(audioProvider.notifier).jumpToQueueIndex(index);
                         },
                         leading: ClipRRect(
                           borderRadius: BorderRadius.circular(6),

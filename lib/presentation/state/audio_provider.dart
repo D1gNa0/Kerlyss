@@ -62,6 +62,10 @@ class AudioNotifier extends StateNotifier<AudioState> {
   bool _isNavigatingQueue = false;
   int _lastPersistedSecondMark = -1;
   DateTime? _forcePlayingUntil;
+
+  /// Bumped every time the user pauses or a new play request starts. Lets a pending
+  /// `_ensurePlaybackStarted` notice it is outdated and NOT re-start playback after a pause.
+  int _playIntent = 0;
   final Map<String, bool> _fetchingBpm = {};
 
   final List<StreamSubscription<dynamic>> _subs = [];
@@ -350,6 +354,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
 
       state = state.copyWith(
         playlist: snapshot.playlist,
+        originalPlaylist: snapshot.isShuffleEnabled ? snapshot.originalPlaylist : const [],
         currentIndex: clampedIndex,
         currentSong: restoredSong,
         position: snapshot.position,
@@ -397,6 +402,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
       volume: state.volume,
       isShuffleEnabled: state.isShuffleEnabled,
       isRepeatEnabled: state.isRepeatEnabled,
+      originalPlaylist: List<SongMetadata>.from(state.originalPlaylist),
     );
 
     await _sessionStore.save(snapshot);
@@ -441,7 +447,12 @@ class AudioNotifier extends StateNotifier<AudioState> {
   Future<void> playSong(SongMetadata song) => playPlaylist([song], 0);
 
   /// Plays a playlist starting at [index].
-  Future<void> playPlaylist(List<SongMetadata> playlist, int index) async {
+  ///
+  /// [shuffle]: `true` forces shuffle on, `false` forces it off, `null` (default)
+  /// keeps whatever the user currently has. When shuffle is on, the tapped song
+  /// plays first and the rest of the list is randomised; the original order is
+  /// kept in [AudioState.originalPlaylist] so shuffle can be turned off again.
+  Future<void> playPlaylist(List<SongMetadata> playlist, int index, {bool? shuffle}) async {
     try {
       if (index < 0 || index >= playlist.length) return;
       final requestId = ++_playRequestId;
@@ -450,11 +461,19 @@ class AudioNotifier extends StateNotifier<AudioState> {
       final clickedSong = playlist[index];
       Log.i('🎵 [USER_CLICK] User clicked song "${clickedSong.title}" by "${clickedSong.artist}" (ID: ${clickedSong.id}, source: ${clickedSong.source}) at index $index of ${playlist.length}');
 
+      // While shuffled, state.playlist is the shuffled order, so compare the
+      // incoming (natural-order) list against the saved original order instead.
+      final comparisonBase = (state.isShuffleEnabled && state.originalPlaylist.isNotEmpty)
+          ? state.originalPlaylist
+          : state.playlist;
+      final shuffleUnchanged = shuffle == null || shuffle == state.isShuffleEnabled;
+
       final canReuseCurrentQueue = !_isRestoringSession &&
+          shuffleUnchanged &&
           state.playlist.length == playlist.length &&
           state.playlist.isNotEmpty &&
           _audioService.queueLength == playlist.length && // Ensure hydration is fully complete
-          _hasSamePlaylistOrder(state.playlist, playlist);
+          _hasSamePlaylistOrder(comparisonBase, playlist);
 
       if (canReuseCurrentQueue) {
         final existingIndex = state.playlist.indexWhere((song) => song.id == clickedSong.id);
@@ -483,12 +502,19 @@ class AudioNotifier extends StateNotifier<AudioState> {
         }
       }
 
-      // Maintain exact 1-to-1 playlist order without rotation: [0, 1, 2, 3...]
+      // Shuffle OFF: keep exact 1-to-1 playlist order [0, 1, 2, 3...].
+      // Shuffle ON : tapped song first, everything else randomised.
+      final useShuffle = shuffle ?? state.isShuffleEnabled;
+      final doShuffle = useShuffle && playlist.length > 1;
+      final queue = doShuffle ? _shuffledWithCurrentFirst(playlist, index) : playlist;
+      final queueIndex = doShuffle ? 0 : index;
+
       state = state.copyWith(
-        playlist: playlist,
-        currentIndex: index,
+        playlist: queue,
+        originalPlaylist: doShuffle ? List<SongMetadata>.from(playlist) : const [],
+        currentIndex: queueIndex,
         currentSong: clickedSong,
-        isShuffleEnabled: false,
+        isShuffleEnabled: useShuffle,
         status: PlaybackStatus.loading, clearError: true,
       );
       _updateAudioFormatInfo(clickedSong);
@@ -520,7 +546,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
       // ── Background Queue Hydration ──
       // Now lazily resolve the remaining songs and rebuild the full queue.
       // The user is already hearing audio while this runs in the background.
-      unawaited(_hydrateFullQueue(playlist, index, requestId));
+      unawaited(_hydrateFullQueue(queue, queueIndex, requestId));
     } catch (e) {
       _isNavigatingQueue = false;
       _setPlaybackError('playPlaylist', e);
@@ -581,6 +607,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
 
   Future<void> _ensurePlaybackStarted() async {
     try {
+      final intent = ++_playIntent;
       _forcePlayingUntil = DateTime.now().add(const Duration(milliseconds: 1200));
       await _audioService.play();
 
@@ -600,8 +627,18 @@ class AudioNotifier extends StateNotifier<AudioState> {
 
       // just_audio_windows occasionally drops the first play intent right after load.
       // Retry once to ensure user-initiated taps actually start playback.
+      // The user may have paused (or started another track) while we were setting up.
+      if (intent != _playIntent) {
+        _syncStatusFromEngine();
+        return;
+      }
+
       if (!_audioService.playing) {
         await Future.delayed(const Duration(milliseconds: 120));
+        if (intent != _playIntent) {
+          _syncStatusFromEngine();
+          return;
+        }
         _forcePlayingUntil = DateTime.now().add(const Duration(milliseconds: 1200));
         await _audioService.play();
       }
@@ -621,6 +658,127 @@ class AudioNotifier extends StateNotifier<AudioState> {
 
 
 
+  // ───────────────────────── Shuffle ─────────────────────────
+
+  /// Random order of [list] with the song at [currentIndex] pinned at position 0
+  /// (Fisher-Yates via List.shuffle), so the playing song never changes.
+  List<SongMetadata> _shuffledWithCurrentFirst(List<SongMetadata> list, int currentIndex) {
+    final current = list[currentIndex];
+    final rest = List<SongMetadata>.from(list)..removeAt(currentIndex);
+    rest.shuffle(Random());
+    return [current, ...rest];
+  }
+
+  /// Keeps [AudioState.originalPlaylist] in sync when "play next" is used while shuffled.
+  void _insertIntoOriginalAfterCurrent(SongMetadata song) {
+    if (state.originalPlaylist.isEmpty) return;
+    final origin = List<SongMetadata>.from(state.originalPlaylist);
+    final at = origin.indexWhere((s) => s.id == state.currentSong.id);
+    origin.insert(at >= 0 ? at + 1 : origin.length, song);
+    state = state.copyWith(originalPlaylist: origin);
+  }
+
+  /// Plays [songs] in random order (random starting song too) and turns shuffle on.
+  Future<void> shufflePlay(List<SongMetadata> songs) async {
+    if (songs.isEmpty) return;
+    final start = Random().nextInt(songs.length);
+    await playPlaylist(songs, start, shuffle: true);
+  }
+
+  /// Turns shuffle on/off for the CURRENT queue without interrupting the song.
+  Future<void> toggleShuffle() async {
+    if (_isNavigatingQueue) return;
+
+    final enable = !state.isShuffleEnabled;
+    final playlist = state.playlist;
+    final idx = state.currentIndex;
+
+    // Nothing to reorder: just remember the preference.
+    if (playlist.length < 2 || idx < 0 || idx >= playlist.length) {
+      state = state.copyWith(isShuffleEnabled: enable);
+      _schedulePersistSession();
+      return;
+    }
+
+    if (enable) {
+      final shuffled = _shuffledWithCurrentFirst(playlist, idx);
+      state = state.copyWith(
+        isShuffleEnabled: true,
+        originalPlaylist: List<SongMetadata>.from(playlist),
+        playlist: shuffled,
+        currentIndex: 0,
+      );
+      await _rebuildEngineQueue(shuffled, 0);
+    } else {
+      final original = state.originalPlaylist;
+      if (original.isEmpty) {
+        // e.g. session restored without the original order: keep current order.
+        state = state.copyWith(isShuffleEnabled: false);
+      } else {
+        final currentId = state.currentSong.id;
+        final foundAt = original.indexWhere((s) => s.id == currentId);
+        final newIdx = foundAt >= 0 ? foundAt : 0;
+        state = state.copyWith(
+          isShuffleEnabled: false,
+          playlist: List<SongMetadata>.from(original),
+          currentIndex: newIdx,
+          clearOriginalPlaylist: true,
+        );
+        await _rebuildEngineQueue(state.playlist, newIdx);
+      }
+    }
+    _schedulePersistSession();
+  }
+
+  /// Re-orders the engine queue to match [newPlaylist] while the song at
+  /// [newCurrentIndex] keeps playing (it is the only item never removed).
+  /// Uses the same "insert around the playing item" technique as _hydrateFullQueue.
+  Future<void> _rebuildEngineQueue(List<SongMetadata> newPlaylist, int newCurrentIndex) async {
+    final requestId = ++_playRequestId; // also cancels any in-flight hydration
+    _isNavigatingQueue = true; // stop currentIndexStream from fighting us
+    try {
+      final engineIndex = _audioService.currentIndex ?? 0;
+      final queueLen = _audioService.queueLength;
+
+      // 1. Remove everything except the playing item.
+      for (var i = queueLen - 1; i > engineIndex; i--) {
+        await _audioService.removeFromQueue(i);
+      }
+      for (var i = engineIndex - 1; i >= 0; i--) {
+        await _audioService.removeFromQueue(i);
+      }
+
+      // 2. Insert songs AFTER the playing one.
+      var offset = 1;
+      for (var i = newCurrentIndex + 1; i < newPlaylist.length; i++) {
+        if (!mounted || requestId != _playRequestId) return;
+        final source = await _buildAudioSource(newPlaylist[i]);
+        if (!mounted || requestId != _playRequestId) return;
+        await _audioService.insertIntoQueue(offset, source);
+        offset++;
+      }
+
+      // 3. Insert songs BEFORE the playing one.
+      for (var i = 0; i < newCurrentIndex; i++) {
+        if (!mounted || requestId != _playRequestId) return;
+        final source = await _buildAudioSource(newPlaylist[i]);
+        if (!mounted || requestId != _playRequestId) return;
+        await _audioService.insertIntoQueue(i, source);
+      }
+
+      if (mounted && requestId == _playRequestId) {
+        state = state.copyWith(currentIndex: newCurrentIndex);
+        _prefetchUpcomingSongs(newCurrentIndex, count: 1);
+        Log.i('🔀 [SHUFFLE] Queue rebuilt (${newPlaylist.length} tracks), playing index $newCurrentIndex');
+      }
+    } catch (e) {
+      Log.w('AudioNotifier: Queue rebuild failed: $e');
+    } finally {
+      // Only the newest request may release the lock.
+      if (requestId == _playRequestId) _isNavigatingQueue = false;
+    }
+  }
+
   Future<void> addNext(SongMetadata song) async {
     if (state.playlist.isEmpty) {
       await playPlaylist([song], 0);
@@ -629,6 +787,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
     final newPlaylist = List<SongMetadata>.from(state.playlist);
     newPlaylist.insert(state.currentIndex + 1, song);
     state = state.copyWith(playlist: newPlaylist);
+    _insertIntoOriginalAfterCurrent(song);
 
     final source = await _buildAudioSource(song);
     await _audioService.insertIntoQueue(state.currentIndex + 1, source);
@@ -643,6 +802,9 @@ class AudioNotifier extends StateNotifier<AudioState> {
     final newPlaylist = List<SongMetadata>.from(state.playlist);
     newPlaylist.add(song);
     state = state.copyWith(playlist: newPlaylist);
+    if (state.originalPlaylist.isNotEmpty) {
+      state = state.copyWith(originalPlaylist: [...state.originalPlaylist, song]);
+    }
 
     final source = await _buildAudioSource(song);
     await _audioService.insertIntoQueue(newPlaylist.length - 1, source);
@@ -676,7 +838,13 @@ class AudioNotifier extends StateNotifier<AudioState> {
   Future<void> removeFromQueue(int index) async {
     if (index < 0 || index >= state.playlist.length) return;
     final newPlaylist = List<SongMetadata>.from(state.playlist);
-    newPlaylist.removeAt(index);
+    final removedSong = newPlaylist.removeAt(index);
+    if (state.originalPlaylist.isNotEmpty) {
+      final origin = List<SongMetadata>.from(state.originalPlaylist);
+      final originIdx = origin.indexWhere((s) => s.id == removedSong.id);
+      if (originIdx >= 0) origin.removeAt(originIdx);
+      state = state.copyWith(originalPlaylist: origin);
+    }
     
     int newCurrentIndex = state.currentIndex;
     if (index < state.currentIndex) {
@@ -710,6 +878,36 @@ class AudioNotifier extends StateNotifier<AudioState> {
       _prefetchUpcomingSongs(nextIndex, count: 1);
     } catch (e) {
       _setPlaybackError('next', e);
+    } finally {
+      _isNavigatingQueue = false;
+    }
+  }
+
+  /// Jumps to [index] inside the CURRENT queue (used by the Up Next list).
+  /// Unlike [playPlaylist] this never re-shuffles or re-orders the queue.
+  Future<void> jumpToQueueIndex(int index) async {
+    if (index < 0 || index >= state.playlist.length) return;
+    if (_isNavigatingQueue) return;
+
+    // Engine queue still being built in the background: fall back to a full (re)load.
+    if (_audioService.queueLength != state.playlist.length) {
+      await playPlaylist(state.playlist, index);
+      return;
+    }
+
+    try {
+      _isNavigatingQueue = true;
+      final song = state.playlist[index];
+      state = state.copyWith(currentIndex: index, currentSong: song, clearError: true);
+      _updateAudioFormatInfo(song);
+      globalAudioHandler.setMediaFromSong(song);
+      await _audioService.seek(Duration.zero, index: index).timeout(const Duration(seconds: 3));
+      await _ensurePlaybackStarted();
+      _checkAndFetchBpm(song);
+      _prefetchUpcomingSongs(index, count: 1);
+      _schedulePersistSession();
+    } catch (e) {
+      _setPlaybackError('jumpToQueueIndex', e);
     } finally {
       _isNavigatingQueue = false;
     }
@@ -874,6 +1072,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
           state.status == PlaybackStatus.buffering ||
           state.status == PlaybackStatus.loading;
       if (isCurrentlyActive) {
+        _playIntent++; // cancels any pending "ensure playing" retry
         _forcePlayingUntil = null;
         state = state.copyWith(status: PlaybackStatus.paused);
         await _audioService.pause();
@@ -890,6 +1089,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
 
   Future<void> pause() async {
     try {
+      _playIntent++; // cancels any pending "ensure playing" retry
       _forcePlayingUntil = null;
       state = state.copyWith(status: PlaybackStatus.paused);
       await _audioService.pause();

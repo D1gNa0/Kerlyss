@@ -67,8 +67,21 @@ class JustAudioService implements AudioServiceInterface {
   @override
   int? get currentIndex => _player.currentIndex;
 
+  /// IMPORTANT: just_audio's `play()` future only completes when playback is
+  /// PAUSED or ENDS (not when it starts). Awaiting it made callers wait until the
+  /// user paused, and made pause taps get "undone" by retry logic. So we start
+  /// playback fire-and-forget; `playing` is updated synchronously by just_audio.
+  void _startPlayback() {
+    _player.play().catchError((Object e) {
+      if (e is PlayerInterruptedException) return; // expected during fast track switching
+      Log.w('JustAudioService: play() failed: $e');
+    });
+  }
+
   @override
-  Future<void> play() => _player.play();
+  Future<void> play() async {
+    _startPlayback();
+  }
 
   @override
   Future<void> pause() => _player.pause();
@@ -85,7 +98,7 @@ class JustAudioService implements AudioServiceInterface {
     try {
       await _player.setUrl(url, headers: headers);
       if (play) {
-        await _player.play();
+        _startPlayback();
       }
     } on PlayerInterruptedException {
       Log.d('JustAudioService: setUrl interrupted (expected during rapid switching)');
@@ -98,7 +111,7 @@ class JustAudioService implements AudioServiceInterface {
     try {
       await _player.setFilePath(path);
       if (play) {
-        await _player.play();
+        _startPlayback();
       }
     } on PlayerInterruptedException {
       Log.d('JustAudioService: setFilePath interrupted (expected during rapid switching)');
@@ -136,7 +149,7 @@ class JustAudioService implements AudioServiceInterface {
         await _player.seek(Duration.zero, index: initialIndex);
       }
       if (play) {
-        await _player.play();
+        _startPlayback();
       }
     } on PlayerInterruptedException {
       // Expected during rapid song switching — new call already took over

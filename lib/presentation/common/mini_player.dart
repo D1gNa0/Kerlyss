@@ -15,7 +15,6 @@ import '../state/library_provider.dart';
 import '../state/download_state_provider.dart';
 import '../state/track_download_provider.dart';
 import 'tap_bpm_dialog.dart';
-import '../../core/services/toast_service.dart';
 
 class MiniPlayer extends ConsumerWidget {
   const MiniPlayer({super.key});
@@ -218,16 +217,10 @@ class MiniPlayer extends ConsumerWidget {
                         color: audioState.repeatMode != PlaybackRepeatMode.off
                             ? AetherColors.accentCyan
                             : (hasSong ? Colors.white70 : Colors.white24),
+                        // No toast here: the icon/colour change is the feedback, and
+                        // a pop-up over the controls was annoying.
                         onPressed: hasSong
-                            ? () {
-                                ref.read(audioProvider.notifier).toggleRepeatMode();
-                                final nextMode = switch (audioState.repeatMode) {
-                                  PlaybackRepeatMode.off => 'Repeat: Queue',
-                                  PlaybackRepeatMode.all => 'Repeat: Current Track (Play Again)',
-                                  PlaybackRepeatMode.one => 'Repeat: Off',
-                                };
-                                ToastService.show(context, nextMode);
-                              }
+                            ? () => ref.read(audioProvider.notifier).toggleRepeatMode()
                             : null,
                       ),
                       if (MediaQuery.of(context).size.width > 500) ...[

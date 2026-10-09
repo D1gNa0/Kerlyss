@@ -13,6 +13,7 @@ class PlaybackSessionSnapshot {
   final double volume;
   final bool isShuffleEnabled;
   final bool isRepeatEnabled;
+  final List<SongMetadata> originalPlaylist;
 
   const PlaybackSessionSnapshot({
     required this.playlist,
@@ -22,6 +23,7 @@ class PlaybackSessionSnapshot {
     required this.volume,
     required this.isShuffleEnabled,
     required this.isRepeatEnabled,
+    this.originalPlaylist = const [],
   });
 }
 
@@ -46,6 +48,7 @@ class PlaybackSessionStore {
         'isShuffleEnabled': snapshot.isShuffleEnabled,
         'isRepeatEnabled': snapshot.isRepeatEnabled,
         'playlist': snapshot.playlist.map(_songToMap).toList(),
+        'originalPlaylist': snapshot.originalPlaylist.map(_songToMap).toList(),
       };
 
       await file.writeAsString(jsonEncode(payload), flush: true);
@@ -110,6 +113,19 @@ class PlaybackSessionStore {
         return null;
       }
 
+      final originalPlaylist = <SongMetadata>[];
+      final rawOriginal = data['originalPlaylist'];
+      if (rawOriginal is List) {
+        for (final item in rawOriginal) {
+          if (item is Map) {
+            final song = _songFromMap(
+              item.map((key, value) => MapEntry(key.toString(), value)),
+            );
+            if (song != null) originalPlaylist.add(song);
+          }
+        }
+      }
+
       final rawIndex = _asInt(data['currentIndex']) ?? 0;
       final clampedIndex = rawIndex.clamp(0, playlist.length - 1);
 
@@ -124,6 +140,7 @@ class PlaybackSessionStore {
         volume: volume.clamp(0.0, 1.0),
         isShuffleEnabled: data['isShuffleEnabled'] == true,
         isRepeatEnabled: data['isRepeatEnabled'] == true,
+        originalPlaylist: originalPlaylist,
       );
     } catch (_) {
       return null;

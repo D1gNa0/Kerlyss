@@ -84,6 +84,10 @@ class AudioState {
   final bool isRepeatEnabled;
   final PlaybackRepeatMode repeatMode;
   final List<SongMetadata> playlist;
+
+  /// The queue in its ORIGINAL (un-shuffled) order. Only filled while shuffle
+  /// is on, so turning shuffle off can restore the order.
+  final List<SongMetadata> originalPlaylist;
   final int currentIndex;
   final double volume;
   final String? errorMessage;
@@ -102,6 +106,7 @@ class AudioState {
     this.isRepeatEnabled = false,
     this.repeatMode = PlaybackRepeatMode.off,
     this.playlist = const [],
+    this.originalPlaylist = const [],
     this.currentIndex = -1,
     this.volume = 1.0,
     this.errorMessage,
@@ -121,6 +126,8 @@ class AudioState {
     bool? isRepeatEnabled,
     PlaybackRepeatMode? repeatMode,
     List<SongMetadata>? playlist,
+    List<SongMetadata>? originalPlaylist,
+    bool clearOriginalPlaylist = false,
     int? currentIndex,
     double? volume,
     String? errorMessage,
@@ -144,6 +151,7 @@ class AudioState {
       isRepeatEnabled: isRepeatEnabled ?? (repeatMode != null ? repeatMode != PlaybackRepeatMode.off : this.isRepeatEnabled),
       repeatMode: repeatMode ?? this.repeatMode,
       playlist: playlist ?? this.playlist,
+      originalPlaylist: clearOriginalPlaylist ? const [] : (originalPlaylist ?? this.originalPlaylist),
       currentIndex: currentIndex ?? this.currentIndex,
       volume: volume ?? this.volume,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),

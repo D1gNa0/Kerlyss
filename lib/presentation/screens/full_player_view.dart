@@ -12,7 +12,6 @@ import 'package:kerlyss/l10n/app_localizations.dart';
 import 'queue_view.dart';
 import 'dart:ui';
 import 'dart:io';
-import '../../core/services/toast_service.dart';
 
 class FullPlayerView extends ConsumerWidget {
   const FullPlayerView({super.key});
@@ -231,13 +230,15 @@ class FullPlayerView extends ConsumerWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      // STUB: shuffle not implemented
-                      Tooltip(
-                        message: l10n.stubNotImplemented,
-                        child: Stack(children: [
-                          const Icon(Icons.shuffle_rounded, color: AetherColors.textSecondary, size: 20),
-                          Positioned(top: 0, right: 0, child: Container(width: 6, height: 6, decoration: const BoxDecoration(color: AetherColors.error, shape: BoxShape.circle))),
-                        ]),
+                      AetherIconButton(
+                        tooltip: audioState.isShuffleEnabled ? 'Shuffle: On' : 'Shuffle: Off',
+                        icon: Icons.shuffle_rounded,
+                        color: audioState.isShuffleEnabled
+                            ? AetherColors.accentCyan
+                            : AetherColors.textSecondary,
+                        size: 20,
+                        buttonSize: 44,
+                        onPressed: () => ref.read(audioProvider.notifier).toggleShuffle(),
                       ),
                       AetherIconButton(
                         tooltip: l10n.previousShortcut,
@@ -294,15 +295,7 @@ class FullPlayerView extends ConsumerWidget {
                             : AetherColors.textSecondary,
                         size: 22,
                         buttonSize: 44,
-                        onPressed: () {
-                          ref.read(audioProvider.notifier).toggleRepeatMode();
-                          final nextMode = switch (audioState.repeatMode) {
-                            PlaybackRepeatMode.off => 'Repeat: Queue',
-                            PlaybackRepeatMode.all => 'Repeat: Current Track (Play Again)',
-                            PlaybackRepeatMode.one => 'Repeat: Off',
-                          };
-                          ToastService.show(context, nextMode);
-                        },
+                        onPressed: () => ref.read(audioProvider.notifier).toggleRepeatMode(),
                       ),
                     ],
                   ),

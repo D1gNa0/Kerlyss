@@ -476,6 +476,22 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
                           ),
                         ),
                         const SizedBox(width: 8),
+                        VercelHoverButton(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          borderRadius: 20,
+                          onTap: _loadedSongs!.isNotEmpty
+                              ? () => ref.read(audioProvider.notifier).shufflePlay(_loadedSongs!.map(SongMetadata.fromEntity).toList())
+                              : null,
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.shuffle_rounded, color: Colors.white, size: 18),
+                              SizedBox(width: 6),
+                              Text('SHUFFLE', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: SingleChildScrollView(
                             scrollDirection: Axis.horizontal,

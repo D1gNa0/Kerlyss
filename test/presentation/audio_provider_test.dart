@@ -216,6 +216,87 @@ void main() {
       verify(() => mockEqualizerBand.setGain(5.0)).called(1);
     });
 
+    test('shuffle keeps current song first, then restores original order when turned off', () async {
+      final notifier = AudioNotifier(
+        mockLocalDownloadLibrary,
+        mockYoutubeService,
+        mockAudioService,
+        mockIsarDatabaseService,
+        mockSongRepository,
+      );
+
+      when(() => mockAudioService.setAudioQueue(any(), initialIndex: any(named: 'initialIndex'), play: any(named: 'play'))).thenAnswer((_) async => null);
+      when(() => mockAudioService.play()).thenAnswer((_) async => null);
+      when(() => mockAudioService.insertIntoQueue(any(), any())).thenAnswer((_) async => null);
+      when(() => mockAudioService.removeFromQueue(any())).thenAnswer((_) async => null);
+      when(() => mockAudioService.queueLength).thenReturn(1);
+      when(() => mockAudioService.currentIndex).thenReturn(0);
+
+      final songs = List.generate(
+        8,
+        (i) => SongMetadata(
+          id: 'http://example.com/song_$i.mp3',
+          title: 'Song $i',
+          artist: 'Artist',
+          duration: const Duration(minutes: 3),
+        ),
+      );
+
+      await notifier.playPlaylist(songs, 3);
+      await Future.delayed(const Duration(milliseconds: 50));
+      expect(notifier.state.isShuffleEnabled, isFalse);
+      expect(notifier.state.playlist.map((s) => s.id), songs.map((s) => s.id));
+
+      // Shuffle ON
+      await notifier.toggleShuffle();
+      expect(notifier.state.isShuffleEnabled, isTrue);
+      expect(notifier.state.currentIndex, 0);
+      expect(notifier.state.playlist.first.id, songs[3].id);
+      expect(notifier.state.playlist.map((s) => s.id).toSet(), songs.map((s) => s.id).toSet());
+      expect(notifier.state.playlist.length, songs.length);
+      expect(notifier.state.originalPlaylist.map((s) => s.id), songs.map((s) => s.id));
+
+      // Shuffle OFF -> original order, same song still current
+      await notifier.toggleShuffle();
+      expect(notifier.state.isShuffleEnabled, isFalse);
+      expect(notifier.state.playlist.map((s) => s.id), songs.map((s) => s.id));
+      expect(notifier.state.currentIndex, 3);
+      expect(notifier.state.originalPlaylist, isEmpty);
+    });
+
+    test('shufflePlay turns shuffle on and plays every song exactly once', () async {
+      final notifier = AudioNotifier(
+        mockLocalDownloadLibrary,
+        mockYoutubeService,
+        mockAudioService,
+        mockIsarDatabaseService,
+        mockSongRepository,
+      );
+
+      when(() => mockAudioService.setAudioQueue(any(), initialIndex: any(named: 'initialIndex'), play: any(named: 'play'))).thenAnswer((_) async => null);
+      when(() => mockAudioService.play()).thenAnswer((_) async => null);
+      when(() => mockAudioService.insertIntoQueue(any(), any())).thenAnswer((_) async => null);
+
+      final songs = List.generate(
+        6,
+        (i) => SongMetadata(
+          id: 'http://example.com/s_$i.mp3',
+          title: 'S$i',
+          artist: 'A',
+          duration: const Duration(minutes: 3),
+        ),
+      );
+
+      await notifier.shufflePlay(songs);
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      expect(notifier.state.isShuffleEnabled, isTrue);
+      expect(notifier.state.currentIndex, 0);
+      expect(notifier.state.playlist.length, songs.length);
+      expect(notifier.state.playlist.map((s) => s.id).toSet(), songs.map((s) => s.id).toSet());
+      expect(notifier.state.originalPlaylist.map((s) => s.id), songs.map((s) => s.id));
+    });
+
     test('updates audio details for a local file', () async {
       final tempFile = File('${Directory.systemTemp.path}/test_song.mp3');
       await tempFile.writeAsBytes(List.generate(1024 * 1024 * 5, (index) => 0)); // 5 MB file
