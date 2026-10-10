@@ -1,4 +1,5 @@
 import '../../domain/repositories/audio_service_interface.dart';
+import '../../core/services/error_reporter.dart';
 import '../../data/datasources/local/just_audio_service.dart';
 import '../../data/datasources/local/isar_database_service.dart';
 import 'dart:async';
@@ -245,6 +246,14 @@ class AudioNotifier extends StateNotifier<AudioState> {
   /// After a broken stream, move on to the next song (max 3 times in a row).
   void _autoSkipAfterFailure() {
     _consecutiveStreamFailures++;
+    if (_consecutiveStreamFailures == 4) {
+      // 4 broken songs in a row (not a network problem) usually means YouTube changed something.
+      ErrorReporter.instance.reportLethal(
+        kind: 'playback-repeated-failure',
+        userMessage: 'Several songs in a row could not be played.',
+        error: state.errorMessage ?? 'Repeated stream failures',
+      );
+    }
     if (_consecutiveStreamFailures > 3) return;
     if (state.currentIndex + 1 >= state.playlist.length) return;
     Future.delayed(const Duration(milliseconds: 1200), () {

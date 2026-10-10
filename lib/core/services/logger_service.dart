@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:logger/logger.dart';
 import 'app_storage_paths.dart';
+import 'log_buffer.dart';
 
 class _FlatLogPrinter extends LogPrinter {
   _FlatLogPrinter();
@@ -131,21 +132,25 @@ class Log {
 
   /// Log a message at level [Level.info].
   static void i(dynamic message, [dynamic error, StackTrace? stackTrace]) {
+    LogBuffer.instance.add(Level.info, message, error, stackTrace);
     _instance.i(message, error: error, stackTrace: stackTrace);
   }
 
   /// Log a message at level [Level.warning].
   static void w(dynamic message, [dynamic error, StackTrace? stackTrace]) {
+    LogBuffer.instance.add(Level.warning, message, error, stackTrace);
     _instance.w(message, error: error, stackTrace: stackTrace);
   }
 
   /// Log a message at level [Level.error].
   static void e(dynamic message, [dynamic error, StackTrace? stackTrace]) {
+    LogBuffer.instance.add(Level.error, message, error, stackTrace);
     _instance.e(message, error: error, stackTrace: stackTrace);
   }
 
   /// Log a message at level [Level.fatal].
   static void f(dynamic message, [dynamic error, StackTrace? stackTrace]) {
+    LogBuffer.instance.add(Level.fatal, message, error, stackTrace);
     _instance.f(message, error: error, stackTrace: stackTrace);
   }
 }

@@ -1,4 +1,5 @@
 import 'core/services/analytics_service.dart';
+import 'core/services/error_reporter.dart';
 import 'core/services/app_storage_paths.dart';
 import 'core/services/app_window_listener.dart';
 import 'dart:io';
@@ -43,6 +44,9 @@ late final KerlyssAudioHandler globalAudioHandler;
 void main() async {
   HttpOverrides.global = AetherHttpOverrides();
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Catch uncaught errors and (for real bugs) offer to report them on GitHub.
+  ErrorReporter.instance.install();
 
   // Initialize AudioService for background playback
   globalAudioHandler = await AudioService.init<KerlyssAudioHandler>(
@@ -119,6 +123,7 @@ class KerlyssApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: rootNavigatorKey,
       title: 'Kerlyss',
       debugShowCheckedModeBanner: false,
       theme: AetherTheme.darkTheme,

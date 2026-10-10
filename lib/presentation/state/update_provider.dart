@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 import '../../core/services/app_updater.dart';
+import '../../core/services/error_reporter.dart';
 import '../../main.dart' show globalAudioHandler;
 
 enum UpdatePhase { idle, checking, available, downloading, verifying, preparing, readyToInstall, error }
@@ -159,6 +160,11 @@ class UpdateController extends StateNotifier<UpdateState> {
       if (mounted) _fail(e.message);
     } catch (e) {
       debugPrint('Update failed: $e');
+      ErrorReporter.instance.reportLethal(
+        kind: 'updater-failed',
+        userMessage: 'The in-app update failed unexpectedly.',
+        error: e,
+      );
       if (mounted) _fail('Update failed. Please try again.');
     }
   }

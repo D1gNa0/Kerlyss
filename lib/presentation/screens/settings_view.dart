@@ -12,6 +12,8 @@ import '../state/audio_provider.dart';
 import '../../core/services/app_storage_paths.dart';
 import '../../core/services/logger_service.dart';
 import '../../core/services/update_service.dart';
+import '../../core/services/error_reporter.dart';
+import '../common/error_report_dialog.dart';
 import 'package:path/path.dart' as p;
 import '../state/downloaded_songs_provider.dart';
 import '../state/cloud_sync_provider.dart';
@@ -182,6 +184,12 @@ class SettingsView extends ConsumerWidget {
                 value: 'Tap to check',
                 icon: Icons.system_update_rounded,
                 onTap: () => UpdateService().checkForUpdates(context, manual: true),
+              ),
+              _SettingsTile(
+                label: 'Report a Problem',
+                value: 'Share logs on GitHub',
+                icon: Icons.bug_report_rounded,
+                onTap: () => showErrorReportDialog(context, ErrorReporter.instance.manualDraft()),
               ),
             ],
           ),

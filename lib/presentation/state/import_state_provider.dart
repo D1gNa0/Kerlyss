@@ -1,4 +1,5 @@
 import '../../core/services/logger_service.dart';
+import '../../core/services/error_reporter.dart';
 import '../../core/constants/app_constants.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/repositories/song_repository.dart';
@@ -147,12 +148,22 @@ class ImportStateNotifier extends StateNotifier<ImportState> {
         } else {
           Log.w('Spotify Import: Failed to resolve any tracks for "${playlistData.name}"');
           setStatus(ImportStatus.error, errorMessage: 'Failed to resolve any tracks.');
+          ErrorReporter.instance.reportLethal(
+            kind: 'spotify-import-no-tracks',
+            userMessage: "The Spotify import found the playlist but couldn't match any of its songs.",
+            error: 'Failed to resolve any of $total tracks. Link: $url',
+          );
         }
       }
     } catch (e) {
       if (mounted) {
         Log.e('Spotify Import: Fatal error during import: ${e.toString()}');
         setStatus(ImportStatus.error, errorMessage: 'Failed to import playlist: ${e.toString()}');
+        ErrorReporter.instance.reportLethal(
+          kind: 'spotify-import-failed',
+          userMessage: 'The Spotify playlist import failed.',
+          error: 'Import failed for link $url: $e',
+        );
       }
     }
   }
