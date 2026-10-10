@@ -186,6 +186,12 @@ class SettingsView extends ConsumerWidget {
                 onTap: () => UpdateService().checkForUpdates(context, manual: true),
               ),
               _SettingsTile(
+                label: 'Check for Beta Updates',
+                value: 'Try upcoming features early',
+                icon: Icons.science_rounded,
+                onTap: () => UpdateService().checkForBetaUpdates(context),
+              ),
+              _SettingsTile(
                 label: 'Report a Problem',
                 value: 'Share logs on GitHub',
                 icon: Icons.bug_report_rounded,

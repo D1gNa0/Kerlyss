@@ -76,15 +76,16 @@ class UpdateController extends StateNotifier<UpdateState> {
   File? _androidApk;
 
   /// Looks for a newer version. Never throws.
-  Future<UpdateCheckResult> check() async {
-    if (state.phase == UpdatePhase.readyToInstall || state.phase == UpdatePhase.available) {
-      return UpdateCheckResult.available;
-    }
+  /// [channel] picks stable (default, used at startup) or beta (only from the beta button).
+  Future<UpdateCheckResult> check({UpdateChannel channel = UpdateChannel.stable}) async {
+    // A file that is already downloaded and verified wins. An "available" result is
+    // re-checked so switching between the stable and beta buttons gives the right answer.
+    if (state.phase == UpdatePhase.readyToInstall) return UpdateCheckResult.available;
     if (state.isBusy) return UpdateCheckResult.available;
 
     state = state.copyWith(phase: UpdatePhase.checking, clearMessage: true);
     try {
-      final info = await _updater.fetchLatest();
+      final info = await _updater.fetchLatest(channel: channel);
       if (!mounted) return UpdateCheckResult.failed;
       if (info == null) {
         state = const UpdateState();
@@ -111,12 +112,13 @@ class UpdateController extends StateNotifier<UpdateState> {
       await _updater.cleanUp();
       if (Platform.isWindows) await _updater.ensureInstallDirWritable();
 
-      final expectedHash = await _updater.fetchExpectedHash(info.version);
+      final expectedHash = await _updater.fetchExpectedHash(info);
       final workDir = await _updater.workDir();
       final target = File(p.join(workDir.path, AppUpdater.assetName));
 
       var lastPercent = -1;
       await _updater.download(
+        url: AppUpdater.downloadUrlFor(info),
         target: target,
         cancelToken: token,
         onProgress: (received, total) {

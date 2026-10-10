@@ -24,7 +24,4 @@ class AppSettingsModel {
   String? googleAccountEmail;
   String? googleRefreshToken;
   DateTime? lastCloudSyncAt;
-
-  // Updates
-  bool betaChannel = false;
 }

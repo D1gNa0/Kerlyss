@@ -23,6 +23,51 @@ void main() {
     });
   });
 
+  group('AppUpdater pre-release (beta) versions', () {
+    test('betas are ordered correctly', () {
+      expect(AppUpdater.isNewerVersion('1.4.0-beta.2', '1.4.0-beta.1'), isTrue);
+      expect(AppUpdater.isNewerVersion('1.4.0-beta.10', '1.4.0-beta.9'), isTrue);
+      expect(AppUpdater.isNewerVersion('1.4.0-beta.1', '1.4.0-beta.2'), isFalse);
+      expect(AppUpdater.isNewerVersion('1.4.0-beta.1', '1.4.0-beta.1'), isFalse);
+    });
+
+    test('a final release is newer than its betas, and a beta is newer than the previous stable', () {
+      expect(AppUpdater.isNewerVersion('1.4.0', '1.4.0-beta.5'), isTrue);
+      expect(AppUpdater.isNewerVersion('1.4.0-beta.5', '1.4.0'), isFalse);
+      expect(AppUpdater.isNewerVersion('1.4.0-beta.1', '1.3.9'), isTrue);
+      expect(AppUpdater.isNewerVersion('1.3.9', '1.4.0-beta.1'), isFalse);
+    });
+
+    test('build numbers are ignored, alpha < beta < rc', () {
+      expect(AppUpdater.isNewerVersion('1.4.0-beta.2+20', '1.4.0-beta.1+25'), isTrue);
+      expect(AppUpdater.isNewerVersion('1.4.0-beta.1', '1.4.0-alpha.9'), isTrue);
+      expect(AppUpdater.isNewerVersion('1.4.0-rc.1', '1.4.0-beta.9'), isTrue);
+    });
+
+    test('isPrerelease', () {
+      expect(AppUpdater.isPrerelease('1.4.0-beta.1'), isTrue);
+      expect(AppUpdater.isPrerelease('1.4.0'), isFalse);
+      expect(AppUpdater.isPrerelease('1.4.0+12'), isFalse);
+    });
+
+    test('beta download URL uses the exact pre-release tag, stable uses latest', () {
+      const beta = UpdateInfo(
+        version: '1.4.0-beta.1',
+        notes: '',
+        channel: UpdateChannel.beta,
+        tag: 'v1.4.0-beta.1',
+      );
+      const stable = UpdateInfo(version: '1.4.0', notes: '');
+      expect(AppUpdater.downloadUrlFor(beta), startsWith('https://github.com/D1gNa0/Kerlyss/releases/download/v1.4.0-beta.1/'));
+      expect(AppUpdater.downloadUrlFor(stable), startsWith('https://github.com/D1gNa0/Kerlyss/releases/latest/download/'));
+    });
+
+    test('checksum file version can be a beta', () {
+      expect(AppUpdater.parseChecksumsVersion('Release Version: v1.4.0-beta.1\nBuild Date: x'), '1.4.0-beta.1');
+      expect(AppUpdater.parseChecksumsVersion('Release Version: v1.3.2\nBuild Date: x'), '1.3.2');
+    });
+  });
+
   group('checksums.txt parsing', () {
     const sample = '''
 Kerlyss Release Binary Checksums (SHA-256)

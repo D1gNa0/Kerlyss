@@ -17,10 +17,26 @@ class UpdateException implements Exception {
   String toString() => message;
 }
 
+/// Which release line an update comes from. The startup check and the normal
+/// "Check for Updates" button only ever use [stable]; [beta] is opt-in (own button).
+enum UpdateChannel { stable, beta }
+
 class UpdateInfo {
   final String version;
   final String notes;
-  const UpdateInfo({required this.version, required this.notes});
+  final UpdateChannel channel;
+
+  /// GitHub release tag that holds the files (beta only, e.g. `v1.4.0-beta.1`).
+  final String? tag;
+
+  const UpdateInfo({
+    required this.version,
+    required this.notes,
+    this.channel = UpdateChannel.stable,
+    this.tag,
+  });
+
+  bool get isBeta => channel == UpdateChannel.beta;
 }
 
 enum AndroidInstallResult { started, needsPermission }
@@ -45,6 +61,12 @@ class AppUpdater {
       'https://raw.githubusercontent.com/D1gNa0/Kerlyss/main/version.json';
   static const String checksumsUrl =
       'https://raw.githubusercontent.com/D1gNa0/Kerlyss/main/checksums.txt';
+  // Beta channel: separate metadata files, so stable users can never see a beta.
+  static const String betaVersionUrl =
+      'https://raw.githubusercontent.com/D1gNa0/Kerlyss/main/beta.json';
+  static const String betaChecksumsUrl =
+      'https://raw.githubusercontent.com/D1gNa0/Kerlyss/main/checksums-beta.txt';
+  static const String _releaseTagBase = 'https://github.com/D1gNa0/Kerlyss/releases/download';
   static const String _releaseBase =
       'https://github.com/D1gNa0/Kerlyss/releases/latest/download';
 
@@ -52,29 +74,59 @@ class AppUpdater {
   static String get assetName => Platform.isAndroid ? 'Kerlyss-Android.apk' : 'Kerlyss-Windows.zip';
   static String get downloadUrl => '$_releaseBase/$assetName';
 
+  /// Stable: GitHub's "latest release". Beta: the exact pre-release tag
+  /// (GitHub's "latest" link never points to a pre-release).
+  static String downloadUrlFor(UpdateInfo info) {
+    if (info.isBeta) return '$_releaseTagBase/${info.tag}/$assetName';
+    return downloadUrl;
+  }
+
   // ───────────────────────── pure helpers (unit tested) ─────────────────────────
 
-  /// True when [latest] is a higher dotted version than [current] ("1.3.10" > "1.3.9").
-  static bool isNewerVersion(String latest, String current) {
-    List<int> parse(String v) => v
-        .trim()
-        .replaceFirst(RegExp(r'^[vV]'), '')
-        .split('+')
-        .first
-        .split('.')
-        .map((e) => int.tryParse(e) ?? 0)
-        .toList();
+  /// True when [latest] is a higher version than [current].
+  /// Understands pre-releases: 1.4.0-beta.1 < 1.4.0-beta.2 < 1.4.0 (a final release
+  /// is newer than any of its betas). The `+build` part is ignored.
+  static bool isNewerVersion(String latest, String current) => compareVersions(latest, current) > 0;
 
-    final a = parse(latest);
-    final b = parse(current);
-    final length = a.length > b.length ? a.length : b.length;
-    for (var i = 0; i < length; i++) {
-      final x = i < a.length ? a[i] : 0;
-      final y = i < b.length ? b[i] : 0;
-      if (x > y) return true;
-      if (x < y) return false;
+  /// True for versions like `1.4.0-beta.1`.
+  static bool isPrerelease(String version) => _ParsedVersion.parse(version).pre.isNotEmpty;
+
+  /// Returns a negative number, 0, or a positive number (like `compareTo`).
+  static int compareVersions(String a, String b) {
+    final pa = _ParsedVersion.parse(a);
+    final pb = _ParsedVersion.parse(b);
+
+    final coreLength = pa.core.length > pb.core.length ? pa.core.length : pb.core.length;
+    for (var i = 0; i < coreLength; i++) {
+      final x = i < pa.core.length ? pa.core[i] : 0;
+      final y = i < pb.core.length ? pb.core[i] : 0;
+      if (x != y) return x > y ? 1 : -1;
     }
-    return false;
+
+    // Same numbers: a version without a pre-release tag is newer than one with it.
+    if (pa.pre.isEmpty && pb.pre.isEmpty) return 0;
+    if (pa.pre.isEmpty) return 1;
+    if (pb.pre.isEmpty) return -1;
+
+    final preLength = pa.pre.length < pb.pre.length ? pa.pre.length : pb.pre.length;
+    for (var i = 0; i < preLength; i++) {
+      final x = pa.pre[i];
+      final y = pb.pre[i];
+      final xn = int.tryParse(x);
+      final yn = int.tryParse(y);
+      if (xn != null && yn != null) {
+        if (xn != yn) return xn > yn ? 1 : -1;
+      } else if (xn != null) {
+        return -1; // numbers sort before words
+      } else if (yn != null) {
+        return 1;
+      } else {
+        final c = x.compareTo(y);
+        if (c != 0) return c > 0 ? 1 : -1;
+      }
+    }
+    if (pa.pre.length == pb.pre.length) return 0;
+    return pa.pre.length > pb.pre.length ? 1 : -1;
   }
 
   /// Parses lines like `<64 hex chars>  Kerlyss-Android.apk` into {fileName: hash}.
@@ -89,34 +141,56 @@ class AppUpdater {
 
   /// Reads `Release Version: v1.3.4` -> `1.3.4`.
   static String? parseChecksumsVersion(String text) {
-    final m = RegExp(r'Release Version:\s*[vV]?([0-9][0-9.]*)').firstMatch(text);
+    final m = RegExp(r'Release Version:\s*[vV]?([0-9][0-9A-Za-z.\-]*)').firstMatch(text);
     return m?.group(1);
   }
 
   // ───────────────────────── check ─────────────────────────
 
-  /// Returns the new version if one is available, otherwise null.
-  Future<UpdateInfo?> fetchLatest() async {
-    final response = await _dio.get<dynamic>(versionUrl);
+  /// Returns the new version if one is available on [channel], otherwise null.
+  Future<UpdateInfo?> fetchLatest({UpdateChannel channel = UpdateChannel.stable}) async {
+    final isBeta = channel == UpdateChannel.beta;
+
+    Response<dynamic> response;
+    try {
+      response = await _dio.get<dynamic>(isBeta ? betaVersionUrl : versionUrl);
+    } on DioException catch (e) {
+      // No beta.json in the repo = no beta is being tested right now (not an error).
+      if (isBeta && e.response?.statusCode == 404) return null;
+      rethrow;
+    }
+
     final raw = response.data;
     final data = raw is String ? jsonDecode(raw) : raw;
     final latest = (data['version'] as String).trim();
     final notes = (data['releaseNotes'] as String?) ?? '';
 
+    // Safety: the stable channel must never offer a pre-release by mistake.
+    if (!isBeta && isPrerelease(latest)) return null;
+
+    String? tag;
+    if (isBeta) {
+      tag = ((data['tag'] as String?) ?? 'v$latest').trim();
+      if (!RegExp(r'^[A-Za-z0-9._+\-]+$').hasMatch(tag)) {
+        throw const UpdateException('The beta release information is invalid.');
+      }
+    }
+
     final current = (await PackageInfo.fromPlatform()).version;
-    return isNewerVersion(latest, current) ? UpdateInfo(version: latest, notes: notes) : null;
+    if (!isNewerVersion(latest, current)) return null;
+    return UpdateInfo(version: latest, notes: notes, channel: channel, tag: tag);
   }
 
   /// SHA-256 we must see for this platform's asset. Refuses to continue when the
   /// checksum file is for another release (release not fully published yet).
-  Future<String> fetchExpectedHash(String version) async {
+  Future<String> fetchExpectedHash(UpdateInfo info) async {
     final response = await _dio.get<String>(
-      checksumsUrl,
+      info.isBeta ? betaChecksumsUrl : checksumsUrl,
       options: Options(responseType: ResponseType.plain),
     );
     final text = response.data ?? '';
     final listedVersion = parseChecksumsVersion(text);
-    if (listedVersion == null || listedVersion != version.replaceFirst(RegExp(r'^[vV]'), '')) {
+    if (listedVersion == null || listedVersion != info.version.replaceFirst(RegExp(r'^[vV]'), '')) {
       throw const UpdateException('This update is not fully published yet. Please try again later.');
     }
     final hash = parseChecksums(text)[assetName];
@@ -143,17 +217,18 @@ class AppUpdater {
   }
 
   Future<void> download({
+    required String url,
     required File target,
     required void Function(int received, int total) onProgress,
     CancelToken? cancelToken,
   }) async {
-    if (!downloadUrl.startsWith('https://')) {
+    if (!url.startsWith('https://')) {
       throw const UpdateException('Refusing to download over an insecure connection.');
     }
     await target.parent.create(recursive: true);
     if (await target.exists()) await target.delete();
     await _dio.download(
-      downloadUrl,
+      url,
       target.path,
       onReceiveProgress: onProgress,
       cancelToken: cancelToken,
@@ -274,5 +349,29 @@ Start-Process -FilePath {{EXE}} -WorkingDirectory {{DEST}}
       default:
         throw UpdateException('Could not start the installer: ${result.message}');
     }
+  }
+}
+
+/// `1.4.0-beta.1+12` -> core [1,4,0], pre ['beta','1'] (the `+12` build part is dropped).
+class _ParsedVersion {
+  final List<int> core;
+  final List<String> pre;
+  const _ParsedVersion(this.core, this.pre);
+
+  factory _ParsedVersion.parse(String input) {
+    var v = input.trim().replaceFirst(RegExp(r'^[vV]'), '');
+    final plus = v.indexOf('+');
+    if (plus >= 0) v = v.substring(0, plus);
+
+    String corePart = v;
+    String prePart = '';
+    final dash = v.indexOf('-');
+    if (dash >= 0) {
+      corePart = v.substring(0, dash);
+      prePart = v.substring(dash + 1);
+    }
+    final core = corePart.split('.').map((e) => int.tryParse(e) ?? 0).toList();
+    final pre = prePart.isEmpty ? <String>[] : prePart.split('.');
+    return _ParsedVersion(core, pre);
   }
 }

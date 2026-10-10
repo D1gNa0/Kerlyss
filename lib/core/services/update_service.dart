@@ -13,7 +13,11 @@ class UpdateService {
 
   /// [manual] = the user pressed "Check for updates" (so we also tell them when
   /// there is nothing new or the check failed). At startup it stays silent.
-  Future<void> checkForUpdates(BuildContext context, {bool manual = false}) async {
+  Future<void> checkForUpdates(
+    BuildContext context, {
+    bool manual = false,
+    UpdateChannel channel = UpdateChannel.stable,
+  }) async {
     final container = ProviderScope.containerOf(context);
     final controller = container.read(updateProvider.notifier);
     final current = container.read(updateProvider);
@@ -28,23 +32,39 @@ class UpdateService {
       return;
     }
 
-    final result = await controller.check();
+    final result = await controller.check(channel: channel);
     if (!context.mounted) return;
 
     switch (result) {
       case UpdateCheckResult.available:
         _showDialog(context, controller, container.read(updateProvider));
       case UpdateCheckResult.upToDate:
-        if (manual) ToastService.show(context, "You're on the latest version");
+        if (manual) {
+          ToastService.show(
+            context,
+            channel == UpdateChannel.beta ? 'No newer beta is available right now' : "You're on the latest version",
+          );
+        }
       case UpdateCheckResult.failed:
-        if (manual) ToastService.show(context, "Couldn't check for updates", backgroundColor: Colors.redAccent);
+        if (manual) {
+          ToastService.show(
+            context,
+            channel == UpdateChannel.beta ? "Couldn't check for beta updates" : "Couldn't check for updates",
+            backgroundColor: Colors.redAccent,
+          );
+        }
     }
   }
+
+  /// "Check for Beta Updates" button. Beta is opt-in: the startup check never looks for betas.
+  Future<void> checkForBetaUpdates(BuildContext context) =>
+      checkForUpdates(context, manual: true, channel: UpdateChannel.beta);
 
   void _showDialog(BuildContext context, UpdateController controller, UpdateState state) {
     final info = state.info;
     if (info == null) return;
     final ready = state.phase == UpdatePhase.readyToInstall;
+    final isBeta = info.isBeta;
     final inApp = AppUpdater.supportsInAppUpdate;
     final isWindows = Theme.of(context).platform == TargetPlatform.windows;
 
@@ -60,7 +80,9 @@ class UpdateService {
         backgroundColor: const Color(0xFF1A1A1A),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
-          ready ? 'Update ready: ${info.version}' : 'Update Available: ${info.version}',
+          ready
+              ? '${isBeta ? 'Beta' : 'Update'} ready: ${info.version}'
+              : '${isBeta ? 'Beta Available' : 'Update Available'}: ${info.version}',
           style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         content: ConstrainedBox(
@@ -70,7 +92,18 @@ class UpdateService {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('A new version of Kerlyss is ready!', style: TextStyle(color: Colors.white70)),
+                Text(
+                  isBeta ? 'A beta version of Kerlyss is ready to try!' : 'A new version of Kerlyss is ready!',
+                  style: const TextStyle(color: Colors.white70),
+                ),
+                if (isBeta) ...[
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Beta builds can be unstable. On Android, going back to the stable version may require '
+                    'uninstalling the app first (your cloud-synced data stays safe).',
+                    style: TextStyle(color: Colors.amberAccent, fontSize: 12),
+                  ),
+                ],
                 const SizedBox(height: 12),
                 Text(info.notes, style: const TextStyle(color: Colors.white60, fontSize: 14)),
               ],
