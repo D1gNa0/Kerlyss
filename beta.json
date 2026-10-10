@@ -1,5 +1,5 @@
 ﻿{
-    "version":  "1.4.0-beta.1",
-    "tag":  "v1.4.0-beta.1",
-    "releaseNotes":  "Beta release for testing the error reporting feature and version comparison changes."
+    "version":  "1.4.1-beta.1",
+    "tag":  "v1.4.1-beta.1",
+    "releaseNotes":  "Kerlyss 1.4.1-beta.1\n\nNew Features:\n- Shuffle toggle in Up Next panel\n- Beta update channel (Check for Beta Updates button)\n\nFixes:\n- YouTube 403 fix - prefers muxed streams\n- Premature completion detection for 403 errors\n- Error reporting flow with sanitized logs\n- Logger improvements (chained writes, debug logging)\n\nTechnical:\n- Auto-skip after 4 broken songs\n- Spotify import/updater crash triggers\n- Rate-limited error prompts\n- Removed betaChannel database field"
 }
