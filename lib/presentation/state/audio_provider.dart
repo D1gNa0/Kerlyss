@@ -138,7 +138,23 @@ class AudioNotifier extends StateNotifier<AudioState> {
             _forcePlayingUntil = null;
           }
 
-      if (status == PlaybackStatus.paused || status == PlaybackStatus.playing || status == PlaybackStatus.completed) {
+      // Detect premature completion (stream failure masquerading as "completed").
+      // YouTube 403 errors often cause just_audio to treat the stream as ended.
+      if (status == PlaybackStatus.completed) {
+        final current = state.currentSong;
+        final pos = state.position;
+        final dur = state.currentSong.duration;
+        // If we "completed" but barely played anything, it's likely a stream failure.
+        // Threshold: played less than 5% or less than 5 seconds.
+        final isPremature = dur.inMilliseconds > 0 &&
+            (pos.inMilliseconds < dur.inMilliseconds * 0.05 || pos.inSeconds < 5);
+        if (isPremature && current.id.isNotEmpty) {
+          Log.w('AudioNotifier: Premature completion detected (pos: $pos, dur: $dur). Treating as stream failure.');
+          _handlePlaybackError('Premature completion (likely 403/stream error): played $pos of $dur');
+        } else {
+          _schedulePersistSession();
+        }
+      } else if (status == PlaybackStatus.paused || status == PlaybackStatus.playing) {
         _schedulePersistSession();
       }
     }));
@@ -261,6 +277,29 @@ class AudioNotifier extends StateNotifier<AudioState> {
       if (state.status != PlaybackStatus.error) return; // user already did something else
       next();
     });
+  }
+
+  /// Handles a playback error (from errorStream or premature completion detection).
+  /// Increments failure counter, updates UI, and triggers auto-skip if appropriate.
+  void _handlePlaybackError(String error) {
+    _consecutiveStreamFailures++;
+    String userMessage = 'Playback failed';
+    var shouldAutoSkip = true;
+    if (error.contains('403') || error.contains('Forbidden') || error.contains('Premature completion')) {
+      userMessage = 'Stream unavailable - skipping to the next song';
+      YoutubeProxyServer.clearCaches();
+    } else if (error.contains('SocketException') || error.contains('Network')) {
+      userMessage = 'Network error - check your connection';
+      shouldAutoSkip = false;
+    } else if (error.contains('timeout')) {
+      userMessage = 'Connection timeout - try again';
+      shouldAutoSkip = false;
+    }
+    state = state.copyWith(
+      status: PlaybackStatus.error,
+      errorMessage: userMessage,
+    );
+    if (shouldAutoSkip) _autoSkipAfterFailure();
   }
 
   /// Lower-cased file names in the downloads folder, cached for 30 s so building a
