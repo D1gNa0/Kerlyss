@@ -36,9 +36,6 @@ class YoutubeProxyServer {
   static int? _port;
   static final Map<String, StreamInfo> _streamCache = {};
   static final Map<String, Future<StreamInfo>> _inFlightStreams = {};
-  static final Set<String> _audioOnlyFailures = {};
-
-  // Pre-resolved stream URLs cache (reduces YouTube API calls)
   static final Map<String, String> _resolvedUrlCache = {};
   static const _maxUrlCacheSize = 100;
   static final Map<String, _CachedPipedUrl> _pipedUrlCache = {};
@@ -165,19 +162,18 @@ class YoutubeProxyServer {
     try {
       if (manifest.audioOnly.isNotEmpty) audioStreams = manifest.audioOnly.toList();
     } catch (_) {}
-    final hasFailedAudio = _audioOnlyFailures.contains(videoId);
 
-    if (muxedStreams.isNotEmpty && (hasFailedAudio || audioStreams.isEmpty)) {
+    // Prefer muxed streams (more reliable, fewer 403 errors).
+    // Audio-only (opus/251) increasingly returns 403; muxed (mp4/18) works consistently.
+    // Only fall back to audio-only if no muxed streams are available.
+    if (muxedStreams.isNotEmpty) {
       muxedStreams.sort((a, b) => a.bitrate.compareTo(b.bitrate));
       info = muxedStreams.first;
-      Log.i('YoutubeProxyServer: Selected muxed stream for $videoId');
+      Log.i('YoutubeProxyServer: Selected muxed stream for $videoId (${(info.bitrate.bitsPerSecond / 1000).toStringAsFixed(0)} kbps)');
     } else if (audioStreams.isNotEmpty) {
       audioStreams.sort((a, b) => b.bitrate.compareTo(a.bitrate));
       info = audioStreams.first;
-      Log.i('YoutubeProxyServer: Selected audio stream for $videoId (${(info.bitrate.bitsPerSecond / 1000).toStringAsFixed(0)} kbps)');
-    } else if (muxedStreams.isNotEmpty) {
-      muxedStreams.sort((a, b) => a.bitrate.compareTo(b.bitrate));
-      info = muxedStreams.first;
+      Log.i('YoutubeProxyServer: Selected audio stream for $videoId (${(info.bitrate.bitsPerSecond / 1000).toStringAsFixed(0)} kbps) - NO MUXED AVAILABLE');
     } else {
       throw Exception('No compatible streams available for video $videoId.');
     }
@@ -463,18 +459,14 @@ class YoutubeProxyServer {
           Log.w('YoutubeProxyServer: Initial attempt failed for $videoId: $e');
 
           if (isRecoverableError(e) && !headersSent) {
-            Log.i('YoutubeProxyServer: Detected recoverable error - registering audio-only failure if applicable');
-            if (streamInfo is AudioOnlyStreamInfo) {
-              _audioOnlyFailures.add(videoId);
-              Log.w('YoutubeProxyServer: Audio-only stream failed with 403 for $videoId. Flagged for muxed fallback.');
-            }
+            Log.i('YoutubeProxyServer: Detected recoverable error - retrying with fresh stream info...');
 
             for (int attempt = 1; attempt <= 2; attempt++) {
               try {
                 if (headersSent) break;
                 _streamCache.remove(videoId);
 
-                Log.w('YoutubeProxyServer: Immediate retry attempt $attempt for videoId=$videoId (switching to muxed fallback)...');
+                Log.w('YoutubeProxyServer: Immediate retry attempt $attempt for videoId=$videoId...');
 
                 final retryInfo = await _getStreamInfo(videoId, yt);
                 await pipeFromUpstream(retryInfo, isHeadRequest: request.method == 'HEAD');
