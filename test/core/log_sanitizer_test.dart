@@ -22,6 +22,10 @@ void main() {
       expect(LogSanitizer.sanitize('/home/melih/.config/x'), '/home/<user>/.config/x');
     });
 
+    test('removes user names that contain spaces', () {
+      expect(LogSanitizer.sanitize(r'C:\Users\Kerem Arslan\AppData\Local\kerlyss'), r'C:\Users\<user>\AppData\Local\kerlyss');
+    });
+
     test('removes IPv4 and IPv6 addresses', () {
       expect(LogSanitizer.sanitize('connect to 192.168.1.20 failed'), 'connect to <ip> failed');
       expect(LogSanitizer.sanitize('ip 2a09:bac5:58bc:2682::3d6:c end'), 'ip <ip> end');

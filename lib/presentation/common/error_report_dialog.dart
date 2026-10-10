@@ -57,7 +57,7 @@ Future<void> showErrorReportDialog(
                 const Text(
                   'Nothing is sent automatically. "Report on GitHub" opens a pre-filled issue in your browser '
                   '(a free GitHub account is needed) and copies the full report to your clipboard. '
-                  'Emails, IP addresses, user names and URL parameters are removed.',
+                  'Emails, IP addresses, user names and URL parameters are removed, but song and artist names can still appear in the log (see the preview below).',
                   style: TextStyle(color: Colors.white54, fontSize: 12),
                 ),
                 const SizedBox(height: 12),

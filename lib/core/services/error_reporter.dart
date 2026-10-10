@@ -58,6 +58,7 @@ class ErrorReporter {
   int _promptCount = 0;
   DateTime? _lastPromptAt;
   bool _installed = false;
+  bool _handlingError = false;
 
   // ───────────────────────── global handlers ─────────────────────────
 
@@ -80,18 +81,25 @@ class ErrorReporter {
 
   /// Logs an uncaught error and, if it looks like a real bug, offers to report it.
   void handleError(Object error, StackTrace? stack, {required String source}) {
+    // Guard: if logging or the dialog itself throws, do not handle that error again forever.
+    if (_handlingError) return;
+    _handlingError = true;
     try {
-      Log.e('Unhandled $source error', error, stack);
-    } catch (_) {}
+      try {
+        Log.e('Unhandled $source error', error, stack);
+      } catch (_) {}
 
-    if (isNoise(error)) return;
+      if (isNoise(error)) return;
 
-    reportLethal(
-      kind: 'unhandled-$source',
-      userMessage: 'Kerlyss ran into an unexpected problem.',
-      error: error,
-      stack: stack,
-    );
+      reportLethal(
+        kind: 'unhandled-$source',
+        userMessage: 'Kerlyss ran into an unexpected problem.',
+        error: error,
+        stack: stack,
+      );
+    } finally {
+      _handlingError = false;
+    }
   }
 
   /// Errors that are NOT bugs in the app (bad network, layout overflow in one frame,
@@ -113,6 +121,16 @@ class ErrorReporter {
     if (noisyTypes.any(type.contains)) return true;
 
     const noisyText = [
+      // Environment problems, not bugs in Kerlyss
+      'Access is denied',
+      'No space left on device',
+      'not enough space on the disk',
+      'errno = 28',
+      // Harmless Flutter/Riverpod lifecycle errors (worth fixing, not worth asking the user)
+      'setState() called after dispose',
+      "deactivated widget's ancestor",
+      'was called after dispose',
+      'after `dispose` was called',
       'RenderFlex overflowed',
       'overflowed by',
       'Failed host lookup',

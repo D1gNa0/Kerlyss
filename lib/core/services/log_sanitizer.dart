@@ -7,8 +7,9 @@ class LogSanitizer {
   // tokens, signatures and the user's IP, e.g. googlevideo `ip=...&expire=...`).
   static final RegExp _urlQuery = RegExp(r'''(https?://[^\s?#"')<>]+)\?[^\s"')<>]*''');
   static final RegExp _email = RegExp(r'[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)+');
-  static final RegExp _windowsUserDir = RegExp(r'([A-Za-z]:[\\/]+Users[\\/]+)[^\\/\s"]+', caseSensitive: false);
-  static final RegExp _unixUserDir = RegExp(r'(/(?:Users|home)/)[^/\s"]+');
+  // User folder names may contain spaces ("C:\Users\Kerem Arslan\..."), so take everything up to the next slash.
+  static final RegExp _windowsUserDir = RegExp(r'([A-Za-z]:[\\/]+Users[\\/]+)[^\\/"\r\n]+', caseSensitive: false);
+  static final RegExp _unixUserDir = RegExp(r'(/(?:Users|home)/)[^/"\r\n]+');
   static final RegExp _secretKeyValue = RegExp(
     r'''(token|access_token|refresh_token|authorization|bearer|api[_-]?key|client[_-]?secret|password|secret)(["'\s:=]+)[^\s"'&,}]+''',
     caseSensitive: false,

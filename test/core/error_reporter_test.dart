@@ -13,6 +13,12 @@ void main() {
       expect(ErrorReporter.isNoise(Exception('Connection closed before full header was received')), isTrue);
     });
 
+    test('environment and lifecycle errors are noise', () {
+      expect(ErrorReporter.isNoise('PathAccessException: Access is denied, path = C:\\x'), isTrue);
+      expect(ErrorReporter.isNoise('FileSystemException: No space left on device'), isTrue);
+      expect(ErrorReporter.isNoise('setState() called after dispose(): _FooState'), isTrue);
+    });
+
     test('real bugs are not noise', () {
       expect(ErrorReporter.isNoise(StateError('Bad state: No element')), isFalse);
       expect(ErrorReporter.isNoise(ArgumentError('nope')), isFalse);

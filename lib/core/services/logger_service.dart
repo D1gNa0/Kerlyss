@@ -51,6 +51,11 @@ class _FlatLogPrinter extends LogPrinter {
 class _FileSysLogOutput extends LogOutput {
   File? file;
 
+  // Writes are chained so lines never interleave and a failed write (for example a
+  // Windows file lock) can never become an UNHANDLED async error. Unhandled errors would
+  // reach ErrorReporter, which logs again -> endless loop.
+  Future<void> _pending = Future<void>.value();
+
   _FileSysLogOutput();
 
   Future<void> init() async {
@@ -78,7 +83,10 @@ class _FileSysLogOutput extends LogOutput {
     try {
       final ansiRegex = RegExp(r'\x1B\[[0-9;]*m');
       final text = event.lines.map((l) => l.replaceAll(ansiRegex, '')).join('\n') + '\n';
-      file!.writeAsString(text, mode: FileMode.append);
+      final target = file!;
+      _pending = _pending
+          .then((_) => target.writeAsString(text, mode: FileMode.append))
+          .then<void>((_) {}, onError: (Object _) {}); // swallow write errors
     } catch (_) {}
   }
 }
@@ -87,12 +95,16 @@ class Log {
   static Logger? _logger;
   static _FileSysLogOutput? _fileOutput;
 
+  // Release builds print nothing: reuse ONE silent logger instead of creating a new one per call.
+  static final Logger _silentLogger = Logger(level: Level.off, printer: _FlatLogPrinter(), output: ConsoleOutput());
+
+  // Debug builds show debug lines too (before, the 17 Log.d calls were silently dropped).
+  static const Level _devLevel = Level.debug;
+
   static Logger get _instance {
-    if (kReleaseMode) {
-      return Logger(level: Level.off, printer: _FlatLogPrinter(), output: ConsoleOutput());
-    }
+    if (kReleaseMode) return _silentLogger;
     _logger ??= Logger(
-      level: Level.info,
+      level: _devLevel,
       printer: _FlatLogPrinter(),
       output: ConsoleOutput(),
     );
@@ -101,7 +113,7 @@ class Log {
 
   static Future<void> init() async {
     if (kReleaseMode) {
-      _logger = Logger(level: Level.off, printer: _FlatLogPrinter(), output: ConsoleOutput());
+      _logger = _silentLogger;
       return;
     }
 
@@ -109,7 +121,7 @@ class Log {
     await _fileOutput!.init();
 
     _logger = Logger(
-      level: Level.info,
+      level: _devLevel,
       printer: _FlatLogPrinter(),
       output: MultiOutput([
         ConsoleOutput(),
