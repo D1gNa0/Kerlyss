@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../state/audio_provider.dart';
 import '../theme/aether_colors.dart';
+import '../common/vercel_hover_button.dart';
 
 class QueueView extends ConsumerWidget {
   final VoidCallback onClose;
@@ -35,9 +36,24 @@ class QueueView extends ConsumerWidget {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.close_rounded, color: Colors.white54, size: 20),
-                  onPressed: onClose,
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AetherIconButton(
+                      tooltip: audioState.isShuffleEnabled ? 'Shuffle: On' : 'Shuffle: Off',
+                      icon: Icons.shuffle_rounded,
+                      color: audioState.isShuffleEnabled
+                          ? AetherColors.accentCyan
+                          : AetherColors.textSecondary,
+                      size: 18,
+                      buttonSize: 36,
+                      onPressed: () => ref.read(audioProvider.notifier).toggleShuffle(),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, color: Colors.white54, size: 20),
+                      onPressed: onClose,
+                    ),
+                  ],
                 ),
               ],
             ),
