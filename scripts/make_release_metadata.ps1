@@ -51,8 +51,10 @@ if ($Channel -eq 'beta') {
     $json = [ordered]@{ version = $Version; releaseNotes = $Notes } | ConvertTo-Json
 }
 
-Set-Content -LiteralPath $checksumsFile -Value $checksums -Encoding utf8
-Set-Content -LiteralPath $jsonFile -Value $json -Encoding utf8
+# Write UTF-8 WITHOUT a BOM (Windows PowerShell's "-Encoding utf8" adds a BOM, which breaks JSON parsing).
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+[System.IO.File]::WriteAllText((Join-Path $PWD.Path $checksumsFile), $checksums, $utf8NoBom)
+[System.IO.File]::WriteAllText((Join-Path $PWD.Path $jsonFile), $json, $utf8NoBom)
 
 Write-Host "Wrote $checksumsFile and $jsonFile for v$Version ($Channel)" -ForegroundColor Green
 Write-Host "Android: $apkHash"

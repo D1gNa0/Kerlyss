@@ -1,5 +1,6 @@
 import 'core/services/analytics_service.dart';
 import 'core/services/error_reporter.dart';
+import 'core/services/startup_guard.dart';
 import 'core/services/app_storage_paths.dart';
 import 'core/services/app_window_listener.dart';
 import 'dart:io';
@@ -48,6 +49,15 @@ void main() async {
   // Catch uncaught errors and (for real bugs) offer to report them on GitHub.
   ErrorReporter.instance.install();
 
+  try {
+    await _startApp();
+  } catch (error, stack) {
+    // Without this, a crash during startup is invisible: the process exits and no window ever appears.
+    await StartupGuard.reportFatal(error, stack);
+  }
+}
+
+Future<void> _startApp() async {
   // Initialize AudioService for background playback
   globalAudioHandler = await AudioService.init<KerlyssAudioHandler>(
     builder: () => KerlyssAudioHandler(),

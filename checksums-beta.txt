@@ -1,4 +1,4 @@
-﻿Kerlyss Release Binary Checksums (SHA-256)
+Kerlyss Release Binary Checksums (SHA-256)
 ==============================================
 Release Version: v1.4.1-beta.1
 Build Date: 2026-10-11

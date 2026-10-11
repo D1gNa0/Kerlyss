@@ -23,6 +23,13 @@ void main() {
     });
   });
 
+  group('AppUpdater.stripBom', () {
+    test('removes a leading BOM and leaves normal text alone', () {
+      expect(AppUpdater.stripBom('\uFEFF{"version":"1.0.0"}'), '{"version":"1.0.0"}');
+      expect(AppUpdater.stripBom('{"version":"1.0.0"}'), '{"version":"1.0.0"}');
+    });
+  });
+
   group('AppUpdater pre-release (beta) versions', () {
     test('betas are ordered correctly', () {
       expect(AppUpdater.isNewerVersion('1.4.0-beta.2', '1.4.0-beta.1'), isTrue);

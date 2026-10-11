@@ -27,3 +27,14 @@ The in-app updater only installs a release when ALL of these are true. Follow th
 ## Ending a beta
 - Publish the stable release normally. Beta users get it through the normal "Check for Updates" (the stable check offers a final release over any beta).
 - To switch the beta channel off, delete `beta.json` from `main` (the beta button then says "No newer beta is available right now").
+
+## Windows: bundle the Visual C++ runtime (fixes "double click and nothing happens")
+Flutter Windows apps need the Microsoft Visual C++ runtime. A PC without it cannot start `kerlyss.exe`.
+Before zipping the Windows build, copy these 3 files into the same folder as `kerlyss.exe`
+(`build\windows\x64\runner\Release`):
+- `msvcp140.dll`
+- `vcruntime140.dll`
+- `vcruntime140_1.dll`
+They are in `C:\Windows\System32` on a PC that has the "Microsoft Visual C++ 2015-2022 Redistributable (x64)" installed
+(or in the Visual Studio folder `VC\Redist\MSVC\<version>\x64\Microsoft.VC143.CRT`).
+If the app still does not start, it now writes `startup_error.log` (in the Kerlyss data folder) and opens it in Notepad.

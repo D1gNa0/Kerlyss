@@ -75,6 +75,11 @@ class AudioNotifier extends StateNotifier<AudioState> {
   /// from the PREVIOUS song are ignored meanwhile, so the loading spinner doesn't flicker.
   bool _awaitingNewSource = false;
 
+  // Furthest point reached in the current song. Used to tell a REAL end of song from a stream
+  // failure that looks like "completed" (the live position can be reset to 0 when the player stops).
+  Duration _maxPositionSeen = Duration.zero;
+  String _maxPositionSongId = '';
+
   // Cached listing of the downloads folder (see _getDownloadsIndex).
   List<_DownloadedFile>? _downloadsIndex;
   DateTime? _downloadsIndexAt;
@@ -142,15 +147,16 @@ class AudioNotifier extends StateNotifier<AudioState> {
       // YouTube 403 errors often cause just_audio to treat the stream as ended.
       if (status == PlaybackStatus.completed) {
         final current = state.currentSong;
-        final pos = state.position;
-        final dur = state.currentSong.duration;
-        // If we "completed" but barely played anything, it's likely a stream failure.
-        // Threshold: played less than 5% or less than 5 seconds.
-        final isPremature = dur.inMilliseconds > 0 &&
-            (pos.inMilliseconds < dur.inMilliseconds * 0.05 || pos.inSeconds < 5);
+        // Furthest point reached in THIS song (the live position may already be reset to 0).
+        final played = _maxPositionSongId == current.id ? _maxPositionSeen : Duration.zero;
+        final dur = current.duration;
+        // "Completed" but barely played anything = the stream failed (for example a YouTube 403),
+        // not a real ending. Songs shorter than 10 s are ignored: they can really end within 5 s.
+        final isPremature = dur.inSeconds >= 10 &&
+            (played.inMilliseconds < dur.inMilliseconds * 0.05 || played.inSeconds < 5);
         if (isPremature && current.id.isNotEmpty) {
-          Log.w('AudioNotifier: Premature completion detected (pos: $pos, dur: $dur). Treating as stream failure.');
-          _handlePlaybackError('Premature completion (likely 403/stream error): played $pos of $dur');
+          Log.w('AudioNotifier: Premature completion detected (played: $played, dur: $dur). Treating as stream failure.');
+          _handlePlaybackError('Premature completion (likely 403/stream error): played $played of $dur');
         } else {
           _schedulePersistSession();
         }
@@ -174,7 +180,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
         _checkAndFetchBpm(nextSong);
 
         // Paced pre-fetch: resolve next 1 song for instant gapless transitions
-        _prefetchUpcomingSongs(index, count: 1);
+        _prefetchUpcomingSongs(index, count: 2);
       }
     }));
 
@@ -182,6 +188,13 @@ class AudioNotifier extends StateNotifier<AudioState> {
     _subs.add(_audioService.positionStream.listen((position) {
       if (!mounted) return;
       state = state.copyWith(position: position);
+
+      final songId = state.currentSong.id;
+      if (songId != _maxPositionSongId) {
+        _maxPositionSongId = songId;
+        _maxPositionSeen = Duration.zero;
+      }
+      if (position > _maxPositionSeen) _maxPositionSeen = position;
 
       // Persist at coarse position intervals to support resume without heavy disk churn.
       final second = position.inSeconds;
@@ -235,24 +248,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
           }
           return;
         }
-        String userMessage = 'Playback failed';
-        // Skipping only helps when THIS song is broken, not when the network is down.
-        var shouldAutoSkip = true;
-        if (error.contains('403') || error.contains('Forbidden')) {
-          userMessage = 'Stream unavailable - skipping to the next song';
-          YoutubeProxyServer.clearCaches();
-        } else if (error.contains('SocketException') || error.contains('Network')) {
-          userMessage = 'Network error - check your connection';
-          shouldAutoSkip = false;
-        } else if (error.contains('timeout')) {
-          userMessage = 'Connection timeout - try again';
-          shouldAutoSkip = false;
-        }
-        state = state.copyWith(
-          status: PlaybackStatus.error,
-          errorMessage: userMessage,
-        );
-        if (shouldAutoSkip) _autoSkipAfterFailure();
+        _handlePlaybackError(error);
       }));
     }
 
@@ -282,7 +278,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
   /// Handles a playback error (from errorStream or premature completion detection).
   /// Increments failure counter, updates UI, and triggers auto-skip if appropriate.
   void _handlePlaybackError(String error) {
-    _consecutiveStreamFailures++;
+    // NOTE: the failure counter is incremented once, inside _autoSkipAfterFailure().
     String userMessage = 'Playback failed';
     var shouldAutoSkip = true;
     if (error.contains('403') || error.contains('Forbidden') || error.contains('Premature completion')) {
@@ -597,7 +593,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
           _syncStatusFromEngine();
           _schedulePersistSession();
           _checkAndFetchBpm(clickedSong);
-          _prefetchUpcomingSongs(existingIndex, count: 1);
+          _prefetchUpcomingSongs(existingIndex, count: 2);
           return;
         }
       }
@@ -688,7 +684,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
       // Update state to reflect the correct current index (it shifted by clickedIndex due to insertions before it)
       if (mounted && requestId == _playRequestId) {
         state = state.copyWith(currentIndex: clickedIndex);
-        _prefetchUpcomingSongs(clickedIndex, count: 1);
+        _prefetchUpcomingSongs(clickedIndex, count: 2);
         Log.i('🎵 [HYDRATE] Full queue loaded (${playlist.length} tracks) — zero-interruption hydration complete');
       }
     } catch (e) {
@@ -890,7 +886,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
 
       if (mounted && requestId == _playRequestId) {
         state = state.copyWith(currentIndex: newCurrentIndex);
-        _prefetchUpcomingSongs(newCurrentIndex, count: 1);
+        _prefetchUpcomingSongs(newCurrentIndex, count: 2);
         Log.i('🔀 [SHUFFLE] Queue rebuilt (${newPlaylist.length} tracks), playing index $newCurrentIndex');
       }
     } catch (e) {
@@ -997,7 +993,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
       await _audioService.seek(Duration.zero, index: nextIndex).timeout(const Duration(seconds: 3));
       await _ensurePlaybackStarted();
       _checkAndFetchBpm(nextSong);
-      _prefetchUpcomingSongs(nextIndex, count: 1);
+      _prefetchUpcomingSongs(nextIndex, count: 2);
     } catch (e) {
       _setPlaybackError('next', e);
     } finally {
@@ -1026,7 +1022,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
       await _audioService.seek(Duration.zero, index: index).timeout(const Duration(seconds: 3));
       await _ensurePlaybackStarted();
       _checkAndFetchBpm(song);
-      _prefetchUpcomingSongs(index, count: 1);
+      _prefetchUpcomingSongs(index, count: 2);
       _schedulePersistSession();
     } catch (e) {
       _setPlaybackError('jumpToQueueIndex', e);
@@ -1055,7 +1051,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
       await _audioService.seek(Duration.zero, index: prevIndex).timeout(const Duration(seconds: 3));
       await _ensurePlaybackStarted();
       _checkAndFetchBpm(prevSong);
-      _prefetchUpcomingSongs(prevIndex, count: 1);
+      _prefetchUpcomingSongs(prevIndex, count: 2);
     } catch (e) {
       _setPlaybackError('previous', e);
     } finally {

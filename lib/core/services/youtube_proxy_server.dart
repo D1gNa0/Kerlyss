@@ -36,6 +36,15 @@ class YoutubeProxyServer {
   static int? _port;
   static final Map<String, StreamInfo> _streamCache = {};
   static final Map<String, Future<StreamInfo>> _inFlightStreams = {};
+
+  // All playable options for a video, best first. A 403 falls back to the next option WITHOUT
+  // fetching the manifest again (the manifest request was the slow part of every retry).
+  static final Map<String, List<StreamInfo>> _candidateCache = {};
+  static final Set<String> _pendingAudioOnlyFailure = {};
+  static DateTime? _audioOnlyBlockedUntil;
+  static final Map<String, DateTime> _clientBlockedUntil = {};
+  static String? _lastGoodClient;
+  static final Map<String, DateTime> _recentManifest403s = {};
   static final Map<String, String> _resolvedUrlCache = {};
   static const _maxUrlCacheSize = 100;
   static final Map<String, _CachedPipedUrl> _pipedUrlCache = {};
@@ -71,12 +80,26 @@ class YoutubeProxyServer {
     return str.contains('requestlimitexceededexception') ||
         str.contains('429') ||
         str.contains('rate limit') ||
-        str.contains('too many requests') ||
-        (str.contains('403') && (str.contains('manifest') || str.contains('youtube_explode')));
+        str.contains('too many requests');
+  }
+
+  /// A 403 while reading ONE video's manifest is not an IP block (age/region lock, one broken video...).
+  /// Only when 3 DIFFERENT videos fail that way within a minute do we switch to the slow Piped route.
+  static bool _shouldTripRateLimit(Object e, String videoId) {
+    if (_isRateLimitException(e)) return true;
+    final str = e.toString().toLowerCase();
+    if (str.contains('403') && (str.contains('manifest') || str.contains('youtube_explode'))) {
+      final now = DateTime.now();
+      _recentManifest403s.removeWhere((_, t) => now.difference(t) > const Duration(minutes: 1));
+      _recentManifest403s[videoId] = now;
+      return _recentManifest403s.length >= 3;
+    }
+    return false;
   }
 
   static void _evictVideoFromCaches(String videoId) {
     _streamCache.remove(videoId);
+    _candidateCache.remove(videoId);
     _resolvedUrlCache.remove(videoId);
     _pipedUrlCache.remove(videoId);
     _queryToVideoIdCache.removeWhere((_, id) => id == videoId);
@@ -123,39 +146,77 @@ class YoutubeProxyServer {
   }
 
   static Future<StreamInfo> _fetchStreamInfo(String videoId, YoutubeExplode yt) async {
-    StreamManifest? manifest;
-    Object? lastError;
+    final candidates = await _fetchCandidates(videoId, yt);
+    _candidateCache[videoId] = candidates;
+    return candidates.first;
+  }
 
-    final clientOptions = [
-      [YoutubeApiClient.android],
-      [YoutubeApiClient.ios],
-      [YoutubeApiClient.androidVr],
-      <YoutubeApiClient>[], // default client list fallback
+  // ───────────────── learned YouTube behaviour (so we never pay for the same 403 twice) ─────────────────
+
+  static final Map<String, YoutubeApiClient> _clientsByName = {
+    'ANDROID': YoutubeApiClient.android,
+    'IOS': YoutubeApiClient.ios,
+    'ANDROID_VR': YoutubeApiClient.androidVr,
+  };
+
+  static bool _stillBlocked(DateTime? until) => until != null && DateTime.now().isBefore(until);
+
+  static bool get _audioOnlyBlocked => _stillBlocked(_audioOnlyBlockedUntil);
+
+  /// Which YouTube client produced this stream URL ("ANDROID", "IOS", "ANDROID_VR").
+  static String? _clientOf(StreamInfo info) => info.url.queryParameters['c']?.toUpperCase();
+
+  static String _describe(StreamInfo info) =>
+      '${info is AudioOnlyStreamInfo ? 'audio' : 'muxed'} ${(info.bitrate.bitsPerSecond / 1000).round()}kbps';
+
+  /// Clients to try, best first: the one that worked last time, then the others. Clients that
+  /// recently returned only broken (403) streams are skipped. If ALL are blocked, try them all.
+  static List<String> _clientTryOrder() {
+    final all = _clientsByName.keys.toList();
+    final good = _lastGoodClient;
+    final ordered = <String>[
+      if (good != null && !_stillBlocked(_clientBlockedUntil[good])) good,
+      ...all.where((c) => c != good && !_stillBlocked(_clientBlockedUntil[c])),
     ];
+    return ordered.isEmpty ? all : ordered;
+  }
 
-    for (final clients in clientOptions) {
+  /// Fetches the manifest and returns up to 3 playable options, best first.
+  /// Audio-only is preferred (smaller, faster start, better quality) unless this session already
+  /// learned that YouTube refuses audio-only; then the light muxed stream goes first.
+  static Future<List<StreamInfo>> _fetchCandidates(String videoId, YoutubeExplode yt) async {
+    StreamManifest? manifest;
+    String? manifestClient;
+    Object? lastError;
+    final stopwatch = Stopwatch()..start();
+
+    // null = the library's default client list (last resort)
+    final attempts = <String?>[..._clientTryOrder(), null];
+    for (final clientName in attempts) {
       try {
-        if (clients.isEmpty) {
-          manifest = await yt.videos.streamsClient.getManifest(videoId);
-        } else {
-          manifest = await yt.videos.streamsClient.getManifest(videoId, ytClients: clients);
-        }
-        if (manifest.audioOnly.isNotEmpty || manifest.muxed.isNotEmpty) {
+        final Future<StreamManifest> request = clientName == null
+            ? yt.videos.streamsClient.getManifest(videoId)
+            : yt.videos.streamsClient.getManifest(videoId, ytClients: [_clientsByName[clientName]!]);
+        // A client that hangs must not stall the song: give up after 6 s and try the next one.
+        final candidate = await request.timeout(const Duration(seconds: 6));
+        if (candidate.audioOnly.isNotEmpty || candidate.muxed.isNotEmpty) {
+          manifest = candidate;
+          manifestClient = clientName;
           break;
         }
       } catch (e) {
         lastError = e;
+        Log.w('YoutubeProxyServer: Manifest via ${clientName ?? 'default'} failed for $videoId: $e');
       }
     }
+    Log.i('⏱ [TIMING] manifest for $videoId took ${stopwatch.elapsedMilliseconds} ms (client: ${manifestClient ?? 'none'})');
 
     if (manifest == null) {
       throw lastError ?? Exception('No compatible streams available for video $videoId.');
     }
 
-    StreamInfo info;
-    List<MuxedStreamInfo> muxedStreams = [];
-    List<AudioOnlyStreamInfo> audioStreams = [];
-
+    var muxedStreams = <MuxedStreamInfo>[];
+    var audioStreams = <AudioOnlyStreamInfo>[];
     try {
       if (manifest.muxed.isNotEmpty) muxedStreams = manifest.muxed.toList();
     } catch (_) {}
@@ -163,27 +224,77 @@ class YoutubeProxyServer {
       if (manifest.audioOnly.isNotEmpty) audioStreams = manifest.audioOnly.toList();
     } catch (_) {}
 
-    // Prefer muxed streams (more reliable, fewer 403 errors).
-    // Audio-only (opus/251) increasingly returns 403; muxed (mp4/18) works consistently.
-    // Only fall back to audio-only if no muxed streams are available.
-    if (muxedStreams.isNotEmpty) {
-      muxedStreams.sort((a, b) => a.bitrate.compareTo(b.bitrate));
-      info = muxedStreams.first;
-      Log.i('YoutubeProxyServer: Selected muxed stream for $videoId (${(info.bitrate.bitsPerSecond / 1000).toStringAsFixed(0)} kbps)');
-    } else if (audioStreams.isNotEmpty) {
-      audioStreams.sort((a, b) => b.bitrate.compareTo(a.bitrate));
-      info = audioStreams.first;
-      Log.i('YoutubeProxyServer: Selected audio stream for $videoId (${(info.bitrate.bitsPerSecond / 1000).toStringAsFixed(0)} kbps) - NO MUXED AVAILABLE');
+    audioStreams.sort((a, b) => b.bitrate.compareTo(a.bitrate)); // best quality first
+    muxedStreams.sort((a, b) => a.bitrate.compareTo(b.bitrate)); // lightest first
+
+    final candidates = <StreamInfo>[];
+    if (_audioOnlyBlocked) {
+      candidates
+        ..addAll(muxedStreams.take(1))
+        ..addAll(audioStreams.take(1))
+        ..addAll(muxedStreams.skip(1).take(1));
     } else {
-      throw Exception('No compatible streams available for video $videoId.');
+      candidates
+        ..addAll(audioStreams.take(1))
+        ..addAll(muxedStreams.take(1))
+        ..addAll(audioStreams.skip(1).take(1));
     }
 
-    return info;
+    if (candidates.isEmpty) {
+      throw Exception('No compatible streams available for video $videoId.');
+    }
+    Log.i('YoutubeProxyServer: Options for $videoId: ${candidates.map(_describe).join(' > ')}');
+    return candidates;
+  }
+
+  /// Called when YouTube refused [failed] (403 etc.). Returns the next option to try.
+  /// Uses the options we already have (instant, no new manifest request). Only when all of
+  /// them failed does it block that YouTube client for a while and fetch with another one.
+  static Future<StreamInfo> _nextStreamAfterFailure(String videoId, YoutubeExplode yt, StreamInfo failed) async {
+    if (failed is AudioOnlyStreamInfo) _pendingAudioOnlyFailure.add(videoId);
+
+    final list = _candidateCache[videoId];
+    if (list != null) {
+      final index = list.indexWhere((s) => identical(s, failed) || s.url == failed.url);
+      if (index >= 0 && index + 1 < list.length) {
+        final next = list[index + 1];
+        _streamCache[videoId] = next;
+        Log.w('YoutubeProxyServer: ${_describe(failed)} refused for $videoId. Switching to ${_describe(next)} (no new manifest needed).');
+        return next;
+      }
+    }
+
+    final client = _clientOf(failed);
+    if (client != null) {
+      _clientBlockedUntil[client] = DateTime.now().add(const Duration(minutes: 10));
+      if (_lastGoodClient == client) _lastGoodClient = null;
+      Log.w('YoutubeProxyServer: All options from client $client failed for $videoId. Blocking that client for 10 minutes.');
+    }
+    _streamCache.remove(videoId);
+    _candidateCache.remove(videoId);
+    return await _getStreamInfo(videoId, yt);
+  }
+
+  /// Called as soon as upstream accepted [used]. Remembers what works.
+  static void _onStreamSuccess(String videoId, StreamInfo used) {
+    final client = _clientOf(used);
+    if (client != null) _lastGoodClient = client;
+
+    if (used is MuxedStreamInfo && _pendingAudioOnlyFailure.remove(videoId)) {
+      // Audio-only was refused but muxed worked: go muxed-first for the next 30 minutes.
+      _audioOnlyBlockedUntil = DateTime.now().add(const Duration(minutes: 30));
+      Log.w('YoutubeProxyServer: Audio-only streams are being refused. Using muxed first for 30 minutes.');
+    } else if (used is AudioOnlyStreamInfo) {
+      _pendingAudioOnlyFailure.remove(videoId);
+    }
   }
 
   /// Starts the proxy server if it is not already running.
   /// Returns the local port the server is listening on.
   static Future<int> start(YoutubeExplode yt) async {
+    // Remembered deezerId -> videoId pairs from earlier sessions (skips the YouTube search for replays).
+    await StreamResolutionCache.instance.load();
+
     if (_server != null && _port != null) return _port!;
 
 
@@ -195,6 +306,7 @@ class YoutubeProxyServer {
       final queryId = request.uri.queryParameters['id'];
       final queryStr = request.uri.queryParameters['query'];
       final deezerId = request.uri.queryParameters['deezer_id'];
+      final requestStopwatch = Stopwatch()..start();
 
       Log.i('🌐 [PROXY_REQ] Request received -> queryId=$queryId, queryStr="$queryStr", deezerId=$deezerId');
 
@@ -241,7 +353,7 @@ class YoutubeProxyServer {
           if (!_isLocalRateLimited) {
             try {
               Log.i('YoutubeProxyServer: Trying direct YouTube search...');
-              final searchList = await yt.search.search(queryStr);
+              final searchList = await yt.search.search(queryStr).timeout(const Duration(seconds: 6));
               final videos = searchList.where((v) => (v.duration?.inMinutes ?? 0) < 10).take(5).toList();
               if (videos.isNotEmpty) {
                 videoId = videos.first.id.value;
@@ -269,6 +381,8 @@ class YoutubeProxyServer {
               throw Exception('YouTube rate-limited and Piped search fallback failed for query: $queryStr');
             }
           }
+
+          Log.i('⏱ [TIMING] YouTube search for "$queryStr" finished after ${requestStopwatch.elapsedMilliseconds} ms');
 
           // Cache resolved video ID to prevent redundant subsequent queries
           if (videoId.isNotEmpty) {
@@ -308,7 +422,7 @@ class YoutubeProxyServer {
               await request.response.close();
               return;
             }
-            if (_isRateLimitException(streamError)) {
+            if (_shouldTripRateLimit(streamError, videoId)) {
               _reportRateLimit(streamError);
             }
             resolvedFallbackUrl = await _resolvePipedFallbackUrl(videoId);
@@ -339,27 +453,32 @@ class YoutubeProxyServer {
         final streamInfo = info;
 
         final rangeHeader = request.headers.value(HttpHeaders.rangeHeader);
-        final totalBytes = streamInfo.size.totalBytes > 0 ? streamInfo.size.totalBytes : 1;
-        int start = 0;
-        int end = totalBytes - 1;
-
-        if (rangeHeader != null && rangeHeader.startsWith('bytes=')) {
-          final parts = rangeHeader.substring(6).split('-');
-          if (parts[0].isNotEmpty) {
-            start = int.tryParse(parts[0]) ?? 0;
-          }
-          if (parts.length > 1 && parts[1].isNotEmpty) {
-            end = int.tryParse(parts[1]) ?? (totalBytes - 1);
-          }
-
-          if (start < 0) start = 0;
-          if (end >= totalBytes) end = totalBytes - 1;
-          if (end < start) {
-            end = totalBytes - 1;
-          }
-        }
-
         final isPartialRequest = rangeHeader != null;
+
+        /// Byte range [start, end, total] for ONE particular stream. It must be computed per stream:
+        /// a fallback stream (muxed instead of audio-only) has a different total size.
+        List<int> rangeFor(StreamInfo s) {
+          final total = s.size.totalBytes > 0 ? s.size.totalBytes : 1;
+          var rangeStart = 0;
+          var rangeEnd = total - 1;
+
+          if (rangeHeader != null && rangeHeader.startsWith('bytes=')) {
+            final parts = rangeHeader.substring(6).split('-');
+            if (parts[0].isNotEmpty) {
+              rangeStart = int.tryParse(parts[0]) ?? 0;
+            }
+            if (parts.length > 1 && parts[1].isNotEmpty) {
+              rangeEnd = int.tryParse(parts[1]) ?? (total - 1);
+            }
+
+            if (rangeStart < 0) rangeStart = 0;
+            if (rangeEnd >= total) rangeEnd = total - 1;
+            if (rangeEnd < rangeStart) {
+              rangeEnd = total - 1;
+            }
+          }
+          return [rangeStart, rangeEnd, total];
+        }
 
         // User-Agent selection logic
         String userAgentForStreamUrl(Uri url) {
@@ -371,6 +490,11 @@ class YoutubeProxyServer {
         }
 
         Future<void> pipeFromUpstream(StreamInfo upstreamInfo, {bool isHeadRequest = false}) async {
+          final range = rangeFor(upstreamInfo);
+          final start = range[0];
+          final end = range[1];
+          final totalBytes = range[2];
+
           // Use shared client pool instead of creating new client per request
           final client = _ProxyHttpClientPool.instance;
           
@@ -430,6 +554,8 @@ class YoutubeProxyServer {
           }
 
           headersSent = true;
+          _onStreamSuccess(videoId, upstreamInfo);
+          Log.i('⏱ [TIMING] first byte for $videoId after ${requestStopwatch.elapsedMilliseconds} ms (${_describe(upstreamInfo)})');
 
           if (isHeadRequest) {
             return;
@@ -459,22 +585,23 @@ class YoutubeProxyServer {
           Log.w('YoutubeProxyServer: Initial attempt failed for $videoId: $e');
 
           if (isRecoverableError(e) && !headersSent) {
-            Log.i('YoutubeProxyServer: Detected recoverable error - retrying with fresh stream info...');
+            Log.i('YoutubeProxyServer: Detected recoverable error - trying the next stream option...');
 
-            for (int attempt = 1; attempt <= 2; attempt++) {
+            var failedInfo = streamInfo;
+            for (int attempt = 1; attempt <= 3; attempt++) {
               try {
                 if (headersSent) break;
-                _streamCache.remove(videoId);
 
-                Log.w('YoutubeProxyServer: Immediate retry attempt $attempt for videoId=$videoId...');
+                Log.w('YoutubeProxyServer: Retry attempt $attempt for videoId=$videoId...');
 
-                final retryInfo = await _getStreamInfo(videoId, yt);
+                final retryInfo = await _nextStreamAfterFailure(videoId, yt, failedInfo);
+                failedInfo = retryInfo;
                 await pipeFromUpstream(retryInfo, isHeadRequest: request.method == 'HEAD');
                 Log.i('YoutubeProxyServer: Retry $attempt succeeded');
                 break;
               } catch (retryError) {
                 Log.w('YoutubeProxyServer: Retry $attempt failed: $retryError');
-                if (attempt == 2) {
+                if (attempt == 3) {
                   rethrow;
                 }
               }
@@ -508,6 +635,7 @@ class YoutubeProxyServer {
   /// Call this when YouTube throttling is suspected.
   static void clearCaches() {
     _streamCache.clear();
+    _candidateCache.clear();
     _resolvedUrlCache.clear();
     _ProxyHttpClientPool.close();
     Log.i('YoutubeProxyServer: All caches cleared');
@@ -566,10 +694,10 @@ class YoutubeProxyServer {
       try {
         final uri = Uri.parse('$instance/streams/$videoId');
         final request = await client.getUrl(uri);
-        final response = await request.close();
+        final response = await request.close().timeout(const Duration(seconds: 4));
 
         if (response.statusCode == 200) {
-          final bodyJson = await response.transform(utf8.decoder).join();
+          final bodyJson = await response.transform(utf8.decoder).join().timeout(const Duration(seconds: 4));
           final data = jsonDecode(bodyJson) as Map<String, dynamic>;
           final audioStreams = data['audioStreams'] as List<dynamic>?;
 
@@ -621,10 +749,10 @@ class YoutubeProxyServer {
       try {
         final uri = Uri.parse('$instance/search?q=${Uri.encodeComponent(queryStr)}&filter=videos');
         final request = await client.getUrl(uri);
-        final response = await request.close();
+        final response = await request.close().timeout(const Duration(seconds: 4));
 
         if (response.statusCode == 200) {
-          final bodyJson = await response.transform(utf8.decoder).join();
+          final bodyJson = await response.transform(utf8.decoder).join().timeout(const Duration(seconds: 4));
           final data = jsonDecode(bodyJson) as Map<String, dynamic>;
           final items = data['items'] as List<dynamic>?;
 

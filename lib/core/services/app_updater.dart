@@ -83,6 +83,10 @@ class AppUpdater {
 
   // ───────────────────────── pure helpers (unit tested) ─────────────────────────
 
+  /// Windows PowerShell can save files with a UTF-8 BOM (invisible first character), which
+  /// makes `jsonDecode` fail. Remove it.
+  static String stripBom(String text) => text.startsWith('\uFEFF') ? text.substring(1) : text;
+
   /// True when [latest] is a higher version than [current].
   /// Understands pre-releases: 1.4.0-beta.1 < 1.4.0-beta.2 < 1.4.0 (a final release
   /// is newer than any of its betas). The `+build` part is ignored.
@@ -161,7 +165,7 @@ class AppUpdater {
     }
 
     final raw = response.data;
-    final data = raw is String ? jsonDecode(raw) : raw;
+    final data = raw is String ? jsonDecode(stripBom(raw)) : raw;
     final latest = (data['version'] as String).trim();
     final notes = (data['releaseNotes'] as String?) ?? '';
 
