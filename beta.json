@@ -1,5 +1,5 @@
 {
-    "version":  "1.4.1-beta.1",
-    "tag":  "v1.4.1-beta.1",
-    "releaseNotes":  "Kerlyss 1.4.1-beta.1\n\nNew Features:\n- Shuffle toggle in Up Next panel\n- Beta update channel (Check for Beta Updates button)\n\nFixes:\n- YouTube 403 fix - prefers muxed streams\n- Premature completion detection for 403 errors\n- Error reporting flow with sanitized logs\n- Logger improvements (chained writes, debug logging)\n\nTechnical:\n- Auto-skip after 4 broken songs\n- Spotify import/updater crash triggers\n- Rate-limited error prompts\n- Removed betaChannel database field"
+    "version":  "1.4.2-beta.1",
+    "tag":  "v1.4.2-beta.1",
+    "releaseNotes":  "Kerlyss 1.4.2-beta.1\n\nPerformance: Faster Song Loading\n- Stream fallback without manifest re-fetch\n- Learned client order (remembers working YouTube client)\n- Time limits (6s per client, 4s per Piped server)\n- Smarter rate-limit trigger (3 videos in 1 minute)\n- Persistent song -\u003e YouTube video cache on disk\n- Pre-loads next 2 songs\n- Timing logs for debugging\n\nBug Fixes\n- Failure counter was double-counted\n- Premature completion detection uses furthest position\n- BOM tolerance for beta.json/version.json\n- Release metadata script writes without BOM\n\nNew Feature\n- StartupGuard writes startup_error.log and opens in Notepad on Windows crash\n\nWindows Packaging\n- Bundles msvcp140.dll, vcruntime140.dll, vcruntime140_1.dll\n\nFor Beta Testers\n- Settings -\u003e Check for Beta Updates\n- Normal check only offers stable\n- Beta builds opt-in, same signing key as stable"
 }
