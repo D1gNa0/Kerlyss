@@ -7,6 +7,8 @@ import 'package:path/path.dart' as p;
 
 import '../../core/services/app_updater.dart';
 import '../../core/services/error_reporter.dart';
+import '../../core/services/pending_update.dart';
+import '../../core/services/pending_update_manager.dart';
 import '../../main.dart' show globalAudioHandler;
 
 enum UpdatePhase { idle, checking, available, downloading, verifying, preparing, readyToInstall, error }
@@ -66,11 +68,13 @@ class UpdateState {
 final updateProvider = StateNotifierProvider<UpdateController, UpdateState>((ref) => UpdateController());
 
 class UpdateController extends StateNotifier<UpdateState> {
-  UpdateController({AppUpdater? updater})
+  UpdateController({AppUpdater? updater, PendingUpdateManager? pending})
       : _updater = updater ?? AppUpdater(),
+        _pending = pending ?? PendingUpdateManager.instance,
         super(const UpdateState());
 
   final AppUpdater _updater;
+  final PendingUpdateManager _pending;
   CancelToken? _cancelToken;
   Directory? _windowsSourceDir;
   File? _androidApk;
@@ -100,6 +104,43 @@ class UpdateController extends StateNotifier<UpdateState> {
     }
   }
 
+  /// Call once at app start. If an update was fully downloaded earlier but never installed
+  /// (the app was closed first), show the "Install" / "Restart to update" bar again.
+  /// (Windows normally installs such an update before the UI even starts; this is the fallback.)
+  /// Never throws.
+  Future<void> restorePending() async {
+    if (state.phase != UpdatePhase.idle || !AppUpdater.supportsInAppUpdate) return;
+    try {
+      final pending = await _pending.loadValid();
+      if (pending == null || !mounted || state.phase != UpdatePhase.idle) return;
+
+      if (Platform.isAndroid) {
+        final apk = File(pending.path);
+        // The APK is installed with the user's tap, so make sure it is still the verified file.
+        if (pending.sha256.isEmpty || !await _updater.verifySha256(apk, pending.sha256)) {
+          await _pending.discard();
+          return;
+        }
+        _androidApk = apk;
+      } else {
+        _windowsSourceDir = Directory(pending.path);
+      }
+
+      if (!mounted || state.phase != UpdatePhase.idle) return;
+      state = UpdateState(
+        phase: UpdatePhase.readyToInstall,
+        info: UpdateInfo(
+          version: pending.version,
+          notes: pending.notes,
+          channel: pending.isBeta ? UpdateChannel.beta : UpdateChannel.stable,
+          tag: pending.tag,
+        ),
+      );
+    } catch (e) {
+      debugPrint('Restoring pending update failed: $e');
+    }
+  }
+
   /// Download -> verify -> (Windows: unpack) -> ready. On Android it then opens the installer.
   Future<void> startUpdate() async {
     final info = state.info;
@@ -109,7 +150,7 @@ class UpdateController extends StateNotifier<UpdateState> {
     try {
       state = UpdateState(phase: UpdatePhase.downloading, info: info);
 
-      await _updater.cleanUp();
+      await _pending.discard();
       if (Platform.isWindows) await _updater.ensureInstallDirWritable();
 
       final expectedHash = await _updater.fetchExpectedHash(info);
@@ -133,7 +174,7 @@ class UpdateController extends StateNotifier<UpdateState> {
       if (!mounted) return;
       state = state.copyWith(phase: UpdatePhase.verifying);
       if (!await _updater.verifySha256(target, expectedHash)) {
-        await _updater.cleanUp();
+        await _pending.discard();
         throw const UpdateException('The downloaded file is corrupted or was changed. Please try again.');
       }
 
@@ -144,6 +185,17 @@ class UpdateController extends StateNotifier<UpdateState> {
       } else {
         _androidApk = target;
       }
+
+      // Remember the finished download on disk, so closing the app does not lose it:
+      // Windows installs it on quit / next start, Android shows "Install" again next start.
+      await _pending.save(PendingUpdate(
+        version: info.version,
+        notes: info.notes,
+        isBeta: info.isBeta,
+        tag: info.tag,
+        sha256: expectedHash,
+        path: Platform.isWindows ? _windowsSourceDir!.path : target.path,
+      ));
 
       if (!mounted) return;
       state = state.copyWith(phase: UpdatePhase.readyToInstall, clearMessage: true);

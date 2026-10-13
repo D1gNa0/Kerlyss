@@ -8,6 +8,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'app_storage_paths.dart';
+
 /// Human-readable failure that can be shown directly to the user.
 class UpdateException implements Exception {
   final String message;
@@ -207,6 +209,12 @@ class AppUpdater {
   // ───────────────────────── download + verify ─────────────────────────
 
   Future<Directory> workDir() async {
+    if (Platform.isWindows) {
+      // Windows: keep the staged update in the app's data folder (not in Temp), so it is
+      // still there after the app is closed and can be installed on quit / next start.
+      final root = await AppStoragePaths.appRootDirectory();
+      return Directory(p.join(root.path, 'update_staging'));
+    }
     final temp = await getTemporaryDirectory();
     return Directory(p.join(temp.path, 'kerlyss_update'));
   }
@@ -291,19 +299,24 @@ class AppUpdater {
   }
 
   /// Starts a hidden PowerShell script that waits for this process to exit, copies
-  /// the new files over the install folder, and starts the app again.
+  /// the new files over the install folder, and (when [relaunch] is true) starts the app again.
+  /// With [relaunch] false the update is installed silently after the user closed the app.
+  /// The app removes the staged files itself on the next start (see PendingUpdateManager.loadValid).
   /// The caller must exit the app right after this returns.
-  Future<void> launchWindowsUpdater(Directory sourceDir) async {
+  Future<void> launchWindowsUpdater(Directory sourceDir, {bool relaunch = true}) async {
     final exePath = Platform.resolvedExecutable;
+    final root = await AppStoragePaths.appRootDirectory();
     final scriptFile = File(p.join(sourceDir.parent.path, 'apply_update.ps1'));
-    final logPath = p.join(sourceDir.parent.path, 'update.log');
+    // The log lives in the app data folder: the staging folder is deleted after an update.
+    final logPath = p.join(root.path, 'update.log');
 
     final script = _windowsScriptTemplate
         .replaceAll('{{PID}}', pid.toString())
         .replaceAll('{{LOG}}', _ps(logPath))
         .replaceAll('{{SRC}}', _ps(sourceDir.path))
         .replaceAll('{{DEST}}', _ps(_installDir.path))
-        .replaceAll('{{EXE}}', _ps(exePath));
+        .replaceAll('{{EXE}}', _ps(exePath))
+        .replaceAll('{{RELAUNCH}}', relaunch ? r'$true' : r'$false');
 
     // UTF-8 with BOM so Windows PowerShell 5.1 reads non-ASCII paths correctly.
     await scriptFile.writeAsBytes([0xEF, 0xBB, 0xBF, ...utf8.encode(script)]);
@@ -335,9 +348,15 @@ try { Wait-Process -Id {{PID}} -Timeout 60 -ErrorAction SilentlyContinue } catch
 Start-Sleep -Milliseconds 800
 Log 'copying files'
 & robocopy {{SRC}} {{DEST}} /E /IS /IT /R:10 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
-if ($LASTEXITCODE -ge 8) { Log ('copy FAILED, robocopy exit code ' + $LASTEXITCODE) } else { Log 'copy ok' }
-Log 'restarting Kerlyss'
-Start-Process -FilePath {{EXE}} -WorkingDirectory {{DEST}}
+if ($LASTEXITCODE -ge 8) {
+  Log ('copy FAILED, robocopy exit code ' + $LASTEXITCODE)
+} else {
+  Log 'copy ok'
+}
+if ({{RELAUNCH}}) {
+  Log 'restarting Kerlyss'
+  Start-Process -FilePath {{EXE}} -WorkingDirectory {{DEST}}
+}
 ''';
 
   // ───────────────────────── Android ─────────────────────────

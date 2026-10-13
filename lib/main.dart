@@ -1,5 +1,6 @@
 import 'core/services/analytics_service.dart';
 import 'core/services/error_reporter.dart';
+import 'core/services/pending_update_manager.dart';
 import 'core/services/startup_guard.dart';
 import 'core/services/app_storage_paths.dart';
 import 'core/services/app_window_listener.dart';
@@ -49,6 +50,10 @@ void main() async {
 
   // Catch uncaught errors and (for real bugs) offer to report them on GitHub.
   ErrorReporter.instance.install();
+
+  // Windows: an update that was downloaded but never installed (the app was killed, or the
+  // quit hook did not run) is installed now, before anything else starts. Never throws.
+  await PendingUpdateManager.instance.applyAtStartup();
 
   try {
     await _startApp();
