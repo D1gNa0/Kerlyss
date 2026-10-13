@@ -9,9 +9,9 @@ import '../datasources/remote/search_aggregator.dart';
 import '../datasources/remote/bpm_scraper_service.dart';
 import '../models/song_model.dart';
 import '../../domain/entities/audio_source_type.dart';
-import '../../../core/services/logger_service.dart';
-import '../../../core/services/stream_resolution_cache.dart';
-import '../../../core/services/youtube_proxy_server.dart';
+import '../../core/services/logger_service.dart';
+import '../../core/services/stream_resolution_cache.dart';
+import '../../core/services/youtube_proxy_server.dart';
 
 class SongRepositoryImpl implements SongRepository {
   final IsarDatabaseService _localDataSource;
