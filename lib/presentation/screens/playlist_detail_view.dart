@@ -402,147 +402,96 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
             borderRadius: BorderRadius.circular(24),
             border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
           ),
-          child: Row(
-            children: [
-              Container(
-                width: 90,
-                height: 90,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
-                ),
-                child: const Icon(Icons.playlist_play_rounded, color: Colors.white, size: 48),
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'PLAYLIST',
-                      style: TextStyle(color: AetherColors.textSecondary, fontSize: 10, letterSpacing: 2, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      currentPlaylist.name,
-                      style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Text(
-                          '${_loadedSongs!.length} TRACKS',
-                          style: const TextStyle(color: Colors.white54, fontSize: 11, letterSpacing: 1),
+          // Phones: beside the 90px icon only ~170px are left, too small for the action
+          // buttons (they used to run out of the card). So on narrow cards the buttons
+          // move under the header and use the full card width.
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final stackActions = constraints.maxWidth < 520;
+              final actions = _buildHeroActions(currentPlaylist, stacked: stackActions);
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 90,
+                        height: 90,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
                         ),
-                        if (currentPlaylist.isRealtimeSynced && currentPlaylist.spotifySourceUrl != null) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.lightGreenAccent.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(4),
+                        child: const Icon(Icons.playlist_play_rounded, color: Colors.white, size: 48),
+                      ),
+                      const SizedBox(width: 20),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'PLAYLIST',
+                              style: TextStyle(color: AetherColors.textSecondary, fontSize: 10, letterSpacing: 2, fontWeight: FontWeight.bold),
                             ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
+                            const SizedBox(height: 4),
+                            Text(
+                              currentPlaylist.name,
+                              style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
                               children: [
-                                Icon(Icons.bolt_rounded, color: Colors.lightGreenAccent, size: 10),
-                                SizedBox(width: 2),
-                                Text('SPOTIFY SYNC', style: TextStyle(color: Colors.lightGreenAccent, fontSize: 8, fontWeight: FontWeight.bold)),
+                                Text(
+                                  '${_loadedSongs!.length} TRACKS',
+                                  style: const TextStyle(color: Colors.white54, fontSize: 11, letterSpacing: 1),
+                                ),
+                                if (currentPlaylist.isRealtimeSynced && currentPlaylist.spotifySourceUrl != null) ...[
+                                  const SizedBox(width: 8),
+                                  Flexible(
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: Colors.lightGreenAccent.withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: const Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.bolt_rounded, color: Colors.lightGreenAccent, size: 10),
+                                          SizedBox(width: 2),
+                                          Flexible(
+                                            child: Text(
+                                              'SPOTIFY SYNC',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(color: Colors.lightGreenAccent, fontSize: 8, fontWeight: FontWeight.bold),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        VercelHoverButton(
-                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-                          borderRadius: 20,
-                          onTap: _loadedSongs!.isNotEmpty
-                              ? () => ref.read(audioProvider.notifier).playPlaylist(_loadedSongs!.map(SongMetadata.fromEntity).toList(), 0)
-                              : null,
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.play_arrow_rounded, color: Colors.white, size: 18),
-                              SizedBox(width: 6),
-                              Text('PLAY ALL', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                            if (!stackActions) ...[
+                              const SizedBox(height: 12),
+                              actions,
                             ],
-                          ),
+                          ],
                         ),
-                        const SizedBox(width: 8),
-                        VercelHoverButton(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          borderRadius: 20,
-                          onTap: _loadedSongs!.isNotEmpty
-                              ? () => ref.read(audioProvider.notifier).shufflePlay(_loadedSongs!.map(SongMetadata.fromEntity).toList())
-                              : null,
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.shuffle_rounded, color: Colors.white, size: 18),
-                              SizedBox(width: 6),
-                              Text('SHUFFLE', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1)),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            reverse: true,
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                AetherIconButton(
-                                  tooltip: 'Refresh',
-                                  icon: _isSyncing ? Icons.hourglass_top_rounded : Icons.refresh_rounded,
-                                  size: 16,
-                                  buttonSize: 34,
-                                  onPressed: _isSyncing ? null : _triggerManualSync,
-                                ),
-                                AetherIconButton(
-                                  tooltip: currentPlaylist.spotifySourceUrl != null
-                                      ? (currentPlaylist.isRealtimeSynced ? 'Spotify Live Sync Active' : 'Playlist Settings & Sync')
-                                      : 'Playlist Settings & Downloads',
-                                  icon: Icons.bolt_rounded,
-                                  color: (currentPlaylist.spotifySourceUrl != null && currentPlaylist.isRealtimeSynced)
-                                      ? Colors.lightGreenAccent
-                                      : Colors.white70,
-                                  size: 16,
-                                  buttonSize: 34,
-                                  onPressed: () => _showSyncSettingsDialog(context, currentPlaylist),
-                                ),
-                                AetherIconButton(
-                                  tooltip: 'Rename Playlist',
-                                  icon: Icons.edit_rounded,
-                                  size: 16,
-                                  buttonSize: 34,
-                                  onPressed: () => _showRenameDialog(context),
-                                ),
-                                AetherIconButton(
-                                  tooltip: 'Delete Playlist',
-                                  icon: Icons.delete_outline_rounded,
-                                  color: AetherColors.error,
-                                  size: 16,
-                                  buttonSize: 34,
-                                  onPressed: () => _confirmDeletePlaylist(context),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
+                  ),
+                  if (stackActions) ...[
+                    const SizedBox(height: 16),
+                    actions,
                   ],
-                ),
-              ),
-            ],
+                ],
+              );
+            },
           ),
         ),
 
@@ -571,6 +520,102 @@ class _PlaylistDetailViewState extends ConsumerState<PlaylistDetailView> {
         }),
       ],
     );
+  }
+
+  /// Play / Shuffle + playlist tools. Uses [Wrap] so nothing can ever run out of the card:
+  /// when there is not enough width the buttons simply continue on the next line.
+  /// [stacked] (phones) = buttons on one line, small tool icons on the next line.
+  Widget _buildHeroActions(PlaylistEntity currentPlaylist, {required bool stacked}) {
+    final songs = _loadedSongs ?? const <SongEntity>[];
+
+    final primary = <Widget>[
+      VercelHoverButton(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+        borderRadius: 20,
+        onTap: songs.isNotEmpty
+            ? () => ref.read(audioProvider.notifier).playPlaylist(songs.map(SongMetadata.fromEntity).toList(), 0)
+            : null,
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.play_arrow_rounded, color: Colors.white, size: 18),
+            SizedBox(width: 6),
+            Text('PLAY ALL', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1)),
+          ],
+        ),
+      ),
+      VercelHoverButton(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        borderRadius: 20,
+        onTap: songs.isNotEmpty
+            ? () => ref.read(audioProvider.notifier).shufflePlay(songs.map(SongMetadata.fromEntity).toList())
+            : null,
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.shuffle_rounded, color: Colors.white, size: 18),
+            SizedBox(width: 6),
+            Text('SHUFFLE', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1)),
+          ],
+        ),
+      ),
+    ];
+
+    final tools = <Widget>[
+      AetherIconButton(
+        tooltip: 'Refresh',
+        icon: _isSyncing ? Icons.hourglass_top_rounded : Icons.refresh_rounded,
+        size: 16,
+        buttonSize: 34,
+        onPressed: _isSyncing ? null : _triggerManualSync,
+      ),
+      AetherIconButton(
+        tooltip: currentPlaylist.spotifySourceUrl != null
+            ? (currentPlaylist.isRealtimeSynced ? 'Spotify Live Sync Active' : 'Playlist Settings & Sync')
+            : 'Playlist Settings & Downloads',
+        icon: Icons.bolt_rounded,
+        color: (currentPlaylist.spotifySourceUrl != null && currentPlaylist.isRealtimeSynced)
+            ? Colors.lightGreenAccent
+            : Colors.white70,
+        size: 16,
+        buttonSize: 34,
+        onPressed: () => _showSyncSettingsDialog(context, currentPlaylist),
+      ),
+      AetherIconButton(
+        tooltip: 'Rename Playlist',
+        icon: Icons.edit_rounded,
+        size: 16,
+        buttonSize: 34,
+        onPressed: () => _showRenameDialog(context),
+      ),
+      AetherIconButton(
+        tooltip: 'Delete Playlist',
+        icon: Icons.delete_outline_rounded,
+        color: AetherColors.error,
+        size: 16,
+        buttonSize: 34,
+        onPressed: () => _confirmDeletePlaylist(context),
+      ),
+    ];
+
+    Widget wrap(List<Widget> children, {double spacing = 8}) => Wrap(
+          spacing: spacing,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: children,
+        );
+
+    if (stacked) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          wrap(primary),
+          const SizedBox(height: 10),
+          wrap(tools, spacing: 4),
+        ],
+      );
+    }
+    return wrap([...primary, ...tools]);
   }
 
   void _showRenameDialog(BuildContext context) {
