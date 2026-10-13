@@ -1,15 +1,50 @@
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../state/update_provider.dart';
 import '../theme/aether_colors.dart';
 
-/// Floating update status (like VS Code's "Restart to update" / Epic's updater):
-/// download progress -> "Restart to update" (Windows) / "Install" (Android).
-/// Must be a direct child of a [Stack] because it returns a [Positioned].
+/// Wraps the whole app (used in `MaterialApp.builder`, so it sits ABOVE the Navigator).
+///
+/// While an update is downloading / ready / failed, a slim bar is added at the very
+/// bottom of the window. Because it is above the Navigator it shows on EVERY screen
+/// (Settings, Profile, full player, ...) and not only on the home screen.
+/// The bar takes its own space (it does not float), so it never covers any button.
+class UpdateDock extends ConsumerWidget {
+  const UpdateDock({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final show = ref.watch(updateProvider.select((s) => s.showsBanner));
+    final media = MediaQuery.of(context);
+
+    // The bar already keeps clear of the system navigation bar, so the app above it
+    // must not add that space a second time.
+    // Keep the tree the same shape for both cases (always a MediaQuery) so the
+    // Navigator and every screen keep their state when the bar appears/disappears.
+    final appMedia = show
+        ? media.copyWith(
+            padding: media.padding.copyWith(bottom: 0),
+            viewPadding: media.viewPadding.copyWith(bottom: 0),
+          )
+        : media;
+
+    return Column(
+      children: [
+        Expanded(child: MediaQuery(data: appMedia, child: child)),
+        if (show) const UpdateBanner(),
+      ],
+    );
+  }
+}
+
+/// The update status bar: download progress -> "Restart to update" (Windows) / "Install" (Android).
+/// Shown by [UpdateDock]. It lives above the Navigator, so there is no Overlay here:
+/// do not use `tooltip:` on buttons inside it.
 class UpdateBanner extends ConsumerWidget {
   const UpdateBanner({super.key});
 
@@ -19,8 +54,6 @@ class UpdateBanner extends ConsumerWidget {
     if (!state.showsBanner) return const SizedBox.shrink();
 
     final controller = ref.read(updateProvider.notifier);
-    final isDesktop = !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
-    final top = MediaQuery.of(context).padding.top + (isDesktop ? 48 : 8);
     final version = state.info?.version ?? '';
 
     Widget leading;
@@ -38,7 +71,7 @@ class UpdateBanner extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Downloading update $version', style: _title),
+            Text('Downloading update $version', style: _title, maxLines: 1, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 6),
             LinearProgressIndicator(
               value: state.progress > 0 ? state.progress : null,
@@ -51,7 +84,6 @@ class UpdateBanner extends ConsumerWidget {
           ],
         );
         action = IconButton(
-          tooltip: 'Cancel',
           visualDensity: VisualDensity.compact,
           onPressed: controller.cancel,
           icon: const Icon(Icons.close_rounded, color: Colors.white54, size: 18),
@@ -69,15 +101,17 @@ class UpdateBanner extends ConsumerWidget {
         );
       case UpdatePhase.readyToInstall:
         final isWindows = Platform.isWindows;
+        // Windows installs a ready update by itself when the app is closed.
+        final hint = state.message ?? (isWindows ? 'It installs automatically when you close Kerlyss.' : null);
         leading = const Icon(Icons.check_circle_rounded, color: AetherColors.success, size: 20);
         body = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Update $version is ready', style: _title),
-            if (state.message != null) ...[
+            Text('Update $version is ready', style: _title, maxLines: 1, overflow: TextOverflow.ellipsis),
+            if (hint != null) ...[
               const SizedBox(height: 4),
-              Text(state.message!, style: _sub),
+              Text(hint, style: _sub),
             ],
           ],
         );
@@ -102,7 +136,6 @@ class UpdateBanner extends ConsumerWidget {
                 child: const Text('Retry', style: TextStyle(color: AetherColors.accentCyan)),
               ),
             IconButton(
-              tooltip: 'Dismiss',
               visualDensity: VisualDensity.compact,
               onPressed: controller.dismissError,
               icon: const Icon(Icons.close_rounded, color: Colors.white54, size: 18),
@@ -113,31 +146,22 @@ class UpdateBanner extends ConsumerWidget {
         return const SizedBox.shrink();
     }
 
-    return Positioned(
-      top: top,
-      right: 12,
-      left: isDesktop ? null : 12,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 380),
-        child: Material(
-          color: AetherColors.ultraDarkGray.withValues(alpha: 0.96),
-          elevation: 8,
-          borderRadius: BorderRadius.circular(14),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AetherColors.accentCyan.withValues(alpha: 0.25)),
-            ),
-            child: Row(
-              children: [
-                leading,
-                const SizedBox(width: 12),
-                Expanded(child: body),
-                if (action != null) ...[const SizedBox(width: 8), action],
-              ],
-            ),
-          ),
+    return Material(
+      color: AetherColors.ultraDarkGray,
+      child: Container(
+        width: double.infinity,
+        // The bar sits at the bottom edge: keep it above the system navigation bar.
+        padding: EdgeInsets.fromLTRB(16, 10, 12, 10 + MediaQuery.of(context).padding.bottom),
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: AetherColors.accentCyan.withValues(alpha: 0.25))),
+        ),
+        child: Row(
+          children: [
+            leading,
+            const SizedBox(width: 12),
+            Expanded(child: body),
+            if (action != null) ...[const SizedBox(width: 8), action],
+          ],
         ),
       ),
     );

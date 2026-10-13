@@ -14,7 +14,6 @@ import 'discovery_view.dart';
 
 import '../common/aether_bottom_nav.dart';
 import '../common/mini_player.dart';
-import '../common/update_banner.dart';
 import '../common/aether_title_bar.dart';
 import '../theme/aether_colors.dart';
 import '../state/download_state_provider.dart';
@@ -179,9 +178,6 @@ class _MainShellViewState extends ConsumerState<MainShellView> with WidgetsBindi
 
             // Custom Desktop Title Bar
             const AetherTitleBar(),
-
-            // In-app update progress / "Restart to update"
-            const UpdateBanner(),
 
             // Global Player & Navigation
             const Align(

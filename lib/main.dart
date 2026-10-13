@@ -18,6 +18,7 @@ import 'data/repositories/repository_providers.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:kerlyss/l10n/app_localizations.dart';
 import 'presentation/screens/main_shell_view.dart';
+import 'presentation/common/update_banner.dart';
 import 'package:audio_service/audio_service.dart';
 import 'core/services/kerlyss_audio_handler.dart';
 
@@ -146,6 +147,8 @@ class KerlyssApp extends StatelessWidget {
       supportedLocales: const [
         Locale('en', ''),
       ],
+      // Above the Navigator: the update bar shows on every screen, not only on the home screen.
+      builder: (context, child) => UpdateDock(child: child ?? const SizedBox.shrink()),
       home: const MainShellView(),
     );
   }
