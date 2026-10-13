@@ -77,9 +77,12 @@ class _DiscoverySearchBarState extends ConsumerState<DiscoverySearchBar> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Top Mode Selector Pills
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          // Top Mode Selector Pills (Wrap: on very narrow phones the second pill moves to
+          // the next line instead of running out of the screen)
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 12,
+            runSpacing: 8,
             children: [
               Container(
                 decoration: BoxDecoration(
@@ -106,7 +109,6 @@ class _DiscoverySearchBarState extends ConsumerState<DiscoverySearchBar> {
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
               Container(
                 decoration: BoxDecoration(
                   color: searchState.searchMode == SearchMode.spotifyImport ? Colors.lightGreenAccent.withValues(alpha: 0.18) : Colors.transparent,
