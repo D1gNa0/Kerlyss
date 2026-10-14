@@ -9,6 +9,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'app_storage_paths.dart';
+import 'pending_update.dart';
 
 /// Human-readable failure that can be shown directly to the user.
 class UpdateException implements Exception {
@@ -301,7 +302,8 @@ class AppUpdater {
   /// Starts a hidden PowerShell script that waits for this process to exit, copies
   /// the new files over the install folder, and (when [relaunch] is true) starts the app again.
   /// With [relaunch] false the update is installed silently after the user closed the app.
-  /// The app removes the staged files itself on the next start (see PendingUpdateManager.loadValid).
+  /// After a successful copy the script deletes `pending_update.json` (so the update is never
+  /// installed twice); the app removes the leftover staged files on its next start.
   /// The caller must exit the app right after this returns.
   Future<void> launchWindowsUpdater(Directory sourceDir, {bool relaunch = true}) async {
     final exePath = Platform.resolvedExecutable;
@@ -309,6 +311,7 @@ class AppUpdater {
     final scriptFile = File(p.join(sourceDir.parent.path, 'apply_update.ps1'));
     // The log lives in the app data folder: the staging folder is deleted after an update.
     final logPath = p.join(root.path, 'update.log');
+    final markerPath = p.join(root.path, PendingUpdateStore.fileName);
 
     final script = _windowsScriptTemplate
         .replaceAll('{{PID}}', pid.toString())
@@ -316,6 +319,7 @@ class AppUpdater {
         .replaceAll('{{SRC}}', _ps(sourceDir.path))
         .replaceAll('{{DEST}}', _ps(_installDir.path))
         .replaceAll('{{EXE}}', _ps(exePath))
+        .replaceAll('{{MARKER}}', _ps(markerPath))
         .replaceAll('{{RELAUNCH}}', relaunch ? r'$true' : r'$false');
 
     // UTF-8 with BOM so Windows PowerShell 5.1 reads non-ASCII paths correctly.
@@ -352,6 +356,7 @@ if ($LASTEXITCODE -ge 8) {
   Log ('copy FAILED, robocopy exit code ' + $LASTEXITCODE)
 } else {
   Log 'copy ok'
+  Remove-Item -LiteralPath {{MARKER}} -Force -ErrorAction SilentlyContinue
 }
 if ({{RELAUNCH}}) {
   Log 'restarting Kerlyss'

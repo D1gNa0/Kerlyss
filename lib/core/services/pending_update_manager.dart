@@ -17,8 +17,10 @@ import 'pending_update.dart';
 ///     `main()`) sees the file, installs the update, and restarts the app.
 ///  4. Android cannot install silently, so on the next start the controller calls
 ///     [loadValid] and shows the "Install" button again.
-///  5. [loadValid] throws away the file (and the downloaded files) when the update is
-///     already installed or the files are gone.
+///  5. The updater script deletes the file after a successful copy (no double install,
+///     no restart loop). [loadValid] also throws away the file and the downloaded files when
+///     the update is already installed or the files are gone, and [applyAtStartup]
+///     removes staged files that no file points to any more.
 class PendingUpdateManager {
   PendingUpdateManager({PendingUpdateStore? store, AppUpdater? updater})
       : _store = store ?? PendingUpdateStore(),
@@ -70,7 +72,12 @@ class PendingUpdateManager {
     if (!Platform.isWindows) return;
     try {
       final pending = await loadValid();
-      if (pending == null) return;
+      if (pending == null) {
+        // Nothing waiting. If the updater script installed an update, its staged files are
+        // still on disk (nothing is downloading yet at this point), so delete them.
+        await _updater.cleanUp();
+        return;
+      }
 
       if (pending.attempts >= PendingUpdate.maxStartupAttempts) {
         // It failed twice already. Stop trying; the user can download again from the app.
