@@ -1,10 +1,10 @@
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as p;
 
 import 'app_updater.dart';
+import 'logger_service.dart';
 import 'pending_update.dart';
 
 /// Makes a downloaded update survive closing the app.
@@ -81,20 +81,22 @@ class PendingUpdateManager {
 
       if (pending.attempts >= PendingUpdate.maxStartupAttempts) {
         // It failed twice already. Stop trying; the user can download again from the app.
-        debugPrint('Pending update ${pending.version}: giving up after ${pending.attempts} attempts.');
+        Log.w('Update: giving up on ${pending.version} after ${pending.attempts} failed install attempts');
         await discard();
         return;
       }
 
       await _updater.ensureInstallDirWritable();
 
+      Log.event('Update: installing ${pending.version} at startup (attempt ${pending.attempts + 1})');
       // Count the attempt BEFORE starting, so a failing update cannot restart the app forever.
       await _store.save(pending.copyWithAttempts(pending.attempts + 1));
       await _updater.launchWindowsUpdater(Directory(pending.path), relaunch: true);
+      await Log.flush().timeout(const Duration(seconds: 1), onTimeout: () {});
       await Future<void>.delayed(const Duration(milliseconds: 300));
       exit(0);
     } catch (e) {
-      debugPrint('Applying pending update at startup failed: $e');
+      Log.e('Update: installing at startup failed', e);
     }
   }
 
@@ -107,9 +109,10 @@ class PendingUpdateManager {
       final pending = await loadValid();
       if (pending == null) return;
       await _updater.ensureInstallDirWritable();
+      Log.event('Update: ${pending.version} will be installed now that the app is closing');
       await _updater.launchWindowsUpdater(Directory(pending.path), relaunch: false);
     } catch (e) {
-      debugPrint('Applying pending update on quit failed: $e');
+      Log.e('Update: installing on quit failed', e);
     }
   }
 }

@@ -40,7 +40,7 @@ class TrackDownloadService {
 
         List<String> candidateVideoIds = [];
         if (song.sourceType == AudioSourceType.deezer) {
-          Log.i('TrackDownload: Resolving Deezer track "${song.artist} - ${song.title}" to YouTube for download...');
+          Log.d('TrackDownload: Resolving Deezer track "${song.artist} - ${song.title}" to YouTube for download...');
           final results = await youtubeService.searchVideos('${song.artist} ${song.title}');
           candidateVideoIds = results.take(3).map((v) => v.id.value).toList();
           if (candidateVideoIds.isEmpty) {
@@ -97,7 +97,7 @@ class TrackDownloadService {
         }
 
         ref.invalidate(downloadedSongsProvider);
-        Log.i('Download completed for ${song.id}: Saved to $destinationPath');
+        Log.d('Download completed for ${song.id}: Saved to $destinationPath');
       }
     } catch (e) {
       Log.e('Download failed for ${song.id}: $e');
@@ -117,7 +117,7 @@ class TrackDownloadService {
   void cancelBulkDownload() {
     _isCancelled = true;
     ref.read(downloadStateProvider.notifier).clearBulk();
-    Log.i('Bulk download: Cancel requested. Current downloads will finish and remaining will be stopped.');
+    Log.d('Bulk download: Cancel requested. Current downloads will finish and remaining will be stopped.');
   }
 
   /// Downloads a list of songs with configurable parallelism.
@@ -139,11 +139,11 @@ class TrackDownloadService {
     }).toList();
 
     if (toDownload.isEmpty) {
-      Log.i('Bulk download: No songs to download.');
+      Log.d('Bulk download: No songs to download.');
       return;
     }
 
-    Log.i('Bulk download: Starting with $parallelism parallel downloads for ${toDownload.length} songs.');
+    Log.event('Bulk download: Starting with $parallelism parallel downloads for ${toDownload.length} songs.');
     notifier.startBulk(toDownload.length);
 
     // Process songs in chunks to maintain parallelism limit
@@ -158,7 +158,7 @@ class TrackDownloadService {
     // Download each chunk in parallel, but chunks sequentially
     for (final chunk in chunks) {
       if (_isCancelled) {
-        Log.i('Bulk download: Stopped by user request.');
+        Log.d('Bulk download: Stopped by user request.');
         notifier.clearBulk();
         break;
       }
@@ -177,7 +177,7 @@ class TrackDownloadService {
       );
     }
 
-    Log.i('Bulk download: Finished.');
+    Log.event('Bulk download: Finished.');
   }
 
   Future<void> deleteDownloadedTrack(SongEntity song) async {
@@ -208,7 +208,7 @@ class TrackDownloadService {
 
       ref.invalidate(downloadedSongsProvider);
       ref.read(libraryProvider.notifier).loadLibrary();
-      Log.i('Deleted download for ${song.id}');
+      Log.d('Deleted download for ${song.id}');
     } catch (e) {
       Log.e('Failed to delete download for ${song.id}: $e');
     }

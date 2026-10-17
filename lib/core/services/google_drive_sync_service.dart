@@ -81,7 +81,7 @@ class GoogleDriveSyncService {
   /// Attempt silent sign-in on app startup
   Future<bool> silentSignIn() async {
     if (AetherHttpOverrides.isOfflineMode) {
-      Log.i('GoogleDriveSync: Offline mode enabled, skipping silent sign-in.');
+      Log.d('GoogleDriveSync: Offline mode enabled, skipping silent sign-in.');
       return false;
     }
 
@@ -92,12 +92,12 @@ class GoogleDriveSyncService {
           _currentUser = account;
           final auth = await account.authentication;
           _accessToken = auth.accessToken;
-          Log.i('GoogleDriveSync: Silent sign-in succeeded for ${account.email}');
+          Log.d('GoogleDriveSync: Silent sign-in succeeded for ${account.email}');
           return true;
         }
       } else if (!kIsWeb && Platform.isWindows) {
         final settings = await _isarService.getSettings();
-        Log.i('GoogleDriveSync: Windows silent sign-in checking settings. Refresh token present: ${settings.googleRefreshToken != null}');
+        Log.d('GoogleDriveSync: Windows silent sign-in checking settings. Refresh token present: ${settings.googleRefreshToken != null}');
         if (settings.googleRefreshToken != null) {
           _currentRefreshToken = settings.googleRefreshToken;
           final response = await http.post(
@@ -120,7 +120,7 @@ class GoogleDriveSyncService {
               _currentRefreshToken = newRefreshToken;
               settings.googleRefreshToken = newRefreshToken;
               await _isarService.saveSettings(settings);
-              Log.i('GoogleDriveSync: Persisted rotated refresh token to Isar.');
+              Log.d('GoogleDriveSync: Persisted rotated refresh token to Isar.');
             }
             
             // Fetch and cache user email for the getter
@@ -137,7 +137,7 @@ class GoogleDriveSyncService {
               } catch (_) {}
             }
             
-            Log.i('GoogleDriveSync: Windows silent sign-in succeeded for $_windowsEmail.');
+            Log.d('GoogleDriveSync: Windows silent sign-in succeeded for $_windowsEmail.');
             return true;
           } else {
             Log.w('GoogleDriveSync: Windows silent sign-in token refresh failed: ${response.statusCode} - ${response.body}');
@@ -151,7 +151,7 @@ class GoogleDriveSyncService {
             return false;
           }
         } else {
-          Log.i('GoogleDriveSync: Windows silent sign-in skipped (no stored refresh token).');
+          Log.d('GoogleDriveSync: Windows silent sign-in skipped (no stored refresh token).');
           return false;
         }
       }
@@ -164,7 +164,7 @@ class GoogleDriveSyncService {
   /// Interactive sign-in flow
   Future<bool> signIn() async {
     if (AetherHttpOverrides.isOfflineMode) {
-      Log.w('GoogleDriveSync: Cannot sign in while Offline Mode is active.');
+      Log.d('GoogleDriveSync: Cannot sign in while Offline Mode is active.');
       throw const SocketException('Offline Mode is active. Disable it to connect Google Drive.');
     }
 
@@ -175,7 +175,7 @@ class GoogleDriveSyncService {
           _currentUser = account;
           final auth = await account.authentication;
           _accessToken = auth.accessToken;
-          Log.i('GoogleDriveSync: Android sign-in successful: ${account.email}');
+          Log.d('GoogleDriveSync: Android sign-in successful: ${account.email}');
           return true;
         }
         return false;
@@ -203,7 +203,7 @@ class GoogleDriveSyncService {
     } catch (e) {
       Log.w('GoogleDriveSync: Error signing out: $e');
     }
-    Log.i('GoogleDriveSync: Signed out successfully.');
+    Log.d('GoogleDriveSync: Signed out successfully.');
   }
 
   /// Windows Desktop loopback OAuth2 flow
@@ -278,13 +278,13 @@ class GoogleDriveSyncService {
           final refreshToken = data['refresh_token'] as String?;
           _currentRefreshToken = refreshToken;
 
-          Log.i('GoogleDriveSync: Token response contains refresh_token: ${refreshToken != null && refreshToken.isNotEmpty}');
+          Log.d('GoogleDriveSync: Token response contains refresh_token: ${refreshToken != null && refreshToken.isNotEmpty}');
 
           if (refreshToken != null && refreshToken.isNotEmpty) {
             final settings = await _isarService.getSettings();
             settings.googleRefreshToken = refreshToken;
             await _isarService.saveSettings(settings);
-            Log.i('GoogleDriveSync: Stored refresh token directly to Isar.');
+            Log.d('GoogleDriveSync: Stored refresh token directly to Isar.');
           } else {
             Log.w('GoogleDriveSync: Google OAuth token exchange did NOT return a refresh_token.');
           }
@@ -298,7 +298,7 @@ class GoogleDriveSyncService {
             if (userinfo.statusCode == 200) {
               final info = jsonDecode(userinfo.body) as Map<String, dynamic>;
               _windowsEmail = info['email'] as String?;
-              Log.i('GoogleDriveSync: Windows desktop sign-in succeeded: $_windowsEmail');
+              Log.d('GoogleDriveSync: Windows desktop sign-in succeeded: $_windowsEmail');
             }
           }
           return true;
@@ -349,7 +349,7 @@ class GoogleDriveSyncService {
         try {
           final auth = await _currentUser!.authentication;
           _accessToken = auth.accessToken;
-          Log.i('GoogleDriveSync: Refreshed Android access token.');
+          Log.d('GoogleDriveSync: Refreshed Android access token.');
         } catch (e) {
           Log.w('GoogleDriveSync: Failed to refresh Android authentication token: $e');
         }
@@ -371,7 +371,7 @@ class GoogleDriveSyncService {
             if (response.statusCode == 200) {
               final data = jsonDecode(response.body) as Map<String, dynamic>;
               _accessToken = data['access_token'] as String?;
-              Log.i('GoogleDriveSync: Refreshed Windows desktop access token.');
+              Log.d('GoogleDriveSync: Refreshed Windows desktop access token.');
             }
           } catch (e) {
             Log.w('GoogleDriveSync: Failed to refresh Windows access token: $e');
@@ -389,14 +389,14 @@ class GoogleDriveSyncService {
   // --- Synchronization Operations ---
 
   Future<bool> _executePull(drive.DriveApi driveApi) async {
-    Log.i('GoogleDriveSync: Checking Drive root for $syncFileName...');
+    Log.d('GoogleDriveSync: Checking Drive root for $syncFileName...');
     final fileList = await driveApi.files.list(
       q: "name = '$syncFileName' and trashed = false",
       $fields: 'files(id, name, modifiedTime)',
     );
 
     if (fileList.files == null || fileList.files!.isEmpty) {
-      Log.i('GoogleDriveSync: No remote sync file found. Performing initial push.');
+      Log.d('GoogleDriveSync: No remote sync file found. Performing initial push.');
       return await pushData();
     }
 
@@ -423,7 +423,7 @@ class GoogleDriveSyncService {
     } catch (e) {
       Log.w('GoogleDriveSync: Failed to update lastCloudSyncAt: $e');
     }
-    Log.i('GoogleDriveSync: Pull and merge completed successfully.');
+    Log.d('GoogleDriveSync: Pull and merge completed successfully.');
     return true;
   }
 
@@ -432,14 +432,14 @@ class GoogleDriveSyncService {
     _lastErrorMessage = null;
     if (AetherHttpOverrides.isOfflineMode) {
       _lastErrorMessage = 'Offline Mode is active.';
-      Log.i('GoogleDriveSync: Offline mode active, skipping pull.');
+      Log.d('GoogleDriveSync: Offline mode active, skipping pull.');
       return false;
     }
 
     drive.DriveApi? driveApi = await _getDriveApi();
     if (driveApi == null) {
       _lastErrorMessage = 'Not authenticated with Google Drive. Please reconnect in Profile.';
-      Log.w('GoogleDriveSync: Cannot pull, not authenticated.');
+      Log.d('GoogleDriveSync: Cannot pull, not authenticated.');
       return false;
     }
 
@@ -449,7 +449,7 @@ class GoogleDriveSyncService {
       return await _executePull(driveApi);
     } catch (e) {
       if (e.toString().contains('401') || e.toString().contains('Invalid Credentials')) {
-        Log.i('GoogleDriveSync: 401 on pull, force-refreshing token and retrying...');
+        Log.d('GoogleDriveSync: 401 on pull, force-refreshing token and retrying...');
         driveApi = await _getDriveApi(forceRefresh: true);
         if (driveApi != null) {
           try {
@@ -522,14 +522,14 @@ class GoogleDriveSyncService {
         existingFileId,
         uploadMedia: media,
       );
-      Log.i('GoogleDriveSync: Updated existing $syncFileName in Drive.');
+      Log.d('GoogleDriveSync: Updated existing $syncFileName in Drive.');
     } else {
       final newFile = drive.File()..name = syncFileName;
       await driveApi.files.create(
         newFile,
         uploadMedia: media,
       );
-      Log.i('GoogleDriveSync: Created new $syncFileName in Drive.');
+      Log.d('GoogleDriveSync: Created new $syncFileName in Drive.');
     }
     return true;
   }
@@ -539,14 +539,14 @@ class GoogleDriveSyncService {
     _lastErrorMessage = null;
     if (AetherHttpOverrides.isOfflineMode) {
       _lastErrorMessage = 'Offline Mode is active.';
-      Log.i('GoogleDriveSync: Offline mode active, skipping push.');
+      Log.d('GoogleDriveSync: Offline mode active, skipping push.');
       return false;
     }
 
     drive.DriveApi? driveApi = await _getDriveApi();
     if (driveApi == null) {
       _lastErrorMessage = 'Not authenticated with Google Drive. Please reconnect in Profile.';
-      Log.w('GoogleDriveSync: Cannot push, not authenticated.');
+      Log.d('GoogleDriveSync: Cannot push, not authenticated.');
       return false;
     }
 
@@ -555,7 +555,7 @@ class GoogleDriveSyncService {
       return await _executePush(driveApi);
     } catch (e) {
       if (e.toString().contains('401') || e.toString().contains('Invalid Credentials')) {
-        Log.i('GoogleDriveSync: 401 on push, force-refreshing token and retrying...');
+        Log.d('GoogleDriveSync: 401 on push, force-refreshing token and retrying...');
         driveApi = await _getDriveApi(forceRefresh: true);
         if (driveApi != null) {
           try {
@@ -582,7 +582,7 @@ class GoogleDriveSyncService {
 
     _debounceTimer?.cancel();
     _debounceTimer = Timer(delay, () async {
-      Log.i('GoogleDriveSync: Debounce timer triggered, pushing changes...');
+      Log.d('GoogleDriveSync: Debounce timer triggered, pushing changes...');
       await pushData();
     });
   }
@@ -800,7 +800,7 @@ class GoogleDriveSyncService {
                 local.updatedAt = remoteUpdatedAt;
                 local.lastSyncedAt = remoteUpdatedAt;
                 await _isarService.savePlaylist(local);
-                Log.i('GoogleDriveSync: Remote soft-delete applied for playlist "${local.name}" (uuid: ${local.uuid})');
+                Log.d('GoogleDriveSync: Remote soft-delete applied for playlist "${local.name}" (uuid: ${local.uuid})');
               } else {
                 // Remote modification is newer: adopt remote state directly!
                 local.isDeleted = false;
@@ -824,11 +824,11 @@ class GoogleDriveSyncService {
                 if (remoteSpotifyUrl != null) local.spotifySourceUrl = remoteSpotifyUrl;
                 if (remoteCoverArt != null) local.coverArtUrl = remoteCoverArt;
                 await _isarService.savePlaylist(local);
-                Log.i('GoogleDriveSync: Remote update applied for playlist "${local.name}" (uuid: ${local.uuid})');
+                Log.d('GoogleDriveSync: Remote update applied for playlist "${local.name}" (uuid: ${local.uuid})');
               }
             } else if (isLocalNewer) {
               // Local is newer: preserve local songs, name and settings; it will be pushed to Drive.
-              Log.i('GoogleDriveSync: Local playlist "${local.name}" is newer than remote. Preserving local state.');
+              Log.d('GoogleDriveSync: Local playlist "${local.name}" is newer than remote. Preserving local state.');
             } else {
               // Timestamps equal or neither set
               if (remoteUuid != null && (local.uuid == null || local.uuid!.isEmpty)) {

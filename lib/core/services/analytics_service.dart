@@ -19,7 +19,7 @@ class AnalyticsService {
   Future<void> logAppOpen() async {
     // Strictly ignore debug and profile builds during dev testing
     if (!kReleaseMode) {
-      Log.i('AnalyticsService: Debug mode detected — skipping app_open telemetry');
+      Log.d('AnalyticsService: Debug mode detected — skipping app_open telemetry');
       return;
     }
 
@@ -42,7 +42,7 @@ class AnalyticsService {
         flush: true,
       );
 
-      Log.i('AnalyticsService: Logged release app_open event (Install ID: $_installId)');
+      Log.d('AnalyticsService: Logged release app_open event (Install ID: $_installId)');
     } catch (e, stackTrace) {
       Log.e('AnalyticsService: Failed to log app_open event: $e', e, stackTrace);
     }

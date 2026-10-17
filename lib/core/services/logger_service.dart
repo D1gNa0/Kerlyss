@@ -3,14 +3,13 @@ import 'package:flutter/foundation.dart';
 import 'package:logger/logger.dart';
 import 'app_storage_paths.dart';
 import 'log_buffer.dart';
+import 'persistent_log.dart';
 
 class _FlatLogPrinter extends LogPrinter {
   _FlatLogPrinter();
 
   @override
   List<String> log(LogEvent event) {
-    if (kReleaseMode) return [];
-
     final color = switch (event.level) {
       Level.error || Level.fatal => '\x1b[31m', // Red
       Level.warning => '\x1b[33m',             // Yellow
@@ -48,121 +47,94 @@ class _FlatLogPrinter extends LogPrinter {
   }
 }
 
-class _FileSysLogOutput extends LogOutput {
-  File? file;
-
-  // Writes are chained so lines never interleave and a failed write (for example a
-  // Windows file lock) can never become an UNHANDLED async error. Unhandled errors would
-  // reach ErrorReporter, which logs again -> endless loop.
-  Future<void> _pending = Future<void>.value();
-
-  _FileSysLogOutput();
-
-  Future<void> init() async {
-    if (kReleaseMode) return;
-    try {
-      final logDir = await AppStoragePaths.appRootDirectory();
-      file = File('${logDir.path}/kerlyss_runtime.log');
-      
-      if (await file!.exists()) {
-        final length = await file!.length();
-        if (length > 500 * 1024) {
-          // Truncate log file if > 500KB to save disk space
-          await file!.writeAsString('--- LOG TRUNCATED ---\n', mode: FileMode.write);
-        } else {
-          await file!.writeAsString('\n--- NEW SESSION ---\n', mode: FileMode.append);
-        }
-      }
-    } catch (_) {}
-  }
-
-  @override
-  void output(OutputEvent event) {
-    if (kReleaseMode || file == null) return;
-    
-    try {
-      final ansiRegex = RegExp(r'\x1B\[[0-9;]*m');
-      final text = event.lines.map((l) => l.replaceAll(ansiRegex, '')).join('\n') + '\n';
-      final target = file!;
-      _pending = _pending
-          .then((_) => target.writeAsString(text, mode: FileMode.append))
-          .then<void>((_) {}, onError: (Object _) {}); // swallow write errors
-    } catch (_) {}
-  }
-}
-
+/// App logging. What goes where:
+///
+///  | method        | console (debug builds) | log file `kerlyss.log` | bug-report buffer |
+///  |---------------|------------------------|------------------------|-------------------|
+///  | `Log.t / d`   | yes                    | no                     | no                |
+///  | `Log.i`       | yes                    | no                     | yes               |
+///  | `Log.event`   | yes                    | YES (all builds)       | yes               |
+///  | `Log.w / e / f` | yes                  | YES (all builds)       | yes               |
+///
+/// Rule of thumb: step-by-step chatter ("resolving song...", "cache hit") is `Log.d`.
+/// `Log.event` is for the few things worth knowing later (app start, update steps).
+/// `Log.w` = something failed but the app recovers, `Log.e` = a real problem.
 class Log {
   static Logger? _logger;
-  static _FileSysLogOutput? _fileOutput;
 
-  // Release builds print nothing: reuse ONE silent logger instead of creating a new one per call.
+  /// The persistent file. It starts lazily, so it also works before [init].
+  static final PersistentLogFile _file = PersistentLogFile(directory: AppStoragePaths.appRootDirectory);
+
+  // `flutter test` sets FLUTTER_TEST: tests must not write into the real app data folder.
+  static final bool _underTest = Platform.environment.containsKey('FLUTTER_TEST');
+
+  static void _persist(String level, dynamic message, dynamic error, StackTrace? stackTrace) {
+    if (_underTest) return;
+    _file.write(level, message.toString(), error: error, stackTrace: stackTrace);
+  }
+
+  // Release builds print nothing to the console: reuse ONE silent logger.
   static final Logger _silentLogger = Logger(level: Level.off, printer: _FlatLogPrinter(), output: ConsoleOutput());
-
-  // Debug builds show debug lines too (before, the 17 Log.d calls were silently dropped).
-  static const Level _devLevel = Level.debug;
 
   static Logger get _instance {
     if (kReleaseMode) return _silentLogger;
-    _logger ??= Logger(
-      level: _devLevel,
-      printer: _FlatLogPrinter(),
-      output: ConsoleOutput(),
-    );
-    return _logger!;
+    return _logger ??= Logger(level: Level.debug, printer: _FlatLogPrinter(), output: ConsoleOutput());
   }
 
   static Future<void> init() async {
-    if (kReleaseMode) {
-      _logger = _silentLogger;
-      return;
-    }
-
-    _fileOutput = _FileSysLogOutput();
-    await _fileOutput!.init();
-
-    _logger = Logger(
-      level: _devLevel,
-      printer: _FlatLogPrinter(),
-      output: MultiOutput([
-        ConsoleOutput(),
-        _fileOutput!,
-      ]),
-    );
-    
-    i('Kerlyss Logger Initialized.');
+    // The old runtime log wrote everything (up to 500 KB of noise). It is replaced by kerlyss.log.
+    try {
+      final dir = await AppStoragePaths.appRootDirectory();
+      final legacy = File('${dir.path}/kerlyss_runtime.log');
+      if (await legacy.exists()) await legacy.delete();
+    } catch (_) {}
   }
 
-  /// Log a message at level [Level.trace].
+  /// Completes when every queued line is on disk. Call before the process exits.
+  static Future<void> flush() => _file.flush();
+
+  /// Verbose developer detail. Console only, in debug builds.
   static void t(dynamic message, [dynamic error, StackTrace? stackTrace]) {
     _instance.t(message, error: error, stackTrace: stackTrace);
   }
 
-  /// Log a message at level [Level.debug].
+  /// Step-by-step detail. Console only, in debug builds.
   static void d(dynamic message, [dynamic error, StackTrace? stackTrace]) {
     _instance.d(message, error: error, stackTrace: stackTrace);
   }
 
-  /// Log a message at level [Level.info].
+  /// Normal information. Console (debug) and the in-memory bug-report buffer; NOT the file.
   static void i(dynamic message, [dynamic error, StackTrace? stackTrace]) {
     LogBuffer.instance.add(Level.info, message, error, stackTrace);
     _instance.i(message, error: error, stackTrace: stackTrace);
   }
 
-  /// Log a message at level [Level.warning].
+  /// A key event worth keeping (app start, update steps...). Also written to the log file.
+  /// Use sparingly: a few lines per session, never inside a loop.
+  static void event(dynamic message, [dynamic error, StackTrace? stackTrace]) {
+    LogBuffer.instance.add(Level.info, message, error, stackTrace);
+    _instance.i(message, error: error, stackTrace: stackTrace);
+    _persist('INFO', message, error, stackTrace);
+  }
+
+  /// Something failed but the app recovers. Written to the log file.
   static void w(dynamic message, [dynamic error, StackTrace? stackTrace]) {
     LogBuffer.instance.add(Level.warning, message, error, stackTrace);
     _instance.w(message, error: error, stackTrace: stackTrace);
+    _persist('WARN', message, error, stackTrace);
   }
 
-  /// Log a message at level [Level.error].
+  /// A real problem. Written to the log file.
   static void e(dynamic message, [dynamic error, StackTrace? stackTrace]) {
     LogBuffer.instance.add(Level.error, message, error, stackTrace);
     _instance.e(message, error: error, stackTrace: stackTrace);
+    _persist('ERROR', message, error, stackTrace);
   }
 
-  /// Log a message at level [Level.fatal].
+  /// The app cannot continue. Written to the log file.
   static void f(dynamic message, [dynamic error, StackTrace? stackTrace]) {
     LogBuffer.instance.add(Level.fatal, message, error, stackTrace);
     _instance.f(message, error: error, stackTrace: stackTrace);
+    _persist('FATAL', message, error, stackTrace);
   }
 }

@@ -84,7 +84,7 @@ class DeveloperMessageService {
       }
     } catch (e) {
       // Non-critical network/parsing failures should fail silently
-      Log.i('DeveloperMessageService: Message check skipped or unavailable: $e');
+      Log.d('DeveloperMessageService: Message check skipped or unavailable: $e');
     }
   }
 

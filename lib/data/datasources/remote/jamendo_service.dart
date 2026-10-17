@@ -23,7 +23,7 @@ class JamendoService {
 
   Future<List<SongEntity>> searchTracks(String query) async {
     if (!isConfigured) {
-      Log.w('Jamendo search skipped because JAMENDO_CLIENT_ID is not configured.');
+      Log.d('Jamendo search skipped because JAMENDO_CLIENT_ID is not configured.');
       return [];
     }
 

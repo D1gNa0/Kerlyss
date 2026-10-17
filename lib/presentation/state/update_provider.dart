@@ -1,12 +1,12 @@
 import 'dart:io';
 
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 import '../../core/services/app_updater.dart';
 import '../../core/services/error_reporter.dart';
+import '../../core/services/logger_service.dart';
 import '../../core/services/pending_update.dart';
 import '../../core/services/pending_update_manager.dart';
 import '../../main.dart' show globalAudioHandler;
@@ -95,10 +95,11 @@ class UpdateController extends StateNotifier<UpdateState> {
         state = const UpdateState();
         return UpdateCheckResult.upToDate;
       }
+      Log.event('Update: ${info.version} is available (${channel.name} channel)');
       state = UpdateState(phase: UpdatePhase.available, info: info);
       return UpdateCheckResult.available;
     } catch (e) {
-      debugPrint('Update check failed: $e');
+      Log.w('Update: check failed (${channel.name}): ${e is DioException ? AppUpdater.describeNetworkError(e) : e}');
       if (mounted) state = const UpdateState();
       return UpdateCheckResult.failed;
     }
@@ -127,6 +128,7 @@ class UpdateController extends StateNotifier<UpdateState> {
       }
 
       if (!mounted || state.phase != UpdatePhase.idle) return;
+      Log.event('Update: ${pending.version} was downloaded earlier and is ready to install');
       state = UpdateState(
         phase: UpdatePhase.readyToInstall,
         info: UpdateInfo(
@@ -137,7 +139,7 @@ class UpdateController extends StateNotifier<UpdateState> {
         ),
       );
     } catch (e) {
-      debugPrint('Restoring pending update failed: $e');
+      Log.w('Update: could not restore the pending update: $e');
     }
   }
 
@@ -147,7 +149,9 @@ class UpdateController extends StateNotifier<UpdateState> {
     if (info == null || state.isBusy || !AppUpdater.supportsInAppUpdate) return;
 
     final token = _cancelToken = CancelToken();
+    final stopwatch = Stopwatch()..start();
     try {
+      Log.event('Update: downloading ${info.version} (${info.channel.name}) from ${Uri.parse(AppUpdater.downloadUrlFor(info)).host}');
       state = UpdateState(phase: UpdatePhase.downloading, info: info);
 
       await _pending.discard();
@@ -172,6 +176,7 @@ class UpdateController extends StateNotifier<UpdateState> {
       );
 
       if (!mounted) return;
+      Log.event('Update: download finished in ${stopwatch.elapsed.inSeconds}s, verifying');
       state = state.copyWith(phase: UpdatePhase.verifying);
       if (!await _updater.verifySha256(target, expectedHash)) {
         await _pending.discard();
@@ -198,6 +203,7 @@ class UpdateController extends StateNotifier<UpdateState> {
       ));
 
       if (!mounted) return;
+      Log.event('Update: ${info.version} verified and ready to install');
       state = state.copyWith(phase: UpdatePhase.readyToInstall, clearMessage: true);
 
       // Android: go straight to the system installer (one tap there).
@@ -206,14 +212,17 @@ class UpdateController extends StateNotifier<UpdateState> {
     } on DioException catch (e) {
       if (!mounted) return;
       if (CancelToken.isCancel(e)) {
+        Log.event('Update: download cancelled by the user');
         state = UpdateState(phase: UpdatePhase.available, info: info);
       } else {
-        _fail('Download failed. Check your connection and try again.');
+        Log.e('Update: download failed: ${AppUpdater.describeNetworkError(e)}');
+        _fail(AppUpdater.friendlyNetworkError(e));
       }
     } on UpdateException catch (e) {
+      Log.w('Update: stopped: ${e.message}');
       if (mounted) _fail(e.message);
-    } catch (e) {
-      debugPrint('Update failed: $e');
+    } catch (e, stack) {
+      Log.e('Update: failed unexpectedly', e, stack);
       ErrorReporter.instance.reportLethal(
         kind: 'updater-failed',
         userMessage: 'The in-app update failed unexpectedly.',
@@ -231,6 +240,7 @@ class UpdateController extends StateNotifier<UpdateState> {
   Future<void> installNow() async {
     if (state.phase != UpdatePhase.readyToInstall) return;
     try {
+      Log.event('Update: installing ${state.info?.version ?? ''} now (${Platform.operatingSystem})');
       if (Platform.isWindows) {
         final source = _windowsSourceDir;
         if (source == null) throw const UpdateException('Update files are missing. Please download again.');
@@ -252,9 +262,10 @@ class UpdateController extends StateNotifier<UpdateState> {
             : state.copyWith(clearMessage: true);
       }
     } on UpdateException catch (e) {
+      Log.w('Update: install stopped: ${e.message}');
       if (mounted) _fail(e.message);
-    } catch (e) {
-      debugPrint('Install failed: $e');
+    } catch (e, stack) {
+      Log.e('Update: could not start the install', e, stack);
       if (mounted) _fail('Could not start the update. Please try again.');
     }
   }

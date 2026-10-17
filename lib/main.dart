@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:window_manager/window_manager.dart';
 import 'core/services/logger_service.dart';
 import 'presentation/theme/aether_theme.dart';
@@ -94,6 +95,10 @@ Future<void> _startApp() async {
   }
 
   await Log.init();
+  try {
+    final info = await PackageInfo.fromPlatform();
+    Log.event('App started: v${info.version}+${info.buildNumber}, ${Platform.operatingSystem} ${Platform.operatingSystemVersion}, ${kReleaseMode ? 'release' : 'debug'}');
+  } catch (_) {}
 
   final isarService = IsarDatabaseService();
   await isarService.init();

@@ -526,7 +526,7 @@ Future<void> _handleFolderChange({
       }
 
       await ref.read(isarDatabaseServiceProvider).updateMovedFilePaths(pathMap);
-      Log.i('Successfully moved ${audioFiles.length} files to $targetPath');
+      Log.d('Successfully moved ${audioFiles.length} files to $targetPath');
     } catch (e) {
       Log.e('Error moving files to new downloads directory: $e');
     }
@@ -534,7 +534,7 @@ Future<void> _handleFolderChange({
     // Unlink old directory paths in Isar so the app strictly targets the new downloads folder
     try {
       await ref.read(isarDatabaseServiceProvider).clearLocalPathsInDirectory(currentPath);
-      Log.i('Unlinked old local paths in Isar DB for $currentPath');
+      Log.d('Unlinked old local paths in Isar DB for $currentPath');
     } catch (e) {
       Log.e('Error clearing old local paths in Isar DB: $e');
     }

@@ -101,16 +101,16 @@ class SongRepositoryImpl implements SongRepository {
           song.sourceUrl.startsWith('deezer_');
 
       if (isDeezerTrack) {
-        Log.i('🔍 [RESOLVE_URI] Resolving URI for Deezer track "${song.title}" by "${song.artist}" (ID: ${song.id})');
+        Log.d('🔍 [RESOLVE_URI] Resolving URI for Deezer track "${song.title}" by "${song.artist}" (ID: ${song.id})');
         final cached = StreamResolutionCache.instance.get(song.id);
         if (cached != null) {
-          Log.i('🔍 [RESOLVE_URI] Cache HIT for "${song.title}" → YouTube videoId=$cached');
+          Log.d('🔍 [RESOLVE_URI] Cache HIT for "${song.title}" → YouTube videoId=$cached');
           return cached;
         }
 
         final inFlight = _inFlightStreamResolutions[song.id];
         if (inFlight != null) {
-          Log.i('🔍 [RESOLVE_URI] In-flight HIT for "${song.title}" — waiting on active resolution');
+          Log.d('🔍 [RESOLVE_URI] In-flight HIT for "${song.title}" — waiting on active resolution');
           return inFlight;
         }
 
@@ -127,7 +127,7 @@ class SongRepositoryImpl implements SongRepository {
         }
       }
 
-      Log.i('🔍 [RESOLVE_URI] Resolving YouTube stream for "${song.title}" (sourceUrl: ${song.sourceUrl})');
+      Log.d('🔍 [RESOLVE_URI] Resolving YouTube stream for "${song.title}" (sourceUrl: ${song.sourceUrl})');
       return await _youtubeAudioEngine.getStreamUri(song.sourceUrl);
     } catch (e, stack) {
       Log.e('SongRepository: resolveStreamUri failed for ${song.id}: $e', e, stack);
@@ -138,23 +138,23 @@ class SongRepositoryImpl implements SongRepository {
   Future<String> _resolveDeezerStreamUri(SongEntity song) async {
     try {
       final query = '${song.artist} ${song.title}';
-      Log.i('🔎 [DEEZER_SEARCH] Searching YouTube for query "$query" (Deezer ID: ${song.id})');
+      Log.d('🔎 [DEEZER_SEARCH] Searching YouTube for query "$query" (Deezer ID: ${song.id})');
 
       var results = await _youtubeService.searchVideos(query);
       if (results.isEmpty) {
-        Log.i('🔎 [DEEZER_SEARCH] Full query search empty, trying title search for "${song.title}"');
+        Log.d('🔎 [DEEZER_SEARCH] Full query search empty, trying title search for "${song.title}"');
         results = await _youtubeService.searchVideos(song.title);
       }
 
       if (results.isNotEmpty) {
         final videoId = results.first.id.value;
         StreamResolutionCache.instance.put(song.id, videoId);
-        Log.i('🔎 [DEEZER_SEARCH] Resolved "${song.title}" → YouTube videoId=$videoId');
+        Log.d('🔎 [DEEZER_SEARCH] Resolved "${song.title}" → YouTube videoId=$videoId');
         YoutubeProxyServer.prefetchStream(videoId, _youtubeService.client);
         return videoId;
       }
 
-      Log.i('🔎 [DEEZER_SEARCH] No direct YouTube search matches for "${song.title}". Using fallback URI.');
+      Log.d('🔎 [DEEZER_SEARCH] No direct YouTube search matches for "${song.title}". Using fallback URI.');
       return song.id;
     } catch (e) {
       Log.w('SongRepository: _resolveDeezerStreamUri fallback for ${song.title}: $e');
@@ -274,7 +274,7 @@ class SongRepositoryImpl implements SongRepository {
         await YoutubeProxyServer.prefetchStream(videoId, _youtubeService.client);
       }
     } catch (e) {
-      Log.w('SongRepository: Failed to pre-fetch stream for "${song.title}": $e');
+      Log.d('SongRepository: Failed to pre-fetch stream for "${song.title}": $e');
     }
   }
 }

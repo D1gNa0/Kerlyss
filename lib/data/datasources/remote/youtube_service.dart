@@ -141,7 +141,7 @@ class YoutubeService {
     void Function(double progress)? onProgress,
   }) async {
     try {
-      Log.i('YoutubeService: Starting download for $videoId');
+      Log.d('YoutubeService: Starting download for $videoId');
       final manifest = await _getManifestWithFallback(videoId);
 
       final muxedStreams = manifest.muxed.toList();
@@ -196,7 +196,7 @@ class YoutubeService {
       // Write to file
       await file.writeAsBytes(receivedBytes);
 
-      Log.i('YoutubeService: Download finalized successfully for $videoId');
+      Log.d('YoutubeService: Download finalized successfully for $videoId');
       return file;
     } catch (e) {
       Log.e('YoutubeService: Download failed for $videoId: $e');
@@ -213,7 +213,7 @@ class YoutubeService {
     int connections = 3,
   }) async {
     try {
-      Log.i('YoutubeService: Starting parallel download for $videoId ($connections connections)');
+      Log.d('YoutubeService: Starting parallel download for $videoId ($connections connections)');
       final manifest = await _yt.videos.streamsClient.getManifest(
         videoId,
         ytClients: [YoutubeApiClient.androidVr],
@@ -282,7 +282,7 @@ class YoutubeService {
       await sink.flush();
       await sink.close();
 
-      Log.i('YoutubeService: Parallel download finalized for $videoId');
+      Log.d('YoutubeService: Parallel download finalized for $videoId');
       return file;
     } catch (e) {
       Log.e('YoutubeService: Parallel download failed for $videoId: $e');

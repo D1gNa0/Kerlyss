@@ -74,11 +74,11 @@ class ImportStateNotifier extends StateNotifier<ImportState> {
     }
 
     try {
-      Log.i('Spotify Import: Starting import for URL: $url');
+      Log.d('Spotify Import: Starting import for URL: $url');
       setStatus(ImportStatus.analyzing);
 
       final playlistData = await _repository.getPlaylistFromSpotifyUrl(url);
-      Log.i('Spotify Import: Playlist analyzed. Name: "${playlistData.name}", Tracks: ${playlistData.trackQueries.length}');
+      Log.d('Spotify Import: Playlist analyzed. Name: "${playlistData.name}", Tracks: ${playlistData.trackQueries.length}');
 
       final total = playlistData.trackQueries.length;
       if (total == 0) {
@@ -128,7 +128,7 @@ class ImportStateNotifier extends StateNotifier<ImportState> {
 
         // Create the playlist in DB
         if (resolvedSongIds.isNotEmpty) {
-          Log.i('Spotify Import: Creating playlist "${playlistData.name}" with ${resolvedSongIds.length} tracks (synced: $isRealtimeSynced)');
+          Log.d('Spotify Import: Creating playlist "${playlistData.name}" with ${resolvedSongIds.length} tracks (synced: $isRealtimeSynced)');
           await _playlistRepo.createPlaylist(
             playlistData.name,
             resolvedSongIds,
@@ -137,7 +137,7 @@ class ImportStateNotifier extends StateNotifier<ImportState> {
             spotifySourceUrl: url,
           );
 
-          Log.i('Spotify Import: Successfully completed import of "${playlistData.name}"');
+          Log.d('Spotify Import: Successfully completed import of "${playlistData.name}"');
 
           // Reload playlist state so UI shows the new playlist immediately
           _ref?.read(playlistProvider.notifier).loadPlaylists();

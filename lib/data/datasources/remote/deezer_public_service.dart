@@ -15,7 +15,7 @@ class DeezerPublicService {
     if (encodedQuery.isEmpty) return [];
 
     final url = 'https://api.deezer.com/search?q=$encodedQuery&limit=15';
-    Log.i('DeezerPublicService: Searching for "$query"');
+    Log.d('DeezerPublicService: Searching for "$query"');
 
     try {
       final response = await _dio.get<Map<String, dynamic>>(
@@ -52,12 +52,12 @@ class DeezerPublicService {
                 );
               }
             } catch (e) {
-              Log.w('DeezerPublicService: Failed to parse track: $e');
+              Log.d('DeezerPublicService: Failed to parse track: $e');
               continue;
             }
           }
 
-          Log.i('DeezerPublicService: Found ${songs.length} tracks for "$query"');
+          Log.d('DeezerPublicService: Found ${songs.length} tracks for "$query"');
           return songs;
         }
       }

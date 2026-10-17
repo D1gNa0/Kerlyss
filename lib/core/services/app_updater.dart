@@ -9,6 +9,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'app_storage_paths.dart';
+import 'logger_service.dart';
 import 'pending_update.dart';
 
 /// Human-readable failure that can be shown directly to the user.
@@ -207,6 +208,50 @@ class AppUpdater {
     return hash;
   }
 
+  // ───────────────────────── network errors ─────────────────────────
+
+  /// Text for the user. Says WHAT went wrong (timeout, blocked, not found...) instead of a
+  /// vague "check your connection" for everything.
+  static String friendlyNetworkError(DioException e) {
+    final code = e.response?.statusCode;
+    if (e.type == DioExceptionType.connectionTimeout ||
+        e.type == DioExceptionType.sendTimeout ||
+        e.type == DioExceptionType.receiveTimeout) {
+      return 'The connection to GitHub timed out. Check your internet, VPN or proxy and try again.';
+    }
+    if (e.type == DioExceptionType.badCertificate) {
+      return 'The secure connection to GitHub failed (certificate error). Check the date and time of your PC, and your antivirus or proxy.';
+    }
+    if (e.type == DioExceptionType.badResponse) {
+      if (code == 404) return 'The update file was not found on GitHub (HTTP 404). The release may not be fully published yet.';
+      if (code == 403 || code == 429) return 'GitHub refused the download (HTTP $code). Try again in a few minutes.';
+      if (code != null && code >= 500) return 'GitHub has a server problem (HTTP $code). Try again later.';
+      return 'The download was refused (HTTP ${code ?? 'unknown'}).';
+    }
+    if (e.type == DioExceptionType.connectionError) {
+      return 'Cannot reach GitHub. Check your internet connection, firewall, VPN or proxy.';
+    }
+    return 'The download was interrupted. Please try again.';
+  }
+
+  /// One line with the technical details, for the log file.
+  static String describeNetworkError(DioException e) {
+    final uri = e.response?.realUri ?? e.requestOptions.uri;
+    final host = uri.host.isEmpty ? '?' : uri.host;
+    return 'type=${e.type.name} status=${e.response?.statusCode ?? '-'} host=$host '
+        'path=${uri.path} error=${e.error ?? '-'} message=${e.message ?? '-'}';
+  }
+
+  /// Network hiccups are worth another try; "not found", "forbidden" and certificate errors are not.
+  static bool isRetryableNetworkError(DioException e) {
+    if (e.type == DioExceptionType.cancel || e.type == DioExceptionType.badCertificate) return false;
+    if (e.type == DioExceptionType.badResponse) {
+      final code = e.response?.statusCode ?? 0;
+      return code == 429 || code >= 500;
+    }
+    return true; // timeouts, connection errors, connection closed in the middle, ...
+  }
+
   // ───────────────────────── download + verify ─────────────────────────
 
   Future<Directory> workDir() async {
@@ -239,13 +284,30 @@ class AppUpdater {
       throw const UpdateException('Refusing to download over an insecure connection.');
     }
     await target.parent.create(recursive: true);
-    if (await target.exists()) await target.delete();
-    await _dio.download(
-      url,
-      target.path,
-      onReceiveProgress: onProgress,
-      cancelToken: cancelToken,
-    );
+
+    // GitHub downloads sometimes fail with a short network hiccup (timeout, connection
+    // reset). Try up to 3 times before showing an error. Every failed attempt is logged.
+    const maxAttempts = 3;
+    for (var attempt = 1;; attempt++) {
+      try {
+        if (await target.exists()) await target.delete();
+        await _dio.download(
+          url,
+          target.path,
+          onReceiveProgress: onProgress,
+          cancelToken: cancelToken,
+        );
+        return;
+      } on DioException catch (e) {
+        final retry = attempt < maxAttempts && isRetryableNetworkError(e);
+        if (e.type != DioExceptionType.cancel) {
+          Log.w('Update: download attempt $attempt/$maxAttempts failed${retry ? ' (retrying)' : ''}: ${describeNetworkError(e)}');
+        }
+        if (!retry) rethrow;
+        await Future<void>.delayed(Duration(seconds: 2 * attempt));
+        if (cancelToken?.isCancelled ?? false) rethrow;
+      }
+    }
   }
 
   Future<bool> verifySha256(File file, String expected) async {

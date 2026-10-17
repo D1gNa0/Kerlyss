@@ -62,7 +62,7 @@ class YoutubeProxyServer {
     if (_rateLimitExpiry == null) return false;
     if (DateTime.now().isAfter(_rateLimitExpiry!)) {
       _rateLimitExpiry = null;
-      Log.i('YoutubeProxyServer: Rate limit cooldown expired. Re-enabling YouTube API queries.');
+      Log.event('YoutubeProxyServer: Rate limit cooldown expired. Re-enabling YouTube API queries.');
       return false;
     }
     return true;
@@ -104,7 +104,7 @@ class YoutubeProxyServer {
     _pipedUrlCache.remove(videoId);
     _queryToVideoIdCache.removeWhere((_, id) => id == videoId);
     StreamResolutionCache.instance.removeByVideoId(videoId);
-    Log.i('YoutubeProxyServer: Evicted dead videoId=$videoId from resolution caches');
+    Log.d('YoutubeProxyServer: Evicted dead videoId=$videoId from resolution caches');
   }
 
   /// Pre-fetches and caches the stream info for a video in the background.
@@ -113,13 +113,13 @@ class YoutubeProxyServer {
       await _getStreamInfo(videoId, yt);
       Log.d('YoutubeProxyServer: Pre-fetched and cached stream info for $videoId');
     } catch (e) {
-      Log.w('YoutubeProxyServer: Failed to prefetch stream info for $videoId: $e. Evicting cache...');
+      Log.d('YoutubeProxyServer: Failed to prefetch stream info for $videoId: $e. Evicting cache...');
       _evictVideoFromCaches(videoId);
       try {
         await _resolvePipedFallbackUrl(videoId);
         Log.d('YoutubeProxyServer: Pre-fetched and cached Piped fallback stream for $videoId');
       } catch (fallbackError) {
-        Log.w('YoutubeProxyServer: Piped prefetch fallback failed for $videoId: $fallbackError');
+        Log.d('YoutubeProxyServer: Piped prefetch fallback failed for $videoId: $fallbackError');
       }
     }
   }
@@ -206,10 +206,10 @@ class YoutubeProxyServer {
         }
       } catch (e) {
         lastError = e;
-        Log.w('YoutubeProxyServer: Manifest via ${clientName ?? 'default'} failed for $videoId: $e');
+        Log.d('YoutubeProxyServer: Manifest via ${clientName ?? 'default'} failed for $videoId: $e');
       }
     }
-    Log.i('⏱ [TIMING] manifest for $videoId took ${stopwatch.elapsedMilliseconds} ms (client: ${manifestClient ?? 'none'})');
+    Log.d('⏱ [TIMING] manifest for $videoId took ${stopwatch.elapsedMilliseconds} ms (client: ${manifestClient ?? 'none'})');
 
     if (manifest == null) {
       throw lastError ?? Exception('No compatible streams available for video $videoId.');
@@ -243,7 +243,7 @@ class YoutubeProxyServer {
     if (candidates.isEmpty) {
       throw Exception('No compatible streams available for video $videoId.');
     }
-    Log.i('YoutubeProxyServer: Options for $videoId: ${candidates.map(_describe).join(' > ')}');
+    Log.d('YoutubeProxyServer: Options for $videoId: ${candidates.map(_describe).join(' > ')}');
     return candidates;
   }
 
@@ -300,7 +300,7 @@ class YoutubeProxyServer {
 
     _server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     _port = _server!.port;
-    Log.i('YoutubeProxyServer started on port $_port');
+    Log.d('YoutubeProxyServer started on port $_port');
 
     _server!.listen((HttpRequest request) async {
       final queryId = request.uri.queryParameters['id'];
@@ -308,10 +308,10 @@ class YoutubeProxyServer {
       final deezerId = request.uri.queryParameters['deezer_id'];
       final requestStopwatch = Stopwatch()..start();
 
-      Log.i('🌐 [PROXY_REQ] Request received -> queryId=$queryId, queryStr="$queryStr", deezerId=$deezerId');
+      Log.d('🌐 [PROXY_REQ] Request received -> queryId=$queryId, queryStr="$queryStr", deezerId=$deezerId');
 
       if (AetherHttpOverrides.isOfflineMode) {
-        Log.w('YoutubeProxyServer: Offline mode active — rejecting proxy request.');
+        Log.d('YoutubeProxyServer: Offline mode active — rejecting proxy request.');
         request.response.statusCode = HttpStatus.serviceUnavailable;
         request.response.write('Offline Mode Active');
         await request.response.close();
@@ -333,10 +333,10 @@ class YoutubeProxyServer {
           videoId = queryId;
         } else if (deezerId != null && deezerId.isNotEmpty && StreamResolutionCache.instance.has(deezerId)) {
           videoId = StreamResolutionCache.instance.get(deezerId)!;
-          Log.i('YoutubeProxyServer: Deezer ID cache HIT → $videoId');
+          Log.d('YoutubeProxyServer: Deezer ID cache HIT → $videoId');
         } else if (queryStr != null && queryStr.isNotEmpty && _queryToVideoIdCache.containsKey(queryStr)) {
           videoId = _queryToVideoIdCache[queryStr]!;
-          Log.i('YoutubeProxyServer: Query cache HIT → $videoId');
+          Log.d('YoutubeProxyServer: Query cache HIT → $videoId');
         }
 
         // Check if explicit video ID is invalid format (e.g. test stubs like remote_youtube_123)
@@ -348,11 +348,11 @@ class YoutubeProxyServer {
 
         // Lazy Resolution: If no explicit video ID was provided, perform the search on the fly!
         if (videoId.isEmpty && queryStr != null && queryStr.isNotEmpty) {
-          Log.i('YoutubeProxyServer: Lazily resolving query "$queryStr"...');
+          Log.d('YoutubeProxyServer: Lazily resolving query "$queryStr"...');
           
           if (!_isLocalRateLimited) {
             try {
-              Log.i('YoutubeProxyServer: Trying direct YouTube search...');
+              Log.d('YoutubeProxyServer: Trying direct YouTube search...');
               final searchList = await yt.search.search(queryStr).timeout(const Duration(seconds: 6));
               final videos = searchList.where((v) => (v.duration?.inMinutes ?? 0) < 10).take(5).toList();
               if (videos.isNotEmpty) {
@@ -373,7 +373,7 @@ class YoutubeProxyServer {
               }
             }
           } else {
-            Log.i('YoutubeProxyServer: YouTube is rate-limited. Skipping direct search and trying Piped...');
+            Log.d('YoutubeProxyServer: YouTube is rate-limited. Skipping direct search and trying Piped...');
             final fallbackId = await _searchPipedFallback(queryStr);
             if (fallbackId != null) {
               videoId = fallbackId;
@@ -382,7 +382,7 @@ class YoutubeProxyServer {
             }
           }
 
-          Log.i('⏱ [TIMING] YouTube search for "$queryStr" finished after ${requestStopwatch.elapsedMilliseconds} ms');
+          Log.d('⏱ [TIMING] YouTube search for "$queryStr" finished after ${requestStopwatch.elapsedMilliseconds} ms');
 
           // Cache resolved video ID to prevent redundant subsequent queries
           if (videoId.isNotEmpty) {
@@ -397,7 +397,7 @@ class YoutubeProxyServer {
         if (_pipedUrlCache.containsKey(videoId)) {
           final cached = _pipedUrlCache[videoId]!;
           if (DateTime.now().difference(cached.resolvedAt) < const Duration(hours: 2)) {
-            Log.i('YoutubeProxyServer: Cache HIT for Piped fallback stream → ${cached.url}');
+            Log.d('YoutubeProxyServer: Cache HIT for Piped fallback stream → ${cached.url}');
             request.response.statusCode = HttpStatus.movedTemporarily; // 302
             request.response.headers.set(HttpHeaders.locationHeader, cached.url);
             await request.response.close();
@@ -412,7 +412,7 @@ class YoutubeProxyServer {
 
         if (!_isLocalRateLimited) {
           try {
-            Log.i('YoutubeProxyServer: Trying direct YouTube stream extraction...');
+            Log.d('YoutubeProxyServer: Trying direct YouTube stream extraction...');
             info = await _getStreamInfo(videoId, yt);
           } catch (streamError) {
             Log.w('YoutubeProxyServer: Direct YouTube stream extraction failed: $streamError. Evicting cache...');
@@ -431,7 +431,7 @@ class YoutubeProxyServer {
             }
           }
         } else {
-          Log.i('YoutubeProxyServer: YouTube is rate-limited. Skipping direct stream extraction and trying Piped...');
+          Log.d('YoutubeProxyServer: YouTube is rate-limited. Skipping direct stream extraction and trying Piped...');
           resolvedFallbackUrl = await _resolvePipedFallbackUrl(videoId);
           if (resolvedFallbackUrl == null) {
             throw Exception('YouTube rate-limited and Piped stream fallback failed for videoId: $videoId');
@@ -439,7 +439,7 @@ class YoutubeProxyServer {
         }
 
         if (resolvedFallbackUrl != null) {
-          Log.i('YoutubeProxyServer: Redirecting audio player to Piped stream: $resolvedFallbackUrl');
+          Log.d('YoutubeProxyServer: Redirecting audio player to Piped stream: $resolvedFallbackUrl');
           request.response.statusCode = HttpStatus.movedTemporarily; // 302
           request.response.headers.set(HttpHeaders.locationHeader, resolvedFallbackUrl);
           await request.response.close();
@@ -555,7 +555,7 @@ class YoutubeProxyServer {
 
           headersSent = true;
           _onStreamSuccess(videoId, upstreamInfo);
-          Log.i('⏱ [TIMING] first byte for $videoId after ${requestStopwatch.elapsedMilliseconds} ms (${_describe(upstreamInfo)})');
+          Log.d('⏱ [TIMING] first byte for $videoId after ${requestStopwatch.elapsedMilliseconds} ms (${_describe(upstreamInfo)})');
 
           if (isHeadRequest) {
             return;
@@ -585,22 +585,22 @@ class YoutubeProxyServer {
           Log.w('YoutubeProxyServer: Initial attempt failed for $videoId: $e');
 
           if (isRecoverableError(e) && !headersSent) {
-            Log.i('YoutubeProxyServer: Detected recoverable error - trying the next stream option...');
+            Log.d('YoutubeProxyServer: Detected recoverable error - trying the next stream option...');
 
             var failedInfo = streamInfo;
             for (int attempt = 1; attempt <= 3; attempt++) {
               try {
                 if (headersSent) break;
 
-                Log.w('YoutubeProxyServer: Retry attempt $attempt for videoId=$videoId...');
+                Log.d('YoutubeProxyServer: Retry attempt $attempt for videoId=$videoId...');
 
                 final retryInfo = await _nextStreamAfterFailure(videoId, yt, failedInfo);
                 failedInfo = retryInfo;
                 await pipeFromUpstream(retryInfo, isHeadRequest: request.method == 'HEAD');
-                Log.i('YoutubeProxyServer: Retry $attempt succeeded');
+                Log.d('YoutubeProxyServer: Retry $attempt succeeded');
                 break;
               } catch (retryError) {
-                Log.w('YoutubeProxyServer: Retry $attempt failed: $retryError');
+                Log.d('YoutubeProxyServer: Retry $attempt failed: $retryError');
                 if (attempt == 3) {
                   rethrow;
                 }
@@ -638,7 +638,7 @@ class YoutubeProxyServer {
     _candidateCache.clear();
     _resolvedUrlCache.clear();
     _ProxyHttpClientPool.close();
-    Log.i('YoutubeProxyServer: All caches cleared');
+    Log.d('YoutubeProxyServer: All caches cleared');
   }
 
   /// Gets cached stream URL if available.
@@ -712,7 +712,7 @@ class YoutubeProxyServer {
             final bestStream = audioStreams.first as Map<String, dynamic>;
             final streamUrl = bestStream['url'] as String?;
             if (streamUrl != null && streamUrl.isNotEmpty) {
-              Log.i('YoutubeProxyServer: Resolved Piped stream URL from $instance');
+              Log.d('YoutubeProxyServer: Resolved Piped stream URL from $instance');
               _lastSuccessfulInstance = instance; // Cache successful instance
               _pipedUrlCache[videoId] = _CachedPipedUrl(streamUrl, DateTime.now());
               return streamUrl;
@@ -720,7 +720,7 @@ class YoutubeProxyServer {
           }
         }
       } catch (e) {
-        Log.w('YoutubeProxyServer: Piped fallback failed for instance $instance: $e');
+        Log.d('YoutubeProxyServer: Piped fallback failed for instance $instance: $e');
         if (instance == _lastSuccessfulInstance) {
           _lastSuccessfulInstance = null; // Reset if failed
         }
@@ -766,7 +766,7 @@ class YoutubeProxyServer {
               if (url != null && url.contains('watch?v=') && duration < 600) {
                 final videoId = url.split('watch?v=').last;
                 if (videoId.isNotEmpty) {
-                  Log.i('YoutubeProxyServer: Resolved Piped query "$queryStr" → $videoId via $instance');
+                  Log.d('YoutubeProxyServer: Resolved Piped query "$queryStr" → $videoId via $instance');
                   _lastSuccessfulInstance = instance; // Cache successful instance
                   return videoId;
                 }
@@ -775,7 +775,7 @@ class YoutubeProxyServer {
           }
         }
       } catch (e) {
-        Log.w('YoutubeProxyServer: Piped search fallback failed for instance $instance: $e');
+        Log.d('YoutubeProxyServer: Piped search fallback failed for instance $instance: $e');
         if (instance == _lastSuccessfulInstance) {
           _lastSuccessfulInstance = null; // Reset if failed
         }
@@ -791,6 +791,6 @@ class YoutubeProxyServer {
     _port = null;
     _ProxyHttpClientPool.close();
     clearCaches();
-    Log.i('YoutubeProxyServer: Server stopped');
+    Log.d('YoutubeProxyServer: Server stopped');
   }
 }

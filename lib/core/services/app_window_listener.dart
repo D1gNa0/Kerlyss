@@ -14,7 +14,7 @@ class AppWindowListener extends WindowListener {
     if (_isExiting) return;
     _isExiting = true;
 
-    Log.i('AppWindowListener: Window close event intercepted. Instantly closing window...');
+    Log.d('AppWindowListener: Window close event intercepted. Instantly closing window...');
 
     // 1. Instantly hide window from screen so user sees 0 delay
     if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
@@ -35,6 +35,9 @@ class AppWindowListener extends WindowListener {
     } catch (e) {
       Log.e('AppWindowListener: Error preparing update on quit', e);
     }
+
+    // Make sure the last log lines (for example the update step) reach the disk.
+    await Log.flush().timeout(const Duration(seconds: 1), onTimeout: () {});
 
     // 4. Hard exit process within 150ms
     Future.delayed(const Duration(milliseconds: 150), () {

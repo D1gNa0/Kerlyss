@@ -101,7 +101,7 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
           lastFetchedAt: snapshot.lastFetchedAt,
           isLoading: false,
         );
-        Log.i('RecommendationsNotifier: Restored ${snapshot.similarSongs.length} recommendations from disk cache');
+        Log.d('RecommendationsNotifier: Restored ${snapshot.similarSongs.length} recommendations from disk cache');
       } else {
         await fetchRecommendations();
       }
@@ -370,7 +370,7 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
       trendingSongs: updatedTrending,
     );
     _persistState();
-    Log.i('RecommendationsNotifier: Disliked song "${song.title}"');
+    Log.d('RecommendationsNotifier: Disliked song "${song.title}"');
   }
 
   Future<void> dislikeArtist(String artistName) async {
@@ -383,7 +383,7 @@ class RecommendationsNotifier extends StateNotifier<RecommendationState> {
       trendingSongs: updatedTrending,
     );
     _persistState();
-    Log.i('RecommendationsNotifier: Disliked artist "$artistName"');
+    Log.d('RecommendationsNotifier: Disliked artist "$artistName"');
   }
 
   void _prefetchPlaybackCandidates(List<SongEntity> similar, List<SongEntity> trending) {

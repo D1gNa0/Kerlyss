@@ -135,7 +135,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
             return;
           }
 
-          Log.i('Audio status changed: $status (Current state: ${state.status})');
+          Log.d('Audio status changed: $status (Current state: ${state.status})');
 
       state = state.copyWith(status: status);
 
@@ -169,7 +169,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
       if (!mounted || index == null || _isNavigatingQueue || _isRestoringSession) return;
       if (index != state.currentIndex && index >= 0 && index < state.playlist.length) {
         final nextSong = state.playlist[index];
-        Log.i('▶️ [ENGINE_PLAYING] Audio engine switched active track to index $index -> "${nextSong.title}" by "${nextSong.artist}" (ID: ${nextSong.id})');
+        Log.d('▶️ [ENGINE_PLAYING] Audio engine switched active track to index $index -> "${nextSong.title}" by "${nextSong.artist}" (ID: ${nextSong.id})');
         state = state.copyWith(
           currentIndex: index,
           currentSong: nextSong,
@@ -322,11 +322,11 @@ class AudioNotifier extends StateNotifier<AudioState> {
     if (_fetchingBpm[song.id] == true) return;
 
     _fetchingBpm[song.id] = true;
-    Log.i('AudioNotifier: Background BPM fetch started for ${song.title}');
+    Log.d('AudioNotifier: Background BPM fetch started for ${song.title}');
     try {
       final bpm = await _songRepository.fetchBpmRemotely(song.toEntity());
       if (bpm != null && mounted) {
-        Log.i('AudioNotifier: Successfully retrieved BPM ($bpm) for ${song.title}');
+        Log.d('AudioNotifier: Successfully retrieved BPM ($bpm) for ${song.title}');
         // Update the state if we are still playing the same song
         if (state.currentSong.id == song.id) {
           final updatedSong = SongMetadata(
@@ -396,7 +396,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
         YoutubeProxyServer.prefetchStream(videoId, _youtubeService.client);
       }
     } catch (e) {
-      Log.w('AudioNotifier: Failed to pre-fetch stream for "${song.title}": $e');
+      Log.d('AudioNotifier: Failed to pre-fetch stream for "${song.title}": $e');
     }
   }
 
@@ -555,7 +555,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
       _isRestoringSession = false;
       _isNavigatingQueue = true;
       final clickedSong = playlist[index];
-      Log.i('🎵 [USER_CLICK] User clicked song "${clickedSong.title}" by "${clickedSong.artist}" (ID: ${clickedSong.id}, source: ${clickedSong.source}) at index $index of ${playlist.length}');
+      Log.d('🎵 [USER_CLICK] User clicked song "${clickedSong.title}" by "${clickedSong.artist}" (ID: ${clickedSong.id}, source: ${clickedSong.source}) at index $index of ${playlist.length}');
 
       // While shuffled, state.playlist is the shuffled order, so compare the
       // incoming (natural-order) list against the saved original order instead.
@@ -685,7 +685,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
       if (mounted && requestId == _playRequestId) {
         state = state.copyWith(currentIndex: clickedIndex);
         _prefetchUpcomingSongs(clickedIndex, count: 2);
-        Log.i('🎵 [HYDRATE] Full queue loaded (${playlist.length} tracks) — zero-interruption hydration complete');
+        Log.d('🎵 [HYDRATE] Full queue loaded (${playlist.length} tracks) — zero-interruption hydration complete');
       }
     } catch (e) {
       Log.w('AudioNotifier: Background queue hydration failed (non-fatal): $e');
@@ -887,7 +887,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
       if (mounted && requestId == _playRequestId) {
         state = state.copyWith(currentIndex: newCurrentIndex);
         _prefetchUpcomingSongs(newCurrentIndex, count: 2);
-        Log.i('🔀 [SHUFFLE] Queue rebuilt (${newPlaylist.length} tracks), playing index $newCurrentIndex');
+        Log.d('🔀 [SHUFFLE] Queue rebuilt (${newPlaylist.length} tracks), playing index $newCurrentIndex');
       }
     } catch (e) {
       Log.w('AudioNotifier: Queue rebuild failed: $e');
@@ -986,7 +986,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
       _isNavigatingQueue = true;
       final nextIndex = (state.currentIndex + 1) % state.playlist.length;
       final nextSong = state.playlist[nextIndex];
-      Log.i('Audio: Seeking next track "${nextSong.title}" at index $nextIndex');
+      Log.d('Audio: Seeking next track "${nextSong.title}" at index $nextIndex');
       state = state.copyWith(currentIndex: nextIndex, currentSong: nextSong);
       _updateAudioFormatInfo(nextSong);
       globalAudioHandler.setMediaFromSong(nextSong);
@@ -1044,7 +1044,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
 
       final prevIndex = (state.currentIndex - 1 + state.playlist.length) % state.playlist.length;
       final prevSong = state.playlist[prevIndex];
-      Log.i('Audio: Seeking previous track "${prevSong.title}" at index $prevIndex');
+      Log.d('Audio: Seeking previous track "${prevSong.title}" at index $prevIndex');
       state = state.copyWith(currentIndex: prevIndex, currentSong: prevSong);
       _updateAudioFormatInfo(prevSong);
       globalAudioHandler.setMediaFromSong(prevSong);
@@ -1060,7 +1060,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
   }
 
   Future<AudioSource> _buildAudioSource(SongMetadata song) async {
-    Log.i('🛠️ [BUILD_SOURCE] Building AudioSource for "${song.title}" by "${song.artist}" (ID: ${song.id}, source: ${song.source})');
+    Log.d('🛠️ [BUILD_SOURCE] Building AudioSource for "${song.title}" by "${song.artist}" (ID: ${song.id}, source: ${song.source})');
     // 1. Check Isar Database for local path
     String? localPath;
     try {
@@ -1085,7 +1085,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
             if ((rawIdLower.isNotEmpty && file.lowerName.contains(rawIdLower)) ||
                 (sanitizedTitle.length > 2 && file.lowerName.contains(titleLower))) {
               localPath = file.path;
-              Log.i('AudioNotifier: Local downloaded file HIT for "${song.title}" → $localPath');
+              Log.d('AudioNotifier: Local downloaded file HIT for "${song.title}" → $localPath');
               break;
             }
           }
@@ -1271,7 +1271,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
     } catch (e) {
       Log.w('AudioNotifier: setLoopMode failed: $e');
     }
-    Log.i('AudioNotifier: Repeat mode set to $mode');
+    Log.d('AudioNotifier: Repeat mode set to $mode');
     _schedulePersistSession();
   }
 
@@ -1308,13 +1308,13 @@ class AudioNotifier extends StateNotifier<AudioState> {
     _sleepTimer?.cancel();
     if (duration == null) {
       state = state.copyWith(clearSleepTimer: true);
-      Log.i('AudioNotifier: Sleep timer cancelled.');
+      Log.d('AudioNotifier: Sleep timer cancelled.');
       return;
     }
 
     final expireTime = DateTime.now().add(duration);
     state = state.copyWith(sleepTimerRemaining: duration);
-    Log.i('AudioNotifier: Sleep timer set for ${duration.inMinutes}m.');
+    Log.d('AudioNotifier: Sleep timer set for ${duration.inMinutes}m.');
 
     _sleepTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) {
@@ -1326,7 +1326,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
         timer.cancel();
         _audioService.pause();
         state = state.copyWith(clearSleepTimer: true);
-        Log.i('AudioNotifier: Sleep timer expired, playback paused.');
+        Log.d('AudioNotifier: Sleep timer expired, playback paused.');
       } else {
         state = state.copyWith(sleepTimerRemaining: remaining);
       }
@@ -1335,7 +1335,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
 
   void setEqPreset(String preset) {
     state = state.copyWith(eqPreset: preset);
-    Log.i('AudioNotifier: Equalizer preset changed to "$preset".');
+    Log.d('AudioNotifier: Equalizer preset changed to "$preset".');
     
     final equalizer = globalAudioHandler.equalizer;
     if (equalizer != null) {

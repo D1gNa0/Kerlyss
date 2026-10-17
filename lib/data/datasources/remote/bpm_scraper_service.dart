@@ -41,7 +41,7 @@ class BpmScraperService {
     if (query.isEmpty) return null;
 
     final url = 'https://api.deezer.com/search?q=$query&limit=1';
-    Log.i('BpmDetection: [START] Requesting URL -> $url');
+    Log.d('BpmDetection: [START] Requesting URL -> $url');
 
     try {
       final response = await _dio.get<Map<String, dynamic>>(
@@ -52,7 +52,7 @@ class BpmScraperService {
         ),
       );
 
-      Log.i('BpmDetection: [STATUS] Deezer returned status code: ${response.statusCode}');
+      Log.d('BpmDetection: [STATUS] Deezer returned status code: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final data = response.data;
@@ -64,7 +64,7 @@ class BpmScraperService {
               final model = DeezerTrackModel.fromJson(firstResult);
               
               if (model.id.isNotEmpty) {
-                Log.i('BpmDetection: Found track ID ${model.id}. Fetching full track details...');
+                Log.d('BpmDetection: Found track ID ${model.id}. Fetching full track details...');
                 
                 // Step 2: Fetch full track details to get BPM
                 final trackUrl = 'https://api.deezer.com/track/${model.id}';
@@ -81,25 +81,25 @@ class BpmScraperService {
                   if (trackData != null) {
                     final detailModel = DeezerTrackDetailModel.fromJson(trackData);
                     if (detailModel.bpm != null && detailModel.bpm! > 0) {
-                      Log.i('BpmDetection: [SUCCESS] Found ${detailModel.bpm} BPM for "$searchTerms"');
+                      Log.d('BpmDetection: [SUCCESS] Found ${detailModel.bpm} BPM for "$searchTerms"');
                       return detailModel.bpm;
                     } else {
-                      Log.w('BpmDetection: [FAIL] Track details fetched, but BPM is missing or 0.');
+                      Log.d('BpmDetection: [FAIL] Track details fetched, but BPM is missing or 0.');
                     }
                   }
                 } else {
-                   Log.w('BpmDetection: [FAIL] Failed to fetch track details for ID ${model.id}.');
+                   Log.d('BpmDetection: [FAIL] Failed to fetch track details for ID ${model.id}.');
                 }
               }
             } catch (e) {
-              Log.w('BpmDetection: [FAIL] Failed to parse track data: $e');
+              Log.d('BpmDetection: [FAIL] Failed to parse track data: $e');
               throw ParsingFailure('Failed to parse Deezer track: $e');
             }
           } else {
-            Log.w('BpmDetection: [FAIL] Deezer returned 0 results for "$searchTerms".');
+            Log.d('BpmDetection: [FAIL] Deezer returned 0 results for "$searchTerms".');
           }
         } else {
-           Log.w('BpmDetection: [FAIL] Unexpected JSON structure from Deezer search.');
+           Log.d('BpmDetection: [FAIL] Unexpected JSON structure from Deezer search.');
            throw ParsingFailure('Unexpected Deezer response structure');
         }
       }

@@ -43,7 +43,7 @@ class _DownloadedSongsViewState extends ConsumerState<DownloadedSongsView> {
 
     for (final file in detail.files) {
       try {
-        Log.i('Drop import requested: ${file.path}');
+        Log.d('Drop import requested: ${file.path}');
         await localDownloadLibrary.importFile(file.path);
         importedCount += 1;
       } catch (e) {

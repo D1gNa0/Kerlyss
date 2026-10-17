@@ -159,7 +159,7 @@ class ErrorReporter {
     StackTrace? stack,
   }) {
     if (kDebugMode && !promptInDebug) {
-      Log.w('ErrorReporter: would ask to report "$kind" (suppressed in debug): $error');
+      Log.d('ErrorReporter: would ask to report "$kind" (suppressed in debug): $error');
       return;
     }
 

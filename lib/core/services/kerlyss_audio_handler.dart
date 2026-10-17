@@ -116,7 +116,7 @@ class KerlyssAudioHandler extends BaseAudioHandler with SeekHandler {
 
   @override
   Future<void> onTaskRemoved() async {
-    Log.i('KerlyssAudioHandler: onTaskRemoved triggered, stopping background audio service.');
+    Log.d('KerlyssAudioHandler: onTaskRemoved triggered, stopping background audio service.');
     await stop();
     await super.onTaskRemoved();
   }

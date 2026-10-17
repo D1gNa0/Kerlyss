@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kerlyss/core/services/app_updater.dart';
 
@@ -102,6 +103,50 @@ Build Date: 2026-10-02
         '08DD765A2655D8BC62C47B72779BC9B9CE8BF6A70BE524F6F49CCB171F8F4273'.toLowerCase(),
       );
       expect(map.length, 2);
+    });
+  });
+
+  group('AppUpdater network errors', () {
+    DioException error(DioExceptionType type, {int? status, Object? inner}) {
+      final request = RequestOptions(path: 'https://github.com/D1gNa0/Kerlyss/releases/download/v1/Kerlyss-Windows.zip');
+      return DioException(
+        requestOptions: request,
+        type: type,
+        error: inner,
+        response: status == null ? null : Response<dynamic>(requestOptions: request, statusCode: status),
+      );
+    }
+
+    test('user text says what happened', () {
+      expect(AppUpdater.friendlyNetworkError(error(DioExceptionType.connectionTimeout)), contains('timed out'));
+      expect(AppUpdater.friendlyNetworkError(error(DioExceptionType.receiveTimeout)), contains('timed out'));
+      expect(AppUpdater.friendlyNetworkError(error(DioExceptionType.connectionError)), contains('Cannot reach GitHub'));
+      expect(AppUpdater.friendlyNetworkError(error(DioExceptionType.badCertificate)), contains('certificate'));
+      expect(AppUpdater.friendlyNetworkError(error(DioExceptionType.badResponse, status: 404)), contains('404'));
+      expect(AppUpdater.friendlyNetworkError(error(DioExceptionType.badResponse, status: 403)), contains('403'));
+      expect(AppUpdater.friendlyNetworkError(error(DioExceptionType.badResponse, status: 503)), contains('503'));
+      expect(AppUpdater.friendlyNetworkError(error(DioExceptionType.unknown)), contains('interrupted'));
+    });
+
+    test('log text has type, status and host but no query', () {
+      final text = AppUpdater.describeNetworkError(error(DioExceptionType.badResponse, status: 404, inner: 'oops'));
+      expect(text, contains('type=badResponse'));
+      expect(text, contains('status=404'));
+      expect(text, contains('host=github.com'));
+      expect(text, contains('error=oops'));
+    });
+
+    test('only network hiccups are retried', () {
+      expect(AppUpdater.isRetryableNetworkError(error(DioExceptionType.connectionTimeout)), isTrue);
+      expect(AppUpdater.isRetryableNetworkError(error(DioExceptionType.receiveTimeout)), isTrue);
+      expect(AppUpdater.isRetryableNetworkError(error(DioExceptionType.connectionError)), isTrue);
+      expect(AppUpdater.isRetryableNetworkError(error(DioExceptionType.unknown)), isTrue);
+      expect(AppUpdater.isRetryableNetworkError(error(DioExceptionType.badResponse, status: 503)), isTrue);
+      expect(AppUpdater.isRetryableNetworkError(error(DioExceptionType.badResponse, status: 429)), isTrue);
+      expect(AppUpdater.isRetryableNetworkError(error(DioExceptionType.badResponse, status: 404)), isFalse);
+      expect(AppUpdater.isRetryableNetworkError(error(DioExceptionType.badResponse, status: 403)), isFalse);
+      expect(AppUpdater.isRetryableNetworkError(error(DioExceptionType.badCertificate)), isFalse);
+      expect(AppUpdater.isRetryableNetworkError(error(DioExceptionType.cancel)), isFalse);
     });
   });
 }

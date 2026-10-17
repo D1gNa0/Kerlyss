@@ -68,7 +68,7 @@ class StreamResolutionCache {
             _cache.putIfAbsent(key, () => value); // anything resolved this session wins
           }
         });
-        Log.i('StreamResolutionCache: Loaded ${_cache.length} remembered song -> video pairs');
+        Log.d('StreamResolutionCache: Loaded ${_cache.length} remembered song -> video pairs');
       }
     } catch (e) {
       Log.w('StreamResolutionCache: Could not load saved cache: $e');
@@ -122,7 +122,7 @@ class StreamResolutionCache {
       await songRepository.prefetchSongStream(song);
       Log.d('StreamResolutionCache: Proactively pre-cached manifest for "${song.title}"');
     } catch (e) {
-      Log.w('StreamResolutionCache: Failed to pre-resolve manifest for "${song.title}": $e');
+      Log.d('StreamResolutionCache: Failed to pre-resolve manifest for "${song.title}": $e');
     } finally {
       _resolving.remove(song.id);
     }

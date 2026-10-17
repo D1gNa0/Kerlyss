@@ -227,7 +227,7 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
         return false;
       }
 
-      Log.i('PlaylistNotifier: Live diffing Spotify playlist ${playlist.name} (isManual=$isManual)...');
+      Log.d('PlaylistNotifier: Live diffing Spotify playlist ${playlist.name} (isManual=$isManual)...');
       final remoteData = await _songRepository.getPlaylistFromSpotifyUrl(
         playlist.spotifySourceUrl!,
         forceRefresh: true,
@@ -249,7 +249,7 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
       }
 
       if (newSongIds.isNotEmpty) {
-        Log.i('PlaylistNotifier: Found ${newSongIds.length} new tracks for ${playlist.name}');
+        Log.d('PlaylistNotifier: Found ${newSongIds.length} new tracks for ${playlist.name}');
         final now = DateTime.now().toUtc();
         final updatedIds = List<String>.from(playlist.songIds)..addAll(newSongIds);
         final updated = playlist.copyWith(
@@ -266,13 +266,13 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
 
         // 2. Auto-download newly fetched Spotify songs if auto-download is turned on
         if (playlist.autoDownloadNewTracks && newSongEntities.isNotEmpty) {
-          Log.i('PlaylistNotifier: Auto-downloading ${newSongEntities.length} new tracks in ${playlist.name}...');
+          Log.d('PlaylistNotifier: Auto-downloading ${newSongEntities.length} new tracks in ${playlist.name}...');
           _ref?.read(trackDownloadServiceProvider).downloadMultiple(newSongEntities);
         }
 
         return true;
       } else {
-        Log.i('PlaylistNotifier: Playlist ${playlist.name} is up to date.');
+        Log.d('PlaylistNotifier: Playlist ${playlist.name} is up to date.');
         final updated = playlist.copyWith(lastSyncedAt: DateTime.now());
         await _playlistRepository.savePlaylist(updated);
         return false;
