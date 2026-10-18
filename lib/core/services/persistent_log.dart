@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -51,6 +52,35 @@ class PersistentLogFile {
 
   /// Completes when everything queued so far is on disk (used by tests).
   Future<void> flush() => _chain;
+
+  /// The newest [count] lines (oldest first). Reads `kerlyss.log.old` too when the
+  /// current file is short (right after a rotation). Never throws.
+  Future<List<String>> tail(int count) async {
+    try {
+      await flush();
+      final dir = await _directory();
+      final lines = await tailOf(File(p.join(dir.path, _fileName)), count);
+      if (lines.length < count) {
+        final older = await tailOf(File(p.join(dir.path, '$_fileName.old')), count - lines.length);
+        return [...older, ...lines];
+      }
+      return lines;
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  /// The last [count] lines of any text file (empty list when it is missing or unreadable).
+  static Future<List<String>> tailOf(File file, int count) async {
+    try {
+      if (count <= 0 || !await file.exists()) return const [];
+      final text = utf8.decode(await file.readAsBytes(), allowMalformed: true);
+      final lines = const LineSplitter().convert(text).where((l) => l.trim().isNotEmpty).toList();
+      return lines.length <= count ? lines : lines.sublist(lines.length - count);
+    } catch (_) {
+      return const [];
+    }
+  }
 
   /// `2026-10-17 20:14:03 WARN  message | error` (+ up to 6 indented stack lines).
   /// The result is already sanitized and ends with a newline.

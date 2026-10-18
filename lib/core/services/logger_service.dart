@@ -93,6 +93,10 @@ class Log {
   /// Completes when every queued line is on disk. Call before the process exits.
   static Future<void> flush() => _file.flush();
 
+  /// The newest [count] lines of `kerlyss.log` (it survives app restarts). Used by "Report a Problem".
+  static Future<List<String>> recentFileLines(int count) =>
+      _underTest ? Future.value(const <String>[]) : _file.tail(count);
+
   /// Verbose developer detail. Console only, in debug builds.
   static void t(dynamic message, [dynamic error, StackTrace? stackTrace]) {
     _instance.t(message, error: error, stackTrace: stackTrace);

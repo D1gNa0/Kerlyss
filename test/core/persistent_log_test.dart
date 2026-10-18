@@ -86,6 +86,33 @@ void main() {
       expect(await logFile().readAsString(), isNot(contains('xxxx')));
     });
 
+    test('tail returns the newest lines, oldest first', () async {
+      final log = make();
+      for (var i = 0; i < 10; i++) {
+        log.write('INFO', 'entry $i');
+      }
+      final lines = await log.tail(3);
+      expect(lines.length, 3);
+      expect(lines[0], contains('entry 7'));
+      expect(lines[2], contains('entry 9'));
+    });
+
+    test('tail continues into kerlyss.log.old after a rotation', () async {
+      final log = make(maxBytes: 200);
+      for (var i = 0; i < 12; i++) {
+        log.write('INFO', 'rotating entry $i');
+      }
+      final lines = await log.tail(5);
+      expect(lines.length, 5);
+      expect(lines.last, contains('rotating entry 11'));
+      expect(lines.first, contains('rotating entry 7'));
+    });
+
+    test('tail of a missing file is empty', () async {
+      expect(await make().tail(10), isEmpty);
+      expect(await PersistentLogFile.tailOf(File('${dir.path}${Platform.pathSeparator}nope.log'), 5), isEmpty);
+    });
+
     test('writing to a missing disk never throws', () async {
       final log = PersistentLogFile(directory: () async => throw const FileSystemException('no disk'));
       log.write('ERROR', 'cannot be saved');

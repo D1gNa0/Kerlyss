@@ -14,6 +14,7 @@ import 'app_storage_paths.dart';
 import 'log_buffer.dart';
 import 'log_sanitizer.dart';
 import 'logger_service.dart';
+import 'persistent_log.dart';
 
 /// Lets the error reporter show a dialog without needing a BuildContext.
 /// Must be passed to `MaterialApp(navigatorKey: rootNavigatorKey)`.
@@ -252,6 +253,26 @@ class ErrorReporter {
     return 'Kerlyss $version | ${Platform.operatingSystem} | $os | locale ${PlatformDispatcher.instance.locale}';
   }
 
+  /// Log lines for a report:
+  ///  * `kerlyss.log` (warnings, errors, key events). It survives app restarts, so it also
+  ///    holds what happened in an earlier session, for example an update that was installed
+  ///    while the app was closing.
+  ///  * the end of `update.log` (written by the Windows updater script), if it exists.
+  /// When the file has nothing yet, the in-memory buffer of this session is used instead.
+  Future<List<String>> _recentLogs(int count, {int updateScriptLines = 15}) async {
+    var lines = await Log.recentFileLines(count);
+    if (lines.isEmpty) lines = LogBuffer.instance.recent(count);
+
+    var script = const <String>[];
+    try {
+      final dir = await AppStoragePaths.appRootDirectory();
+      script = await PersistentLogFile.tailOf(File('${dir.path}/update.log'), updateScriptLines);
+    } catch (_) {}
+
+    if (script.isEmpty) return lines;
+    return [...lines, '--- update.log (Windows updater script) ---', ...script];
+  }
+
   /// Full sanitized report (what the dialog previews and what goes to the clipboard).
   Future<String> buildReport(ErrorReportDraft draft, {String? note, int logLines = 120}) async {
     return composeReport(
@@ -260,7 +281,7 @@ class ErrorReporter {
       note: note,
       error: draft.errorText,
       stack: draft.stackText,
-      logs: LogBuffer.instance.recent(logLines),
+      logs: await _recentLogs(logLines),
     );
   }
 
@@ -274,7 +295,7 @@ class ErrorReporter {
       note: note,
       error: draft.errorText,
       stack: draft.stackText,
-      logs: LogBuffer.instance.recent(60),
+      logs: await _recentLogs(60),
     );
   }
 
