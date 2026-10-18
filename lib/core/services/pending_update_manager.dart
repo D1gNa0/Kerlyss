@@ -31,7 +31,10 @@ class PendingUpdateManager {
   final PendingUpdateStore _store;
   final AppUpdater _updater;
 
-  Future<void> save(PendingUpdate update) => _store.save(update);
+  Future<void> save(PendingUpdate update) async {
+    final saved = await _store.save(update);
+    if (saved) Log.event('Update: ${update.version} saved as pending (${update.path})');
+  }
 
   /// The waiting update, or null. Cleans up when it is stale (already installed, or files missing).
   Future<PendingUpdate?> loadValid() async {
@@ -41,13 +44,16 @@ class PendingUpdateManager {
     final current = (await PackageInfo.fromPlatform()).version;
     if (!AppUpdater.isNewerVersion(pending.version, current)) {
       // Already installed (or older than what runs now): remove the leftovers.
+      Log.event('Update: pending ${pending.version} is not newer than the running $current, removing it');
       await discard();
       return null;
     }
     if (!_filesExist(pending)) {
+      Log.w('Update: pending ${pending.version} files are missing (${pending.path}), removing it');
       await discard();
       return null;
     }
+    Log.event('Update: pending ${pending.version} is valid (running $current)');
     return pending;
   }
 
@@ -75,6 +81,9 @@ class PendingUpdateManager {
       if (pending == null) {
         // Nothing waiting. If the updater script installed an update, its staged files are
         // still on disk (nothing is downloading yet at this point), so delete them.
+        if (await (await _updater.workDir()).exists()) {
+          Log.event('Update: removing staged files left from an earlier update');
+        }
         await _updater.cleanUp();
         return;
       }
@@ -107,7 +116,14 @@ class PendingUpdateManager {
     if (!Platform.isWindows) return;
     try {
       final pending = await loadValid();
-      if (pending == null) return;
+      if (pending == null) {
+        // Normal case: nothing waiting. Only say something when staged files exist,
+        // because then an update was downloaded but there is no valid marker for it.
+        if (await (await _updater.workDir()).exists()) {
+          Log.event('Update: closing, staged files exist but no valid pending update was found');
+        }
+        return;
+      }
       await _updater.ensureInstallDirWritable();
       Log.event('Update: ${pending.version} will be installed now that the app is closing');
       await _updater.launchWindowsUpdater(Directory(pending.path), relaunch: false);

@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
 import 'app_storage_paths.dart';
+import 'logger_service.dart';
 
 /// A fully downloaded and verified update that is waiting to be installed.
 /// It is written to disk (see [PendingUpdateStore]) so the update is not lost when the
@@ -102,14 +102,17 @@ class PendingUpdateStore {
     return File(p.join(dir.path, fileName));
   }
 
-  Future<void> save(PendingUpdate update) async {
+  /// Returns true when the file was written. Never throws.
+  Future<bool> save(PendingUpdate update) async {
     try {
       final f = await file();
       await f.parent.create(recursive: true);
       await f.writeAsString(jsonEncode(update.toJson()), flush: true);
+      return true;
     } catch (e) {
       // Not fatal: the normal "Restart to update" button still works without the file.
-      debugPrint('Could not save pending update info: $e');
+      Log.w('Update: could not save ${PendingUpdateStore.fileName}', e);
+      return false;
     }
   }
 
