@@ -4,7 +4,9 @@ The in-app updater only installs a release when ALL of these are true. Follow th
 
 ## Rules for version numbers
 - Stable: `1.4.0`. Beta: `1.4.0-beta.1`, `1.4.0-beta.2`, ... A final `1.4.0` is newer than all its betas.
-- Set the SAME value in `pubspec.yaml` (`version: 1.4.0-beta.1+15`).
+- Set the SAME value in `pubspec.yaml` (`version: 1.4.0-beta.1+15`) BEFORE building.
+  If the build reports an older version, the app updates but still thinks it is old and offers the same update again forever.
+  `make_release_metadata.ps1` checks the version inside the zip and refuses to continue when it does not match.
 - The number after `+` (Android build number) MUST go up on EVERY build, stable or beta, and never go down.
   Android refuses to install a lower build number over a higher one (for example going from a beta back to stable).
 - Always sign Android builds with the same key.
