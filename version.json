@@ -1,4 +1,4 @@
 {
-  "version": "1.3.2",
-  "releaseNotes": "Kerlyss v1.3.2 is live! Fixes Google Drive cloud sync reliability, resolves Android background audio pausing and media notification dismissal, introduces an upgraded minimalist UI with top bar sync status, and adds pull-to-refresh on all platforms."
+    "version":  "1.4.4",
+    "releaseNotes":  "Kerlyss 1.4.4 is here! Highlights:\n- Audio Engine: Fixed Android first-song audio buffering bug, improved pause responsiveness, and added native 5-band Equalizer.\n- Discover: Full menu parity for \u0027For You\u0027 recommendations (Favorites, Queue, Playlist) and debounced track selection.\n- In-App Updater: Reliable updates for Windows \u0026 Android with background persistence and SHA-256 validation.\n- UI \u0026 Storage: Custom downloads directory picker, improved responsive layouts, and audio stream info."
 }
