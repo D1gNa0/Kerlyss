@@ -433,7 +433,7 @@ class AppUpdater {
         mode: mode,
       );
     } catch (e) {
-      Log.w('Update: could not start powershell.exe (${mode.name})', e);
+      Log.w('Update: could not start powershell.exe (${_modeName(mode)})', e);
       return false;
     }
 
@@ -453,7 +453,7 @@ class AppUpdater {
     final deadline = DateTime.now().add(wait);
     while (DateTime.now().isBefore(deadline)) {
       if (await _logHasToken(logFile, token)) {
-        Log.event('Update: updater script is running (${mode.name})');
+        Log.event('Update: updater script is running (${_modeName(mode)})');
         return true;
       }
       if (earlyExit != null) break;
@@ -462,11 +462,14 @@ class AppUpdater {
     if (await _logHasToken(logFile, token)) return true; // last look, in case it just started
 
     final text = output.toString().replaceAll(RegExp(r'\s+'), ' ').trim();
-    Log.w('Update: the updater script did not start (${mode.name}, '
+    Log.w('Update: the updater script did not start (${_modeName(mode)}, '
         'exit=${earlyExit ?? 'still running'}, powershell said: ${text.isEmpty ? '-' : text})');
     if (mode == ProcessStartMode.normal) process.kill();
     return false;
   }
+
+  /// ProcessStartMode is a class (not an enum), so it has no `.name`.
+  static String _modeName(ProcessStartMode mode) => mode == ProcessStartMode.normal ? 'normal' : 'detached';
 
   Future<bool> _logHasToken(File logFile, String token) async {
     final lines = await PersistentLogFile.tailOf(logFile, 30);
