@@ -1,5 +1,5 @@
 {
-    "version":  "1.4.3-beta.1",
-    "tag":  "v1.4.3-beta.1",
-    "releaseNotes":  "Kerlyss 1.4.3-beta.1\n\nNew: In-App Update Survives App Close\n- Windows: Downloaded update installs silently when you close the app. If killed, installs on next startup before UI appears.\n- Android: If you close after download, Install bar reappears on next start â€” no re-download needed.\n- Update progress bar now shows on every screen at bottom, never covers top-right buttons.\n\nUI Fixes\n- Playlist detail (Android): PLAY ALL / SHUFFLE + 4 tool icons wrap properly on narrow screens.\n- Discovery tab: SEARCH SONGS / SPOTIFY IMPORT pills wrap on very narrow screens.\n\nInternal\n- Fixed import path depth in song_repository_impl.dart.\n\nFor Beta Testers\n- Settings -\u003e Check for Beta Updates\n- Normal check only offers stable\n- Beta builds opt-in, same signing key as stable"
+    "version":  "1.4.4-beta.1",
+    "tag":  "v1.4.4-beta.1",
+    "releaseNotes":  "Kerlyss 1.4.4-beta.1\n\nAudio \u0026 Playback Fixes\n- Fixed first song no audio bug on Android (background queue hydration now glides smoothly without buffer reset)\n- Fixed Discover double-tap issue on Android (debounced rapid taps to prevent cancelled playback)\n\nUI Parity\n- For You recommendations now feature standard menu options (Favorite, Play Next, Add to Queue, Add to Playlist, Loop) in addition to recommendation filters\n\nFor Beta Testers\n- Settings -\u003e Check for Beta Updates\n- Normal check only offers stable\n- Beta builds opt-in, same signing key as stable"
 }
