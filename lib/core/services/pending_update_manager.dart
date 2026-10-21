@@ -100,7 +100,11 @@ class PendingUpdateManager {
       Log.event('Update: installing ${pending.version} at startup (attempt ${pending.attempts + 1})');
       // Count the attempt BEFORE starting, so a failing update cannot restart the app forever.
       await _store.save(pending.copyWithAttempts(pending.attempts + 1));
-      await _updater.launchWindowsUpdater(Directory(pending.path), relaunch: true);
+      await _updater.launchWindowsUpdater(
+        Directory(pending.path),
+        relaunch: true,
+        waitPerAttempt: const Duration(seconds: 4),
+      );
       await Log.flush().timeout(const Duration(seconds: 1), onTimeout: () {});
       await Future<void>.delayed(const Duration(milliseconds: 300));
       exit(0);
@@ -126,7 +130,11 @@ class PendingUpdateManager {
       }
       await _updater.ensureInstallDirWritable();
       Log.event('Update: ${pending.version} will be installed now that the app is closing');
-      await _updater.launchWindowsUpdater(Directory(pending.path), relaunch: false);
+      await _updater.launchWindowsUpdater(
+        Directory(pending.path),
+        relaunch: false,
+        waitPerAttempt: const Duration(seconds: 3),
+      );
     } catch (e) {
       Log.e('Update: installing on quit failed', e);
     }

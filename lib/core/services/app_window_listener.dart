@@ -29,9 +29,9 @@ class AppWindowListener extends WindowListener {
 
     // 3. If an update was downloaded and is waiting, let the hidden updater script install it
     // right after we exit ("install on quit"). The window is already hidden, so the user
-    // sees nothing. Capped at 3 seconds so closing can never hang.
+    // sees nothing. Capped at 7 seconds so closing can never hang.
     try {
-      await PendingUpdateManager.instance.applyOnQuit().timeout(const Duration(seconds: 3));
+      await PendingUpdateManager.instance.applyOnQuit().timeout(const Duration(seconds: 7));
     } catch (e) {
       Log.e('AppWindowListener: Error preparing update on quit', e);
     }

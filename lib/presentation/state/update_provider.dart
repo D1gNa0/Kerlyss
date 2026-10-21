@@ -247,7 +247,14 @@ class UpdateController extends StateNotifier<UpdateState> {
         try {
           await globalAudioHandler.stop();
         } catch (_) {}
-        await _updater.launchWindowsUpdater(source);
+        try {
+          await _updater.launchWindowsUpdater(source);
+        } on UpdateException catch (e) {
+          // The updater did not start: stay open, so the user sees the reason and can try again.
+          Log.w('Update: updater did not start: ${e.message}');
+          if (mounted) state = state.copyWith(message: e.message);
+          return;
+        }
         await Future<void>.delayed(const Duration(milliseconds: 300));
         exit(0);
       } else if (Platform.isAndroid) {

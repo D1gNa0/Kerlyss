@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -11,6 +12,7 @@ import 'package:path_provider/path_provider.dart';
 import 'app_storage_paths.dart';
 import 'logger_service.dart';
 import 'pending_update.dart';
+import 'persistent_log.dart';
 
 /// Human-readable failure that can be shown directly to the user.
 class UpdateException implements Exception {
@@ -364,20 +366,32 @@ class AppUpdater {
   /// Starts a hidden PowerShell script that waits for this process to exit, copies
   /// the new files over the install folder, and (when [relaunch] is true) starts the app again.
   /// With [relaunch] false the update is installed silently after the user closed the app.
-  /// After a successful copy the script deletes `pending_update.json` (so the update is never
-  /// installed twice); the app removes the leftover staged files on its next start.
-  /// The caller must exit the app right after this returns.
-  Future<void> launchWindowsUpdater(Directory sourceDir, {bool relaunch = true}) async {
+  /// After a successful copy the script deletes `pending_update.json`; the app removes the
+  /// leftover staged files on its next start.
+  ///
+  /// The script's first action is to write a line with a unique token into `update.log`.
+  /// This method waits for that line (up to [waitPerAttempt] per attempt). A script that
+  /// never starts (blocked, crashed, parse error) is therefore detected, and PowerShell's own
+  /// error text is logged. A second way of starting it is tried before giving up.
+  /// Throws [UpdateException] when the script could not be started; in that case the app
+  /// must NOT exit. On success the caller must exit the app right away.
+  Future<void> launchWindowsUpdater(
+    Directory sourceDir, {
+    bool relaunch = true,
+    Duration waitPerAttempt = const Duration(seconds: 5),
+  }) async {
     final exePath = Platform.resolvedExecutable;
     final root = await AppStoragePaths.appRootDirectory();
     final scriptFile = File(p.join(sourceDir.parent.path, 'apply_update.ps1'));
     // The log lives in the app data folder: the staging folder is deleted after an update.
-    final logPath = p.join(root.path, 'update.log');
+    final logFile = File(p.join(root.path, 'update.log'));
     final markerPath = p.join(root.path, PendingUpdateStore.fileName);
+    final token = DateTime.now().microsecondsSinceEpoch.toString();
 
     final script = _windowsScriptTemplate
         .replaceAll('{{PID}}', pid.toString())
-        .replaceAll('{{LOG}}', _ps(logPath))
+        .replaceAll('{{TOKEN}}', token)
+        .replaceAll('{{LOG}}', _ps(logFile.path))
         .replaceAll('{{SRC}}', _ps(sourceDir.path))
         .replaceAll('{{DEST}}', _ps(_installDir.path))
         .replaceAll('{{EXE}}', _ps(exePath))
@@ -386,21 +400,77 @@ class AppUpdater {
 
     // UTF-8 with BOM so Windows PowerShell 5.1 reads non-ASCII paths correctly.
     await scriptFile.writeAsBytes([0xEF, 0xBB, 0xBF, ...utf8.encode(script)]);
+    Log.event('Update: starting the updater script (relaunch=$relaunch, install folder ${_installDir.path})');
 
-    await Process.start(
-      'powershell.exe',
-      [
-        '-NoProfile',
-        '-NonInteractive',
-        '-WindowStyle',
-        'Hidden',
-        '-ExecutionPolicy',
-        'Bypass',
-        '-File',
-        scriptFile.path,
-      ],
-      mode: ProcessStartMode.detached,
+    // 1st: normal mode, so PowerShell's error text can be read if it fails.
+    // 2nd: detached mode, the classic way.
+    for (final mode in const [ProcessStartMode.normal, ProcessStartMode.detached]) {
+      if (await _startScript(scriptFile, logFile, token, mode, waitPerAttempt)) return;
+    }
+    throw const UpdateException(
+      'Could not start the updater. Close Kerlyss and try again. Details are in the log (Report a Problem).',
     );
+  }
+
+  /// Starts powershell.exe and waits until the script proves it runs. True = running.
+  Future<bool> _startScript(File script, File logFile, String token, ProcessStartMode mode, Duration wait) async {
+    final output = StringBuffer();
+    int? earlyExit;
+    Process process;
+    try {
+      process = await Process.start(
+        'powershell.exe',
+        [
+          '-NoProfile',
+          '-NonInteractive',
+          '-WindowStyle',
+          'Hidden',
+          '-ExecutionPolicy',
+          'Bypass',
+          '-File',
+          script.path,
+        ],
+        mode: mode,
+      );
+    } catch (e) {
+      Log.w('Update: could not start powershell.exe (${mode.name})', e);
+      return false;
+    }
+
+    if (mode == ProcessStartMode.normal) {
+      void collect(String text) {
+        if (output.length < 1000) output.write(text);
+      }
+
+      process.stdout.transform(systemEncoding.decoder).listen(collect, onError: (Object _) {});
+      process.stderr.transform(systemEncoding.decoder).listen(collect, onError: (Object _) {});
+      unawaited(process.exitCode.then(
+        (code) => earlyExit = code,
+        onError: (Object _) => earlyExit = -1,
+      ));
+    }
+
+    final deadline = DateTime.now().add(wait);
+    while (DateTime.now().isBefore(deadline)) {
+      if (await _logHasToken(logFile, token)) {
+        Log.event('Update: updater script is running (${mode.name})');
+        return true;
+      }
+      if (earlyExit != null) break;
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+    }
+    if (await _logHasToken(logFile, token)) return true; // last look, in case it just started
+
+    final text = output.toString().replaceAll(RegExp(r'\s+'), ' ').trim();
+    Log.w('Update: the updater script did not start (${mode.name}, '
+        'exit=${earlyExit ?? 'still running'}, powershell said: ${text.isEmpty ? '-' : text})');
+    if (mode == ProcessStartMode.normal) process.kill();
+    return false;
+  }
+
+  Future<bool> _logHasToken(File logFile, String token) async {
+    final lines = await PersistentLogFile.tailOf(logFile, 30);
+    return lines.any((l) => l.contains('token=$token'));
   }
 
   static String _ps(String value) => "'${value.replaceAll("'", "''")}'";
@@ -409,6 +479,7 @@ class AppUpdater {
 $ErrorActionPreference = 'Continue'
 $log = {{LOG}}
 function Log($m) { Add-Content -LiteralPath $log -Value ("[" + (Get-Date -Format s) + "] " + $m) }
+Log 'updater started, token={{TOKEN}}'
 Log 'waiting for Kerlyss to exit'
 try { Wait-Process -Id {{PID}} -Timeout 60 -ErrorAction SilentlyContinue } catch {}
 Start-Sleep -Milliseconds 800
