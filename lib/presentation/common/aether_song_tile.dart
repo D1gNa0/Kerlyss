@@ -25,6 +25,12 @@ class AetherSongTile extends ConsumerWidget {
   final Widget? trailing;
   final bool showAlbum;
   final bool showDownloadStatus;
+  /// Extra items appended to the bottom of the standard "…" more-menu.
+  /// Use this instead of [trailing] when you only need to add contextual
+  /// actions (e.g. "Not interested") without losing the heart icon / standard items.
+  final List<PopupMenuEntry<String>>? extraMenuItems;
+  /// Called when one of [extraMenuItems] is selected.
+  final void Function(String value)? onExtraMenuItemSelected;
 
   const AetherSongTile({
     super.key,
@@ -35,7 +41,10 @@ class AetherSongTile extends ConsumerWidget {
     this.trailing,
     this.showAlbum = false,
     this.showDownloadStatus = true,
+    this.extraMenuItems,
+    this.onExtraMenuItemSelected,
   });
+
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -313,6 +322,8 @@ class AetherSongTile extends ConsumerWidget {
                       ],
                     ),
                   ),
+                // Extra items injected by the caller (e.g. "Not interested")
+                if (extraMenuItems != null) ...extraMenuItems!,
               ],
             );
 
@@ -339,6 +350,9 @@ class AetherSongTile extends ConsumerWidget {
                   ref.read(audioProvider.notifier).addLast(metadata);
                   ToastService.show(context, 'Added to queue: ${song.title}');
                 }
+              } else {
+                // Delegate to caller for extra items
+                onExtraMenuItemSelected?.call(value);
               }
             }
           },
@@ -346,6 +360,7 @@ class AetherSongTile extends ConsumerWidget {
       },
     );
   }
+
 
   void _showFixTrackMatchDialog(BuildContext context) {
     showDialog(

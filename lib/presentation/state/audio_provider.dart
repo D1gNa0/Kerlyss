@@ -654,41 +654,64 @@ class AudioNotifier extends StateNotifier<AudioState> {
 
   /// Lazily builds the full audio queue in the background after the clicked
   /// song has already started playing (progressive streaming).
-  /// Uses insertIntoQueue() instead of setAudioQueue() to avoid resetting
-  /// the player and causing playback interruption.
+  ///
+  /// Strategy to avoid the "first song no audio" bug on Android:
+  /// - songs AFTER the clicked index are appended in order at the tail
+  ///   (engine positions 1, 2, 3...) — no index shift to the playing item.
+  /// - songs BEFORE the clicked index are inserted in REVERSE order, each
+  ///   at position 0, so the playing item slides from engine-index 0 up to
+  ///   engine-index `clickedIndex` one slot at a time. This matches the
+  ///   logical playlist order without any mid-hydration out-of-order gaps.
+  /// - _isNavigatingQueue stays true for the whole operation so the
+  ///   currentIndexStream listener doesn't misfire while indices are shifting.
   Future<void> _hydrateFullQueue(List<SongMetadata> playlist, int clickedIndex, int requestId) async {
+    _isNavigatingQueue = true; // hold the lock for the entire hydration
     try {
-      if (playlist.length <= 1) return; // Single song, nothing to hydrate
+      if (playlist.length <= 1) {
+        return; // Single song, nothing to hydrate
+      }
 
-      // Build sources for all OTHER songs (skip the clicked one, it's already playing)
-      // Insert songs AFTER the current track first (these are most likely to be needed next)
-      int insertionOffset = 1; // Start inserting after position 0 (the playing song)
-
-      // Songs AFTER the clicked index
+      // ── Phase 1: songs AFTER clicked index → append at the tail ──
+      // Engine indices: 1, 2, 3… (playing item stays at engine index 0)
+      int afterOffset = 1;
       for (var i = clickedIndex + 1; i < playlist.length; i++) {
         if (!mounted || requestId != _playRequestId) return;
         final source = await _buildAudioSource(playlist[i]);
         if (!mounted || requestId != _playRequestId) return;
-        await _audioService.insertIntoQueue(insertionOffset, source);
-        insertionOffset++;
+        await _audioService.insertIntoQueue(afterOffset, source);
+        afterOffset++;
       }
 
-      // Songs BEFORE the clicked index (insert at position 0, pushing current track forward)
-      for (var i = 0; i < clickedIndex; i++) {
+      // ── Phase 2: songs BEFORE clicked index → reverse-insert at 0 ──
+      // Inserting in reverse order (clickedIndex-1 down to 0) at position 0
+      // each time: after all inserts the playing item ends up at engine index
+      // `clickedIndex`, matching the logical playlist order.
+      for (var i = clickedIndex - 1; i >= 0; i--) {
         if (!mounted || requestId != _playRequestId) return;
         final source = await _buildAudioSource(playlist[i]);
         if (!mounted || requestId != _playRequestId) return;
-        await _audioService.insertIntoQueue(i, source);
+        await _audioService.insertIntoQueue(0, source);
       }
 
-      // Update state to reflect the correct current index (it shifted by clickedIndex due to insertions before it)
       if (mounted && requestId == _playRequestId) {
         state = state.copyWith(currentIndex: clickedIndex);
+        // If Android stopped playing after inserts-before disturbed the buffer,
+        // resume seamlessly rather than leaving the progress bar spinning silently.
+        if (!_audioService.playing &&
+            (state.status == PlaybackStatus.playing ||
+                state.status == PlaybackStatus.buffering ||
+                state.status == PlaybackStatus.loading)) {
+          Log.d('🎵 [HYDRATE] Resuming playback after index shift on Android');
+          unawaited(_ensurePlaybackStarted());
+        }
         _prefetchUpcomingSongs(clickedIndex, count: 2);
         Log.d('🎵 [HYDRATE] Full queue loaded (${playlist.length} tracks) — zero-interruption hydration complete');
       }
     } catch (e) {
       Log.w('AudioNotifier: Background queue hydration failed (non-fatal): $e');
+    } finally {
+      // Only release the lock if no newer request has taken it
+      if (requestId == _playRequestId) _isNavigatingQueue = false;
     }
   }
 

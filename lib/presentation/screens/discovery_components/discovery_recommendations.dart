@@ -8,9 +8,11 @@ import '../../common/vercel_hover_button.dart';
 import '../../state/audio_state.dart';
 import '../../state/audio_provider.dart';
 import '../../state/library_provider.dart';
+import '../../state/playlist_provider.dart';
 import '../../state/download_state_provider.dart';
 import '../../theme/aether_colors.dart';
 import '../../../core/services/toast_service.dart';
+
 
 class DiscoveryRecommendationsView extends ConsumerStatefulWidget {
   final Function(SongEntity) onDownload;
@@ -27,6 +29,18 @@ class DiscoveryRecommendationsView extends ConsumerStatefulWidget {
 }
 
 class _DiscoveryRecommendationsViewState extends ConsumerState<DiscoveryRecommendationsView> {
+  /// Debounce guard: ignore taps within 600ms of the previous one to prevent
+  /// Android double-tap from firing two concurrent playPlaylist() calls.
+  DateTime? _lastTapTime;
+
+  bool _guardTap() {
+    final now = DateTime.now();
+    if (_lastTapTime != null && now.difference(_lastTapTime!) < const Duration(milliseconds: 600)) {
+      return false; // too soon — skip
+    }
+    _lastTapTime = now;
+    return true;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -384,45 +398,44 @@ class _DiscoveryRecommendationsViewState extends ConsumerState<DiscoveryRecommen
           showDownloadStatus: true,
           onDownload: () => widget.onDownload(song),
           onTap: () {
+            if (!_guardTap()) return; // debounce Android double-tap
             final playlist = songs.map((s) => SongMetadata.fromEntity(s)).toList();
             ref.read(audioProvider.notifier).playPlaylist(playlist, index);
           },
-          trailing: PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert_rounded, size: 16, color: Colors.white38),
-            color: AetherColors.ultraDarkGray,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            onSelected: (value) {
-              if (value == 'dislike_song') {
-                ref.read(recommendationsProvider.notifier).dislikeSong(song);
-                ToastService.show(context, 'Removed "${song.title}" from recommendations');
-              } else if (value == 'dislike_artist') {
-                ref.read(recommendationsProvider.notifier).dislikeArtist(song.artist);
-                ToastService.show(context, 'Muted recommendations for ${song.artist}');
-              }
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: 'dislike_song',
-                child: Row(
-                  children: [
-                    const Icon(Icons.hide_source_rounded, size: 14, color: Colors.white70),
-                    const SizedBox(width: 8),
-                    const Text('Not interested in song', style: TextStyle(color: Colors.white70, fontSize: 12)),
-                  ],
-                ),
+          // Use extraMenuItems so the standard heart + menu is preserved
+          // and the recommendation-specific actions are appended below.
+          extraMenuItems: [
+            const PopupMenuDivider(),
+            PopupMenuItem(
+              value: 'dislike_song',
+              child: Row(
+                children: [
+                  const Icon(Icons.hide_source_rounded, size: 16, color: Colors.white70),
+                  const SizedBox(width: 10),
+                  const Text('Not interested in song', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                ],
               ),
-              PopupMenuItem(
-                value: 'dislike_artist',
-                child: Row(
-                  children: [
-                    const Icon(Icons.block_rounded, size: 14, color: Colors.amber),
-                    const SizedBox(width: 8),
-                    Text('Don\'t recommend ${song.artist}', style: const TextStyle(color: Colors.amber, fontSize: 12)),
-                  ],
-                ),
+            ),
+            PopupMenuItem(
+              value: 'dislike_artist',
+              child: Row(
+                children: [
+                  const Icon(Icons.block_rounded, size: 16, color: Colors.amber),
+                  const SizedBox(width: 10),
+                  Text("Don't recommend ${song.artist}", style: const TextStyle(color: Colors.amber, fontSize: 13)),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
+          onExtraMenuItemSelected: (value) {
+            if (value == 'dislike_song') {
+              ref.read(recommendationsProvider.notifier).dislikeSong(song);
+              ToastService.show(context, 'Removed "${song.title}" from recommendations');
+            } else if (value == 'dislike_artist') {
+              ref.read(recommendationsProvider.notifier).dislikeArtist(song.artist);
+              ToastService.show(context, 'Muted recommendations for ${song.artist}');
+            }
+          },
         );
       },
     );
