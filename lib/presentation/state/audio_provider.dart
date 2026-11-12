@@ -61,6 +61,19 @@ class AudioNotifier extends StateNotifier<AudioState> {
   int _playRequestId = 0;
   bool _isRestoringSession = false;
   bool _isNavigatingQueue = false;
+
+  /// Request id of the queue that is being filled in the background (see _hydrateFullQueue), or null.
+  /// While it runs, the engine's current index changes (songs are inserted before the playing one).
+  /// Those events must be ignored, but Next / Previous must keep working, so this is NOT the
+  /// same lock as [_isNavigatingQueue].
+  int? _hydratingRequestId;
+
+  /// The song that was already retried once after a failed start (see _retryCurrentSongOnce).
+  String _retriedSongId = '';
+
+  /// The last play request, to ignore the same tap arriving twice (Android).
+  String _lastPlayKey = '';
+  DateTime _lastPlayAt = DateTime.fromMillisecondsSinceEpoch(0);
   int _lastPersistedSecondMark = -1;
   DateTime? _forcePlayingUntil;
 
@@ -167,6 +180,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
 
     _subs.add(_audioService.currentIndexStream.listen((index) {
       if (!mounted || index == null || _isNavigatingQueue || _isRestoringSession) return;
+      if (_hydratingRequestId != null) return; // queue is being filled: indexes are shifting
       if (index != state.currentIndex && index >= 0 && index < state.playlist.length) {
         final nextSong = state.playlist[index];
         Log.d('▶️ [ENGINE_PLAYING] Audio engine switched active track to index $index -> "${nextSong.title}" by "${nextSong.artist}" (ID: ${nextSong.id})');
@@ -284,6 +298,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
     if (error.contains('403') || error.contains('Forbidden') || error.contains('Premature completion')) {
       userMessage = 'Stream unavailable - skipping to the next song';
       YoutubeProxyServer.clearCaches();
+      if (_retryCurrentSongOnce(error.contains('Premature') ? 'ended at 0:00' : 'HTTP 403')) return;
     } else if (error.contains('SocketException') || error.contains('Network')) {
       userMessage = 'Network error - check your connection';
       shouldAutoSkip = false;
@@ -551,6 +566,19 @@ class AudioNotifier extends StateNotifier<AudioState> {
   Future<void> playPlaylist(List<SongMetadata> playlist, int index, {bool? shuffle}) async {
     try {
       if (index < 0 || index >= playlist.length) return;
+
+      // The same tap can arrive twice (seen on Android). The second request would cancel the
+      // first one half way, so it is ignored.
+      final playKey = '${playlist[index].id}|$index|${playlist.length}';
+      final playTime = DateTime.now();
+      if (playKey == _lastPlayKey && playTime.difference(_lastPlayAt) < const Duration(milliseconds: 700)) {
+        Log.d('🎵 [USER_CLICK] Ignored a duplicate play request for "${playlist[index].title}"');
+        return;
+      }
+      _lastPlayKey = playKey;
+      _lastPlayAt = playTime;
+      _retriedSongId = ''; // a new user request may retry a failing song once again
+
       final requestId = ++_playRequestId;
       _isRestoringSession = false;
       _isNavigatingQueue = true;
@@ -594,6 +622,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
           _schedulePersistSession();
           _checkAndFetchBpm(clickedSong);
           _prefetchUpcomingSongs(existingIndex, count: 2);
+          _watchPlaybackStart(requestId);
           return;
         }
       }
@@ -640,6 +669,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
       _syncStatusFromEngine();
       _schedulePersistSession();
       _checkAndFetchBpm(clickedSong);
+      _watchPlaybackStart(requestId);
 
       // ── Background Queue Hydration ──
       // Now lazily resolve the remaining songs and rebuild the full queue.
@@ -662,10 +692,12 @@ class AudioNotifier extends StateNotifier<AudioState> {
   ///   at position 0, so the playing item slides from engine-index 0 up to
   ///   engine-index `clickedIndex` one slot at a time. This matches the
   ///   logical playlist order without any mid-hydration out-of-order gaps.
-  /// - _isNavigatingQueue stays true for the whole operation so the
-  ///   currentIndexStream listener doesn't misfire while indices are shifting.
+  /// - [_hydratingRequestId] is set for the whole operation so the currentIndexStream
+  ///   listener doesn't misfire while indices are shifting. (It is a separate guard on
+  ///   purpose: holding [_isNavigatingQueue] made Next / Previous do nothing while a long
+  ///   list was still being loaded.)
   Future<void> _hydrateFullQueue(List<SongMetadata> playlist, int clickedIndex, int requestId) async {
-    _isNavigatingQueue = true; // hold the lock for the entire hydration
+    _hydratingRequestId = requestId;
     try {
       if (playlist.length <= 1) {
         return; // Single song, nothing to hydrate
@@ -710,9 +742,93 @@ class AudioNotifier extends StateNotifier<AudioState> {
     } catch (e) {
       Log.w('AudioNotifier: Background queue hydration failed (non-fatal): $e');
     } finally {
-      // Only release the lock if no newer request has taken it
-      if (requestId == _playRequestId) _isNavigatingQueue = false;
+      // Only release the guard if no newer request has taken it
+      if (_hydratingRequestId == requestId) _hydratingRequestId = null;
     }
+  }
+
+  /// Some players (just_audio_windows) sometimes ignore the first play command, or say
+  /// "playing" while the position never moves; the user then has to pause and play by hand.
+  /// For 12 seconds after a song starts this does that automatically (at most twice) and
+  /// writes a log line, so the cause can be found later. It stops as soon as the sound runs,
+  /// the user pauses, or another song is started.
+  void _watchPlaybackStart(int requestId) {
+    final intent = _playIntent;
+    unawaited(() async {
+      var nudges = 0;
+      var frozenTicks = 0;
+      var lastPosition = _audioService.position;
+      for (var tick = 0; tick < 24; tick++) {
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+        if (!mounted || requestId != _playRequestId || intent != _playIntent) return;
+        final status = state.status;
+        if (status == PlaybackStatus.error || status == PlaybackStatus.completed) return;
+
+        final position = _audioService.position;
+        final moved = position > lastPosition;
+        lastPosition = position;
+
+        // Still resolving or buffering the stream: slow, but not stuck.
+        if (status == PlaybackStatus.loading || status == PlaybackStatus.buffering) {
+          frozenTicks = 0;
+          continue;
+        }
+        if (_audioService.playing && moved) return; // running: all good
+
+        if (_audioService.playing) {
+          frozenTicks++;
+        } else {
+          frozenTicks = 3; // not playing at all: nudge right away
+        }
+        if (frozenTicks < 3) continue;
+        if (nudges >= 2) return;
+        nudges++;
+        frozenTicks = 0;
+
+        Log.event('Playback: start looks stuck for "${state.currentSong.title}" '
+            '(status=${status.name}, enginePlaying=${_audioService.playing}, position=${position.inMilliseconds}ms), '
+            'nudging ($nudges/2)');
+        try {
+          _forcePlayingUntil = DateTime.now().add(const Duration(milliseconds: 1500)); // hide the short pause
+          if (_audioService.playing) {
+            await _audioService.pause();
+            await Future<void>.delayed(const Duration(milliseconds: 150));
+          }
+          if (!mounted || requestId != _playRequestId || intent != _playIntent) return;
+          _forcePlayingUntil = DateTime.now().add(const Duration(milliseconds: 1500));
+          await _audioService.play();
+        } catch (e) {
+          Log.w('Playback: nudge failed', e);
+          return;
+        }
+      }
+    }());
+  }
+
+  /// A song that failed right at the start (403, or "completed" at 0:00) is tried ONE more time
+  /// before skipping it. The second try works most of the time: it is what pausing and playing
+  /// by hand does, and by then the stream proxy has learned which stream type works.
+  /// Returns true when a retry was started.
+  bool _retryCurrentSongOnce(String reason) {
+    final song = state.currentSong;
+    final index = state.currentIndex;
+    if (song.id.isEmpty || index < 0 || index >= state.playlist.length) return false;
+    if (_retriedSongId == song.id) return false;
+    if (_audioService.queueLength != state.playlist.length) return false; // queue not complete: skip normally
+    _retriedSongId = song.id;
+    Log.event('Playback: "${song.title}" failed to start ($reason), retrying once');
+    final requestId = _playRequestId;
+    unawaited(() async {
+      try {
+        state = state.copyWith(status: PlaybackStatus.loading, clearError: true);
+        await _audioService.seek(Duration.zero, index: index).timeout(const Duration(seconds: 3));
+        await _ensurePlaybackStarted();
+        if (mounted && requestId == _playRequestId) _watchPlaybackStart(requestId);
+      } catch (e) {
+        _setPlaybackError('retryCurrentSong', e);
+      }
+    }());
+    return true;
   }
 
   bool _hasSamePlaylistOrder(List<SongMetadata> current, List<SongMetadata> next) {
@@ -828,7 +944,7 @@ class AudioNotifier extends StateNotifier<AudioState> {
 
   /// Turns shuffle on/off for the CURRENT queue without interrupting the song.
   Future<void> toggleShuffle() async {
-    if (_isNavigatingQueue) return;
+    if (_isNavigatingQueue || _hydratingRequestId != null) return;
 
     final enable = !state.isShuffleEnabled;
     final playlist = state.playlist;
@@ -1006,6 +1122,12 @@ class AudioNotifier extends StateNotifier<AudioState> {
     try {
       if (_isNavigatingQueue) return;
       if (state.playlist.isEmpty) return;
+      // The queue is still being filled in the background: seeking to an index the engine does
+      // not have yet would fail, so load the target song with a full (re)load instead.
+      if (_audioService.queueLength != state.playlist.length) {
+        await playPlaylist(state.playlist, (state.currentIndex + 1) % state.playlist.length);
+        return;
+      }
       _isNavigatingQueue = true;
       final nextIndex = (state.currentIndex + 1) % state.playlist.length;
       final nextSong = state.playlist[nextIndex];
@@ -1058,6 +1180,10 @@ class AudioNotifier extends StateNotifier<AudioState> {
     try {
       if (_isNavigatingQueue) return;
       if (state.playlist.isEmpty) return;
+      if (_audioService.position <= const Duration(seconds: 4) && _audioService.queueLength != state.playlist.length) {
+        await playPlaylist(state.playlist, (state.currentIndex - 1 + state.playlist.length) % state.playlist.length);
+        return;
+      }
       _isNavigatingQueue = true;
       if (_audioService.position > const Duration(seconds: 4)) {
         await _audioService.seek(Duration.zero).timeout(const Duration(seconds: 3));

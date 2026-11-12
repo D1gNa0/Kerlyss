@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import 'package:kerlyss/core/services/logger_service.dart';
 import 'package:kerlyss/presentation/theme/aether_colors.dart';
 import 'package:kerlyss/core/services/stream_resolution_cache.dart';
+import 'package:kerlyss/core/services/youtube_hints.dart';
 import 'package:kerlyss/main.dart';
 
 class _CachedPipedUrl {
@@ -275,15 +277,41 @@ class YoutubeProxyServer {
     return await _getStreamInfo(videoId, yt);
   }
 
+  // What was learned about YouTube is saved, so the FIRST song of the next session already
+  // starts the working way instead of failing with a 403 first.
+  static bool _hintsLoaded = false;
+
+  static Future<void> _loadHints() async {
+    if (_hintsLoaded) return;
+    _hintsLoaded = true;
+    final hints = await YoutubeHints.load();
+    if (hints == null) return;
+    // Anything learned in this session wins over the saved values.
+    _audioOnlyBlockedUntil ??= hints.audioOnlyBlockedUntil;
+    final client = hints.lastGoodClient;
+    if (_lastGoodClient == null && client != null && _clientsByName.containsKey(client)) {
+      _lastGoodClient = client;
+    }
+    Log.d('YoutubeProxyServer: Loaded saved hints (audio-only blocked until $_audioOnlyBlockedUntil, client $_lastGoodClient)');
+  }
+
+  static void _saveHints() {
+    unawaited(YoutubeHints(audioOnlyBlockedUntil: _audioOnlyBlockedUntil, lastGoodClient: _lastGoodClient).save());
+  }
+
   /// Called as soon as upstream accepted [used]. Remembers what works.
   static void _onStreamSuccess(String videoId, StreamInfo used) {
     final client = _clientOf(used);
-    if (client != null) _lastGoodClient = client;
+    if (client != null && client != _lastGoodClient) {
+      _lastGoodClient = client;
+      _saveHints();
+    }
 
     if (used is MuxedStreamInfo && _pendingAudioOnlyFailure.remove(videoId)) {
-      // Audio-only was refused but muxed worked: go muxed-first for the next 30 minutes.
-      _audioOnlyBlockedUntil = DateTime.now().add(const Duration(minutes: 30));
-      Log.w('YoutubeProxyServer: Audio-only streams are being refused. Using muxed first for 30 minutes.');
+      // Audio-only was refused but muxed worked: go muxed-first (also after a restart).
+      _audioOnlyBlockedUntil = DateTime.now().add(const Duration(hours: 6));
+      _saveHints();
+      Log.event('YoutubeProxyServer: Audio-only streams are being refused. Using muxed first for 6 hours.');
     } else if (used is AudioOnlyStreamInfo) {
       _pendingAudioOnlyFailure.remove(videoId);
     }
@@ -294,6 +322,7 @@ class YoutubeProxyServer {
   static Future<int> start(YoutubeExplode yt) async {
     // Remembered deezerId -> videoId pairs from earlier sessions (skips the YouTube search for replays).
     await StreamResolutionCache.instance.load();
+    await _loadHints();
 
     if (_server != null && _port != null) return _port!;
 
