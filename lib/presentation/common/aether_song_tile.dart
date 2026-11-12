@@ -46,31 +46,67 @@ class AetherSongTile extends ConsumerWidget {
   });
 
 
+  /// True when [song] is the playing track. The same id is always a match. Another id (for
+  /// example the same song from Deezer and from YouTube) only matches when title AND artist
+  /// are equal: matching on the title alone lit up every different song with the same title.
+  static bool isSameTrack({
+    required String currentId,
+    required String currentTitle,
+    required String currentArtist,
+    required SongEntity song,
+  }) {
+    if (currentId.isEmpty) return false;
+    if (currentId == song.id) return true;
+    final title = currentTitle.trim().toLowerCase();
+    final artist = currentArtist.trim().toLowerCase();
+    if (title.isEmpty || artist.isEmpty) return false;
+    return title == song.title.trim().toLowerCase() && artist == song.artist.trim().toLowerCase();
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isFav = ref.watch(libraryProvider.notifier).isSongFavorite(song.id);
-    final libraryState = ref.watch(libraryProvider);
-    final downloadState = ref.watch(downloadStateProvider);
-    
-    final isDownloading = downloadState.downloadingTrackIds.contains(song.id);
-    final downloadProgress = downloadState.downloadProgress[song.id] ?? 0.0;
-    
+    // Every watch below uses select(): a tile rebuilds only when something IT shows changes.
+    // (Before, each tile watched the whole audio state and rebuilt on every position tick,
+    // and `watch(libraryProvider.notifier)` never rebuilt when the favorites changed.)
+    final isFav = ref.watch(libraryProvider.select((s) => s.favoriteSongIds.contains(song.id)));
+
     // Get fresh song state from library if available
-    final songInLib = libraryState.allSongs.where((s) => s.id == song.id).firstOrNull;
-    final hasLocalPath = songInLib != null ? songInLib.localPath != null : song.localPath != null;
+    final hasLocalPath = ref.watch(libraryProvider.select((s) {
+      final inLib = s.allSongs.where((x) => x.id == song.id).firstOrNull;
+      return inLib != null ? inLib.localPath != null : song.localPath != null;
+    }));
+
+    final download = ref.watch(downloadStateProvider.select((s) => (
+          downloading: s.downloadingTrackIds.contains(song.id),
+          progress: s.downloadProgress[song.id] ?? 0.0,
+          done: s.alreadyDownloadedIds.contains(song.id),
+        )));
+    final isDownloading = download.downloading;
+    final downloadProgress = download.progress;
 
     // Check if downloaded: either by localPath or download state
-    final isDownloaded = hasLocalPath || downloadState.alreadyDownloadedIds.contains(song.id);
+    final isDownloaded = hasLocalPath || download.done;
 
-    final audioState = ref.watch(audioProvider);
-    final isCurrentSong = audioState.currentSong.id.isNotEmpty &&
-        (audioState.currentSong.id == song.id ||
-            (audioState.currentSong.title.isNotEmpty &&
-                audioState.currentSong.title.toLowerCase() == song.title.toLowerCase()));
-    final isPlayingCurrent = isCurrentSong && audioState.status == PlaybackStatus.playing;
-    final isLoadingCurrent = isCurrentSong && audioState.isLoadingTrack;
-    final syncState = ref.watch(cloudSyncProvider);
-    final isSongPending = syncState.isSongPending(song.id);
+    final playback = ref.watch(audioProvider.select((s) => (
+          id: s.currentSong.id,
+          title: s.currentSong.title,
+          artist: s.currentSong.artist,
+          playing: s.status == PlaybackStatus.playing,
+          loading: s.isLoadingTrack,
+        )));
+    final isCurrentSong = isSameTrack(
+      currentId: playback.id,
+      currentTitle: playback.title,
+      currentArtist: playback.artist,
+      song: song,
+    );
+    // Spinner and equalizer only on the row with the very same id. A look-alike row (same
+    // title and artist from another source) is only highlighted, so one tap never shows
+    // several spinners.
+    final isExactCurrent = playback.id.isNotEmpty && playback.id == song.id;
+    final isPlayingCurrent = isExactCurrent && playback.playing;
+    final isLoadingCurrent = isExactCurrent && playback.loading;
+    final isSongPending = ref.watch(cloudSyncProvider.select((s) => s.isSongPending(song.id)));
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
@@ -122,7 +158,7 @@ class AetherSongTile extends ConsumerWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      if (isCurrentSong) ...[
+                      if (isExactCurrent) ...[
                         const SizedBox(width: 6),
                         if (isLoadingCurrent)
                           const PlaybackSpinner(size: 14)
