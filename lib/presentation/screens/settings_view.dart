@@ -20,12 +20,31 @@ import '../state/cloud_sync_provider.dart';
 import '../../data/datasources/local/isar_database_service.dart';
 import '../../data/repositories/repository_providers.dart';
 import 'settings_components/equalizer_dialog.dart';
+import 'jam_lab_view.dart';
 
 import '../common/aether_title_bar.dart';
 
 final defaultDownloadsDirProvider = FutureProvider<Directory>((ref) async {
   return AppStoragePaths.downloadsDirectory();
 });
+
+// Five quick taps on the Version row open the Jam test screen (developer tool, hidden on purpose).
+int _versionTaps = 0;
+DateTime? _firstVersionTap;
+
+void _onVersionTap(BuildContext context) {
+  final now = DateTime.now();
+  if (_firstVersionTap == null || now.difference(_firstVersionTap!) > const Duration(seconds: 4)) {
+    _firstVersionTap = now;
+    _versionTaps = 0;
+  }
+  _versionTaps++;
+  if (_versionTaps >= 5) {
+    _versionTaps = 0;
+    _firstVersionTap = null;
+    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const JamLabView()));
+  }
+}
 
 class SettingsView extends ConsumerWidget {
   const SettingsView({super.key});
@@ -175,7 +194,7 @@ class SettingsView extends ConsumerWidget {
                     label: 'Version', 
                     value: version,
                     icon: Icons.info_outline_rounded,
-                    onTap: () {},
+                    onTap: () => _onVersionTap(context),
                   );
                 },
               ),

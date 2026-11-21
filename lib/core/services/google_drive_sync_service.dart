@@ -386,6 +386,10 @@ class GoogleDriveSyncService {
     return drive.DriveApi(client);
   }
 
+  /// The signed-in Drive client for other features (for example the Jam test screen).
+  /// Null when the user is not signed in.
+  Future<drive.DriveApi?> driveApiForFeatures({bool forceRefresh = false}) => _getDriveApi(forceRefresh: forceRefresh);
+
   // --- Synchronization Operations ---
 
   Future<bool> _executePull(drive.DriveApi driveApi) async {
